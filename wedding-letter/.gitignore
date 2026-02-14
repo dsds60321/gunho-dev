@@ -70,11 +70,3 @@ frontend/.vercel/
 ### Test / Coverage ###
 coverage/
 frontend/coverage/
-
-
-### Mac OS ###
-.DS_Store
-.yml
-upload/
-GEMINI.md
-AGENTS.md

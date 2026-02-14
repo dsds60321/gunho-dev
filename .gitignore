@@ -78,3 +78,7 @@ frontend/coverage/
 upload/
 GEMINI.md
 AGENTS.md
+/wedding-letter/src/main/resources/application.yml
+/wedding-letter/src/main/resources/application-dev.yml
+/wedding-letter/src/main/resources/application-local.yml
+/wedding-letter/src/main/resources/application-prod.yml

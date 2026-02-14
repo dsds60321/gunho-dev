@@ -1,0 +1,583 @@
+package com.gh.wedding.service
+
+import com.gh.wedding.common.WeddingErrorCode
+import com.gh.wedding.common.WeddingException
+import com.gh.wedding.domain.Guestbook
+import com.gh.wedding.domain.Invitation
+import com.gh.wedding.domain.InvitationContent
+import com.gh.wedding.domain.InvitationPublication
+import com.gh.wedding.domain.InvitationStatus
+import com.gh.wedding.domain.Rsvp
+import com.gh.wedding.dto.GuestbookCreateRequest
+import com.gh.wedding.dto.GuestbookResponse
+import com.gh.wedding.dto.InvitationCreateRequest
+import com.gh.wedding.dto.InvitationEditorResponse
+import com.gh.wedding.dto.InvitationPublishRequest
+import com.gh.wedding.dto.InvitationPublishResponse
+import com.gh.wedding.dto.InvitationSaveRequest
+import com.gh.wedding.dto.MyInvitationResponse
+import com.gh.wedding.dto.PublicInvitationResponse
+import com.gh.wedding.dto.RsvpCreateRequest
+import com.gh.wedding.dto.RsvpSummaryResponse
+import com.gh.wedding.dto.SlugCheckResponse
+import com.gh.wedding.repository.GuestbookRepository
+import com.gh.wedding.repository.InvitationPublicationRepository
+import com.gh.wedding.repository.InvitationRepository
+import com.gh.wedding.repository.RsvpRepository
+import org.springframework.beans.factory.annotation.Value
+import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
+import org.springframework.web.multipart.MultipartFile
+import java.time.format.DateTimeFormatter
+import java.util.UUID
+
+@Service
+@Transactional
+class InvitationService(
+    private val invitationRepository: InvitationRepository,
+    private val publicationRepository: InvitationPublicationRepository,
+    private val rsvpRepository: RsvpRepository,
+    private val guestbookRepository: GuestbookRepository,
+    private val fileService: FileService,
+    @Value("\${app.frontend.origin:http://localhost:3000}")
+    private val frontendOrigin: String,
+) {
+    private val slugRegex = Regex("^[a-z0-9]+(?:-[a-z0-9]+)*$")
+
+    fun createInvitation(userId: String, request: InvitationCreateRequest): InvitationEditorResponse {
+        val invitation = Invitation(
+            ownerToken = "${UUID.randomUUID()}${UUID.randomUUID()}",
+            userId = userId,
+            templateId = request.templateId ?: "wedding-warm",
+            content = InvitationContent(status = InvitationStatus.ACTIVE),
+        )
+
+        val saved = invitationRepository.save(invitation)
+        return toEditorResponse(saved)
+    }
+
+    @Transactional(readOnly = true)
+    fun getInvitationForOwner(id: Long, userId: String): Invitation {
+        val invitation = invitationRepository.findByIdAndUserId(id, userId)
+            ?: throw WeddingException(WeddingErrorCode.RESOURCE_NOT_FOUND, "초대장을 찾을 수 없습니다.")
+        if (isDeleted(invitation)) {
+            throw WeddingException(WeddingErrorCode.RESOURCE_NOT_FOUND, "삭제된 초대장입니다.")
+        }
+        return invitation
+    }
+
+    @Transactional(readOnly = true)
+    fun getInvitationEditor(id: Long, userId: String): InvitationEditorResponse {
+        val invitation = getInvitationForOwner(id, userId)
+        return toEditorResponse(invitation)
+    }
+
+    fun updateDraft(id: Long, userId: String, request: InvitationSaveRequest): InvitationEditorResponse {
+        val invitation = getInvitationForOwner(id, userId)
+        val content = invitation.content
+
+        request.templateId?.let { invitation.templateId = it }
+
+        if (request.slug != null) {
+            if (request.slug.isBlank()) {
+                invitation.slug = null
+                content.slug = null
+            } else {
+                val normalized = normalizeAndValidateSlug(request.slug)
+                validateSlugAvailableOrThrow(normalized, invitation.id)
+                invitation.slug = normalized
+                content.slug = normalized
+            }
+        }
+
+        request.groomName?.let { content.groomName = it }
+        request.brideName?.let { content.brideName = it }
+        request.date?.let { content.date = it }
+        request.locationName?.let { content.locationName = it }
+        request.address?.let { content.address = it }
+        request.message?.let { content.message = it }
+        request.mainImageUrl?.let { content.mainImageUrl = fileService.processUrl(it) }
+        request.paperInvitationUrl?.let { content.paperInvitationUrl = fileService.processUrl(it) }
+        request.imageUrls?.let { urls ->
+            content.imageUrls = urls
+                .mapNotNull { fileService.processUrl(it)?.trim() }
+                .filter { it.isNotBlank() }
+                .toMutableList()
+        }
+
+        request.groomContact?.let { content.groomContact = it }
+        request.brideContact?.let { content.brideContact = it }
+        request.accountNumber?.let { content.accountNumber = it }
+        request.useSeparateAccounts?.let { content.useSeparateAccounts = it }
+        request.groomAccountNumber?.let { content.groomAccountNumber = it }
+        request.brideAccountNumber?.let { content.brideAccountNumber = it }
+        request.groomRelation?.let { content.groomRelation = it }
+        request.groomFatherName?.let { content.groomFatherName = it }
+        request.groomMotherName?.let { content.groomMotherName = it }
+        request.brideRelation?.let { content.brideRelation = it }
+        request.brideFatherName?.let { content.brideFatherName = it }
+        request.brideMotherName?.let { content.brideMotherName = it }
+        request.bus?.let { content.bus = it }
+        request.subway?.let { content.subway = it }
+        request.car?.let { content.car = it }
+        request.fontFamily?.let { content.fontFamily = it }
+        request.fontColor?.let { content.fontColor = it }
+        request.fontSize?.let { content.fontSize = it }
+        request.useGuestbook?.let { content.useGuestbook = it }
+        request.useRsvpModal?.let { content.useRsvpModal = it }
+        request.backgroundMusicUrl?.let { content.backgroundMusicUrl = it.trim() }
+        request.seoTitle?.let { content.seoTitle = it }
+        request.seoDescription?.let { content.seoDescription = it }
+        request.seoImageUrl?.let { content.seoImageUrl = fileService.processUrl(it) }
+
+        // 추가 필드 매핑
+        request.heroDesignId?.let { content.heroDesignId = it }
+        request.messageFontFamily?.let { content.messageFontFamily = it }
+        request.transportFontFamily?.let { content.transportFontFamily = it }
+        request.rsvpTitle?.let { content.rsvpTitle = it }
+        request.rsvpMessage?.let { content.rsvpMessage = it }
+        request.rsvpButtonText?.let { content.rsvpButtonText = it }
+        request.rsvpFontFamily?.let { content.rsvpFontFamily = it }
+        request.detailContent?.let { content.detailContent = it }
+        request.locationTitle?.let { content.locationTitle = it }
+        request.locationFloorHall?.let { content.locationFloorHall = it }
+        request.locationContact?.let { content.locationContact = it }
+        request.showMap?.let { content.showMap = it }
+        request.lockMap?.let { content.lockMap = it }
+
+        invitation.content = content
+
+        return toEditorResponse(invitation)
+    }
+
+    fun uploadAssets(
+        id: Long,
+        userId: String,
+        mainImageFile: MultipartFile?,
+        paperInvitationFile: MultipartFile?,
+        seoImageFile: MultipartFile?,
+        backgroundMusicFile: MultipartFile?,
+        galleryFiles: List<MultipartFile>?,
+    ): InvitationEditorResponse {
+        val invitation = getInvitationForOwner(id, userId)
+        val content = invitation.content
+        val invitationId = invitation.id?.toString()
+            ?: throw WeddingException(WeddingErrorCode.SERVER_ERROR, "초대장 ID 오류")
+
+        if (mainImageFile != null && !mainImageFile.isEmpty) {
+            content.mainImageUrl = fileService.uploadImage(mainImageFile, userId, invitationId, "main")
+        }
+
+        if (paperInvitationFile != null && !paperInvitationFile.isEmpty) {
+            content.paperInvitationUrl = fileService.uploadImage(paperInvitationFile, userId, invitationId, "paper")
+        }
+
+        if (seoImageFile != null && !seoImageFile.isEmpty) {
+            content.seoImageUrl = fileService.uploadImage(seoImageFile, userId, invitationId, "seo")
+        }
+
+        if (backgroundMusicFile != null && !backgroundMusicFile.isEmpty) {
+            content.backgroundMusicUrl = fileService.uploadRaw(
+                file = backgroundMusicFile,
+                userId = userId,
+                invitationId = invitationId,
+                category = "audio/bgm",
+                requiredContentTypePrefix = "audio/",
+            )
+        }
+
+        if (!galleryFiles.isNullOrEmpty()) {
+            val uploadedUrls = galleryFiles
+                .filterNot { it.isEmpty }
+                .mapNotNull { fileService.uploadImage(it, userId, invitationId, "gallery") }
+
+            if (uploadedUrls.isNotEmpty()) {
+                content.imageUrls = (content.imageUrls + uploadedUrls).toMutableList()
+            }
+        }
+
+        invitation.content = content
+        return toEditorResponse(invitation)
+    }
+
+    @Transactional(readOnly = true)
+    fun checkSlugAvailability(rawSlug: String, invitationId: Long?): SlugCheckResponse {
+        val normalized = normalizeAndValidateSlug(rawSlug)
+        val available = invitationId?.let { !invitationRepository.existsBySlugAndIdNot(normalized, it) }
+            ?: !invitationRepository.existsBySlug(normalized)
+        return SlugCheckResponse(slug = normalized, available = available)
+    }
+
+    fun publish(id: Long, userId: String, request: InvitationPublishRequest): InvitationPublishResponse {
+        val invitation = getInvitationForOwner(id, userId)
+
+        val requestedSlug = request.slug?.takeIf { it.isNotBlank() }
+        val finalSlug = when {
+            requestedSlug != null -> {
+                val normalized = normalizeAndValidateSlug(requestedSlug)
+                validateSlugAvailableOrThrow(normalized, invitation.id)
+                normalized
+            }
+
+            !invitation.slug.isNullOrBlank() -> {
+                val normalized = normalizeAndValidateSlug(invitation.slug!!)
+                validateSlugAvailableOrThrow(normalized, invitation.id)
+                normalized
+            }
+
+            else -> generateUniqueSlug(invitation)
+        }
+
+        invitation.slug = finalSlug
+        invitation.content.slug = finalSlug
+
+        val publication = InvitationPublication(
+            invitation = invitation,
+            content = invitation.content,
+            version = (publicationRepository.findTopByInvitationOrderByVersionDesc(invitation)?.version ?: 0) + 1,
+        )
+
+        publicationRepository.save(publication)
+        invitation.publishedVersion = publication
+
+        val shareUrl = "${frontendOrigin.trimEnd('/')}/invitation/$finalSlug"
+        return InvitationPublishResponse(
+            invitationId = invitation.id ?: throw WeddingException(WeddingErrorCode.SERVER_ERROR, "ID 생성 실패"),
+            slug = finalSlug,
+            shareUrl = shareUrl,
+        )
+    }
+
+    fun softDeleteInvitation(id: Long, userId: String) {
+        val invitation = invitationRepository.findByIdAndUserId(id, userId)
+            ?: throw WeddingException(WeddingErrorCode.RESOURCE_NOT_FOUND, "초대장을 찾을 수 없습니다.")
+
+        if (isDeleted(invitation)) {
+            return
+        }
+
+        if (invitation.publishedVersion != null) {
+            throw WeddingException(WeddingErrorCode.INVALID_INPUT, "발행된 청첩장은 삭제할 수 없습니다.")
+        }
+
+        val content = invitation.content
+        invitation.slug = null
+        invitation.publishedVersion = null
+        content.slug = null
+        content.status = InvitationStatus.DELETED
+        invitation.content = content
+    }
+
+    @Transactional(readOnly = true)
+    fun getMyInvitations(userId: String): List<MyInvitationResponse> {
+        return invitationRepository.findByUserIdOrderByCreatedAtDesc(userId)
+            .filterNot { isDeleted(it) }
+            .map { invitation ->
+                val content = invitation.content
+                val title = listOfNotNull(content.groomName, content.brideName)
+                    .joinToString(" & ")
+                    .ifBlank { "제목 미입력 초대장" }
+
+                MyInvitationResponse(
+                    id = invitation.id ?: 0,
+                    slug = invitation.slug,
+                    published = invitation.publishedVersion != null,
+                    templateId = invitation.templateId,
+                    title = title,
+                    weddingDate = content.date,
+                    mainImageUrl = content.mainImageUrl ?: content.imageUrls.firstOrNull(),
+                    updatedAt = invitation.updatedAt?.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
+                )
+            }
+    }
+
+    @Transactional(readOnly = true)
+    fun getMyRsvps(userId: String): List<RsvpSummaryResponse> {
+        return rsvpRepository.findByInvitation_UserIdOrderByCreatedAtDesc(userId)
+            .filter { rsvp -> rsvp.invitation?.let { !isDeleted(it) } ?: false }
+            .map { toRsvpSummary(it) }
+    }
+
+    @Transactional(readOnly = true)
+    fun getRsvpsByInvitation(invitationId: Long, userId: String): List<RsvpSummaryResponse> {
+        val invitation = getInvitationForOwner(invitationId, userId)
+        return rsvpRepository.findByInvitationOrderByCreatedAtDesc(invitation)
+            .map { toRsvpSummary(it) }
+    }
+
+    @Transactional(readOnly = true)
+    fun getPublishedInvitation(slugOrId: String): PublicInvitationResponse {
+        val invitation = findPublishedInvitation(slugOrId)
+
+        val publication = invitation.publishedVersion
+            ?: throw WeddingException(WeddingErrorCode.RESOURCE_NOT_FOUND, "아직 발행되지 않은 초대장입니다.")
+
+        val content = publication.content
+        val coverImage = content.seoImageUrl
+            ?: content.mainImageUrl
+            ?: content.imageUrls.firstOrNull()
+            ?: "https://images.unsplash.com/photo-1515934751635-c81c6bc9a2d8?auto=format&fit=crop&q=80"
+        val mapImage = content.paperInvitationUrl
+            ?: content.mainImageUrl
+            ?: content.imageUrls.firstOrNull()
+            ?: coverImage
+
+        val weddingDate = content.date ?: "2026-05-23T12:30:00+09:00"
+        val venueName = content.locationName ?: "예식장 정보 미입력"
+        val venueAddress = content.address ?: "주소 정보 미입력"
+        val messageLines = content.message
+            ?.split("\n")
+            ?.map { it.trim() }
+            ?.filter { it.isNotBlank() }
+            ?.ifEmpty { null }
+            ?: listOf("함께할 그날을 기다리며, 소중한 분들을 정중히 초대합니다.")
+
+        val groomName = content.groomName ?: "신랑"
+        val brideName = content.brideName ?: "신부"
+
+        return PublicInvitationResponse(
+            id = (invitation.id ?: 0).toString(),
+            slug = invitation.slug ?: slugOrId,
+            groomName = groomName,
+            brideName = brideName,
+            weddingDateTime = weddingDate,
+            venueName = venueName,
+            venueAddress = venueAddress,
+            coverImageUrl = coverImage,
+            mapImageUrl = mapImage,
+            messageLines = messageLines,
+            seoTitle = content.seoTitle,
+            seoDescription = content.seoDescription,
+            seoImageUrl = content.seoImageUrl,
+            // 추가 필드
+            heroDesignId = content.heroDesignId,
+            message = content.message,
+            messageFontFamily = content.messageFontFamily,
+            transportFontFamily = content.transportFontFamily,
+            rsvpTitle = content.rsvpTitle,
+            rsvpMessage = content.rsvpMessage,
+            rsvpButtonText = content.rsvpButtonText,
+            rsvpFontFamily = content.rsvpFontFamily,
+            detailContent = content.detailContent,
+            locationTitle = content.locationTitle,
+            locationFloorHall = content.locationFloorHall,
+            locationContact = content.locationContact,
+            showMap = content.showMap,
+            lockMap = content.lockMap,
+            subway = content.subway,
+            bus = content.bus,
+            car = content.car,
+            accountNumber = content.accountNumber,
+            useSeparateAccounts = content.useSeparateAccounts,
+            groomAccountNumber = content.groomAccountNumber,
+            brideAccountNumber = content.brideAccountNumber,
+            groomContact = content.groomContact,
+            brideContact = content.brideContact,
+        )
+    }
+
+    fun submitRsvp(slug: String, request: RsvpCreateRequest, ipAddress: String?) {
+        val invitation = findPublishedInvitationBySlug(slug)
+
+        val rsvp = Rsvp(
+            invitation = invitation,
+            name = request.name,
+            attending = request.attending,
+            partyCount = if (request.attending) request.partyCount.coerceAtLeast(1) else 0,
+            meal = request.meal,
+            note = request.note,
+            ipAddress = ipAddress,
+        )
+
+        rsvpRepository.save(rsvp)
+    }
+
+    fun addGuestbookEntry(slug: String, request: GuestbookCreateRequest) {
+        val invitation = findPublishedInvitationBySlug(slug)
+
+        guestbookRepository.save(
+            Guestbook(
+                invitation = invitation,
+                name = request.name,
+                password = request.password,
+                content = request.content,
+            ),
+        )
+    }
+
+    @Transactional(readOnly = true)
+    fun getGuestbookEntries(slug: String): List<GuestbookResponse> {
+        val invitation = findPublishedInvitationBySlug(slug)
+
+        return guestbookRepository.findByInvitationIdOrderByCreatedAtDesc(invitation.id ?: 0)
+            .map {
+                GuestbookResponse(
+                    id = it.id ?: 0,
+                    name = it.name,
+                    content = it.content,
+                    createdAt = it.createdAt?.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME) ?: "",
+                )
+            }
+    }
+
+    private fun toEditorResponse(invitation: Invitation): InvitationEditorResponse {
+        val content = invitation.content
+        return InvitationEditorResponse(
+            id = invitation.id ?: 0,
+            templateId = invitation.templateId,
+            slug = invitation.slug,
+            published = invitation.publishedVersion != null,
+            updatedAt = invitation.updatedAt?.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
+            groomName = content.groomName,
+            brideName = content.brideName,
+            date = content.date,
+            locationName = content.locationName,
+            address = content.address,
+            message = content.message,
+            mainImageUrl = content.mainImageUrl,
+            imageUrls = content.imageUrls,
+            paperInvitationUrl = content.paperInvitationUrl,
+            groomContact = content.groomContact,
+            brideContact = content.brideContact,
+            accountNumber = content.accountNumber,
+            useSeparateAccounts = content.useSeparateAccounts,
+            groomAccountNumber = content.groomAccountNumber,
+            brideAccountNumber = content.brideAccountNumber,
+            groomRelation = content.groomRelation,
+            groomFatherName = content.groomFatherName,
+            groomMotherName = content.groomMotherName,
+            brideRelation = content.brideRelation,
+            brideFatherName = content.brideFatherName,
+            brideMotherName = content.brideMotherName,
+            bus = content.bus,
+            subway = content.subway,
+            car = content.car,
+            fontFamily = content.fontFamily,
+            fontColor = content.fontColor,
+            fontSize = content.fontSize,
+            useGuestbook = content.useGuestbook,
+            useRsvpModal = content.useRsvpModal,
+            backgroundMusicUrl = content.backgroundMusicUrl,
+            seoTitle = content.seoTitle,
+            seoDescription = content.seoDescription,
+            seoImageUrl = content.seoImageUrl,
+            // 추가 필드
+            heroDesignId = content.heroDesignId,
+            messageFontFamily = content.messageFontFamily,
+            transportFontFamily = content.transportFontFamily,
+            rsvpTitle = content.rsvpTitle,
+            rsvpMessage = content.rsvpMessage,
+            rsvpButtonText = content.rsvpButtonText,
+            rsvpFontFamily = content.rsvpFontFamily,
+            detailContent = content.detailContent,
+            locationTitle = content.locationTitle,
+            locationFloorHall = content.locationFloorHall,
+            locationContact = content.locationContact,
+            showMap = content.showMap,
+            lockMap = content.lockMap,
+        )
+    }
+
+    private fun toRsvpSummary(rsvp: Rsvp): RsvpSummaryResponse {
+        val invitation = rsvp.invitation
+            ?: throw WeddingException(WeddingErrorCode.SERVER_ERROR, "초대장 정보 누락")
+        val content = invitation.content
+        val title = listOfNotNull(content.groomName, content.brideName)
+            .joinToString(" & ")
+            .ifBlank { "제목 미입력 초대장" }
+
+        return RsvpSummaryResponse(
+            invitationId = invitation.id ?: 0,
+            invitationTitle = title,
+            name = rsvp.name,
+            attending = rsvp.attending,
+            partyCount = rsvp.partyCount,
+            meal = rsvp.meal,
+            note = rsvp.note,
+            createdAt = rsvp.createdAt?.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME) ?: "",
+        )
+    }
+
+    private fun validateSlugAvailableOrThrow(slug: String, invitationId: Long?) {
+        val duplicated = invitationId?.let { invitationRepository.existsBySlugAndIdNot(slug, it) }
+            ?: invitationRepository.existsBySlug(slug)
+
+        if (duplicated) {
+            throw WeddingException(WeddingErrorCode.DUPLICATE_RESOURCE, "이미 사용 중인 slug 입니다.")
+        }
+    }
+
+    private fun generateUniqueSlug(invitation: Invitation): String {
+        val candidates = mutableListOf<String>()
+
+        val nameBased = normalizeSlug(
+            listOfNotNull(invitation.content.groomName, invitation.content.brideName)
+                .joinToString("-")
+                .ifBlank { "wedding" },
+        )
+
+        if (nameBased.isNotBlank() && slugRegex.matches(nameBased)) {
+            candidates.add(nameBased)
+            candidates.add("$nameBased-${UUID.randomUUID().toString().take(6)}")
+        }
+
+        candidates.add("wedding-${UUID.randomUUID().toString().take(8)}")
+
+        return candidates.first { !invitationRepository.existsBySlug(it) }
+    }
+
+    private fun normalizeAndValidateSlug(rawSlug: String): String {
+        val normalized = normalizeSlug(rawSlug)
+        if (normalized.length !in 3..50) {
+            throw WeddingException(WeddingErrorCode.INVALID_INPUT, "slug 길이는 3~50자여야 합니다.")
+        }
+        if (!slugRegex.matches(normalized)) {
+            throw WeddingException(WeddingErrorCode.INVALID_INPUT, "slug 형식이 올바르지 않습니다. (소문자/숫자/-)")
+        }
+        return normalized
+    }
+
+    private fun normalizeSlug(rawSlug: String): String {
+        return rawSlug
+            .trim()
+            .lowercase()
+            .replace(Regex("[^a-z0-9\\s-]"), "")
+            .replace(Regex("\\s+"), "-")
+            .replace(Regex("-+"), "-")
+            .trim('-')
+    }
+
+    private fun isDeleted(invitation: Invitation): Boolean {
+        return invitation.content.status == InvitationStatus.DELETED
+    }
+
+    private fun findPublishedInvitation(slugOrId: String): Invitation {
+        val parsedId = slugOrId.toLongOrNull()
+        if (parsedId != null) {
+            val invitationById = invitationRepository.findById(parsedId).orElse(null)
+            if (invitationById != null && !isDeleted(invitationById) && invitationById.publishedVersion != null) {
+                return invitationById
+            }
+        }
+
+        val invitationBySlug = invitationRepository.findBySlug(slugOrId)
+            ?: throw WeddingException(WeddingErrorCode.RESOURCE_NOT_FOUND, "발행된 초대장을 찾을 수 없습니다.")
+
+        if (isDeleted(invitationBySlug) || invitationBySlug.publishedVersion == null) {
+            throw WeddingException(WeddingErrorCode.RESOURCE_NOT_FOUND, "발행된 초대장을 찾을 수 없습니다.")
+        }
+
+        return invitationBySlug
+    }
+
+    private fun findPublishedInvitationBySlug(slug: String): Invitation {
+        val invitation = invitationRepository.findBySlug(slug)
+            ?: throw WeddingException(WeddingErrorCode.RESOURCE_NOT_FOUND, "초대장을 찾을 수 없습니다.")
+
+        if (isDeleted(invitation) || invitation.publishedVersion == null) {
+            throw WeddingException(WeddingErrorCode.RESOURCE_NOT_FOUND, "발행된 초대장을 찾을 수 없습니다.")
+        }
+
+        return invitation
+    }
+}

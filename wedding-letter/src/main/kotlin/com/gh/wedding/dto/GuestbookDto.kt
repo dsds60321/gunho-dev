@@ -20,3 +20,12 @@ data class GuestbookResponse(
     val content: String,
     val createdAt: String,
 )
+
+data class MyGuestbookResponse(
+    val id: Long,
+    val invitationId: Long,
+    val invitationTitle: String,
+    val name: String,
+    val content: String,
+    val createdAt: String,
+)

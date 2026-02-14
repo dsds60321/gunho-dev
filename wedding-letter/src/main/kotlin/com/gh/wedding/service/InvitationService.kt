@@ -9,6 +9,7 @@ import com.gh.wedding.domain.InvitationPublication
 import com.gh.wedding.domain.InvitationStatus
 import com.gh.wedding.domain.Rsvp
 import com.gh.wedding.dto.GuestbookCreateRequest
+import com.gh.wedding.dto.MyGuestbookResponse
 import com.gh.wedding.dto.GuestbookResponse
 import com.gh.wedding.dto.InvitationCreateRequest
 import com.gh.wedding.dto.InvitationEditorResponse
@@ -132,6 +133,10 @@ class InvitationService(
 
         // 추가 필드 매핑
         request.heroDesignId?.let { content.heroDesignId = it }
+        request.heroEffectType?.let { content.heroEffectType = it }
+        request.heroEffectParticleCount?.let { content.heroEffectParticleCount = it.coerceIn(6, 120) }
+        request.heroEffectSpeed?.let { content.heroEffectSpeed = it.coerceIn(40, 220) }
+        request.heroEffectOpacity?.let { content.heroEffectOpacity = it.coerceIn(15, 100) }
         request.messageFontFamily?.let { content.messageFontFamily = it }
         request.transportFontFamily?.let { content.transportFontFamily = it }
         request.rsvpTitle?.let { content.rsvpTitle = it }
@@ -299,6 +304,42 @@ class InvitationService(
     }
 
     @Transactional(readOnly = true)
+    fun getMyGuestbooks(userId: String): List<MyGuestbookResponse> {
+        return guestbookRepository.findByInvitation_UserIdOrderByCreatedAtDesc(userId)
+            .filter { guestbook -> guestbook.invitation?.let { !isDeleted(it) } ?: false }
+            .map { guestbook ->
+                val invitation = guestbook.invitation
+                    ?: throw WeddingException(WeddingErrorCode.SERVER_ERROR, "초대장 정보 누락")
+                val content = invitation.content
+                val title = listOfNotNull(content.groomName, content.brideName)
+                    .joinToString(" & ")
+                    .ifBlank { "제목 미입력 초대장" }
+
+                MyGuestbookResponse(
+                    id = guestbook.id ?: 0,
+                    invitationId = invitation.id ?: 0,
+                    invitationTitle = title,
+                    name = guestbook.name,
+                    content = guestbook.content,
+                    createdAt = guestbook.createdAt?.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME) ?: "",
+                )
+            }
+    }
+
+    fun deleteMyGuestbook(guestbookId: Long, userId: String) {
+        val guestbook = guestbookRepository.findByIdAndInvitation_UserId(guestbookId, userId)
+            ?: throw WeddingException(WeddingErrorCode.RESOURCE_NOT_FOUND, "방명록을 찾을 수 없습니다.")
+
+        val invitation = guestbook.invitation
+            ?: throw WeddingException(WeddingErrorCode.RESOURCE_NOT_FOUND, "초대장 정보를 찾을 수 없습니다.")
+        if (isDeleted(invitation)) {
+            throw WeddingException(WeddingErrorCode.RESOURCE_NOT_FOUND, "삭제된 초대장의 방명록입니다.")
+        }
+
+        guestbookRepository.delete(guestbook)
+    }
+
+    @Transactional(readOnly = true)
     fun getRsvpsByInvitation(invitationId: Long, userId: String): List<RsvpSummaryResponse> {
         val invitation = getInvitationForOwner(invitationId, userId)
         return rsvpRepository.findByInvitationOrderByCreatedAtDesc(invitation)
@@ -351,6 +392,10 @@ class InvitationService(
             seoImageUrl = content.seoImageUrl,
             // 추가 필드
             heroDesignId = content.heroDesignId,
+            heroEffectType = content.heroEffectType,
+            heroEffectParticleCount = content.heroEffectParticleCount,
+            heroEffectSpeed = content.heroEffectSpeed,
+            heroEffectOpacity = content.heroEffectOpacity,
             message = content.message,
             messageFontFamily = content.messageFontFamily,
             transportFontFamily = content.transportFontFamily,
@@ -463,6 +508,10 @@ class InvitationService(
             seoImageUrl = content.seoImageUrl,
             // 추가 필드
             heroDesignId = content.heroDesignId,
+            heroEffectType = content.heroEffectType,
+            heroEffectParticleCount = content.heroEffectParticleCount,
+            heroEffectSpeed = content.heroEffectSpeed,
+            heroEffectOpacity = content.heroEffectOpacity,
             messageFontFamily = content.messageFontFamily,
             transportFontFamily = content.transportFontFamily,
             rsvpTitle = content.rsvpTitle,

@@ -42,6 +42,10 @@ data class InvitationSaveRequest(
     val seoImageUrl: String? = null,
     // 추가된 필드들
     val heroDesignId: String? = null,
+    val heroEffectType: String? = null,
+    val heroEffectParticleCount: Int? = null,
+    val heroEffectSpeed: Int? = null,
+    val heroEffectOpacity: Int? = null,
     val messageFontFamily: String? = null,
     val transportFontFamily: String? = null,
     val rsvpTitle: String? = null,
@@ -112,6 +116,10 @@ data class InvitationEditorResponse(
     val seoImageUrl: String?,
     // 추가된 필드들
     val heroDesignId: String?,
+    val heroEffectType: String?,
+    val heroEffectParticleCount: Int?,
+    val heroEffectSpeed: Int?,
+    val heroEffectOpacity: Int?,
     val messageFontFamily: String?,
     val transportFontFamily: String?,
     val rsvpTitle: String?,
@@ -153,6 +161,10 @@ data class PublicInvitationResponse(
     val seoImageUrl: String?,
     // 추가 필드
     val heroDesignId: String?,
+    val heroEffectType: String?,
+    val heroEffectParticleCount: Int?,
+    val heroEffectSpeed: Int?,
+    val heroEffectOpacity: Int?,
     val message: String?,
     val messageFontFamily: String?,
     val transportFontFamily: String?,

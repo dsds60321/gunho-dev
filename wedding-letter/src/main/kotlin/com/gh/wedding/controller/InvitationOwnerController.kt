@@ -6,6 +6,7 @@ import com.gh.wedding.dto.InvitationEditorResponse
 import com.gh.wedding.dto.InvitationPublishRequest
 import com.gh.wedding.dto.InvitationPublishResponse
 import com.gh.wedding.dto.InvitationSaveRequest
+import com.gh.wedding.dto.MyGuestbookResponse
 import com.gh.wedding.dto.MyInvitationResponse
 import com.gh.wedding.dto.RsvpSummaryResponse
 import com.gh.wedding.dto.SlugCheckResponse
@@ -112,6 +113,22 @@ class InvitationOwnerController(
     fun myInvitations(authentication: Authentication?): List<MyInvitationResponse> {
         val user = authentication.requireAuthUser()
         return invitationService.getMyInvitations(user.userId)
+    }
+
+    @GetMapping("/me/guestbooks")
+    fun myGuestbooks(authentication: Authentication?): List<MyGuestbookResponse> {
+        val user = authentication.requireAuthUser()
+        return invitationService.getMyGuestbooks(user.userId)
+    }
+
+    @DeleteMapping("/me/guestbooks/{guestbookId}")
+    fun deleteMyGuestbook(
+        authentication: Authentication?,
+        @PathVariable guestbookId: Long,
+    ): Map<String, String> {
+        val user = authentication.requireAuthUser()
+        invitationService.deleteMyGuestbook(guestbookId, user.userId)
+        return mapOf("message" to "방명록이 삭제되었습니다.")
     }
 
     @GetMapping("/{id}/rsvps")

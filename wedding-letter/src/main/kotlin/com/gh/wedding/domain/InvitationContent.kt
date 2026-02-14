@@ -48,6 +48,10 @@ data class InvitationContent(
     var seoImageUrl: String? = null,
     // 추가된 필드들
     var heroDesignId: String? = null,
+    var heroEffectType: String? = "none",
+    var heroEffectParticleCount: Int? = 30,
+    var heroEffectSpeed: Int? = 100,
+    var heroEffectOpacity: Int? = 72,
     var messageFontFamily: String? = null,
     var transportFontFamily: String? = null,
     var rsvpTitle: String? = null,

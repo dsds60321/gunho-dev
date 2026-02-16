@@ -46,6 +46,8 @@ data class InvitationContent(
     var seoTitle: String? = null,
     var seoDescription: String? = null,
     var seoImageUrl: String? = null,
+    var galleryTitle: String? = "웨딩 갤러리",
+    var galleryType: String? = "swipe",
     // 추가된 필드들
     var heroDesignId: String? = null,
     var heroEffectType: String? = "none",

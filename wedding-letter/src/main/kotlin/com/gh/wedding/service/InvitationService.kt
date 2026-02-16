@@ -130,6 +130,8 @@ class InvitationService(
         request.seoTitle?.let { content.seoTitle = it }
         request.seoDescription?.let { content.seoDescription = it }
         request.seoImageUrl?.let { content.seoImageUrl = fileService.processUrl(it) }
+        request.galleryTitle?.let { content.galleryTitle = it }
+        request.galleryType?.let { content.galleryType = it }
 
         // 추가 필드 매핑
         request.heroDesignId?.let { content.heroDesignId = it }
@@ -347,6 +349,40 @@ class InvitationService(
     }
 
     @Transactional(readOnly = true)
+    fun getGuestbookEntriesForOwner(invitationId: Long, userId: String): List<GuestbookResponse> {
+        val invitation = getInvitationForOwner(invitationId, userId)
+        return guestbookRepository.findByInvitationIdOrderByCreatedAtDesc(invitation.id ?: 0)
+            .map {
+                GuestbookResponse(
+                    id = it.id ?: 0,
+                    name = it.name,
+                    content = it.content,
+                    createdAt = it.createdAt?.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME) ?: "",
+                )
+            }
+    }
+
+    fun addGuestbookEntryForOwner(invitationId: Long, userId: String, request: GuestbookCreateRequest): GuestbookResponse {
+        val invitation = getInvitationForOwner(invitationId, userId)
+
+        val saved = guestbookRepository.save(
+            Guestbook(
+                invitation = invitation,
+                name = request.name,
+                password = request.password,
+                content = request.content,
+            ),
+        )
+
+        return GuestbookResponse(
+            id = saved.id ?: 0,
+            name = saved.name,
+            content = saved.content,
+            createdAt = saved.createdAt?.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME) ?: "",
+        )
+    }
+
+    @Transactional(readOnly = true)
     fun getPublishedInvitation(slugOrId: String): PublicInvitationResponse {
         val invitation = findPublishedInvitation(slugOrId)
 
@@ -390,6 +426,8 @@ class InvitationService(
             seoTitle = content.seoTitle,
             seoDescription = content.seoDescription,
             seoImageUrl = content.seoImageUrl,
+            galleryTitle = content.galleryTitle,
+            galleryType = content.galleryType,
             // 추가 필드
             heroDesignId = content.heroDesignId,
             heroEffectType = content.heroEffectType,
@@ -412,6 +450,8 @@ class InvitationService(
             subway = content.subway,
             bus = content.bus,
             car = content.car,
+            useGuestbook = content.useGuestbook,
+            useRsvpModal = content.useRsvpModal,
             accountNumber = content.accountNumber,
             useSeparateAccounts = content.useSeparateAccounts,
             groomAccountNumber = content.groomAccountNumber,
@@ -423,6 +463,22 @@ class InvitationService(
 
     fun submitRsvp(slug: String, request: RsvpCreateRequest, ipAddress: String?) {
         val invitation = findPublishedInvitationBySlug(slug)
+
+        val rsvp = Rsvp(
+            invitation = invitation,
+            name = request.name,
+            attending = request.attending,
+            partyCount = if (request.attending) request.partyCount.coerceAtLeast(1) else 0,
+            meal = request.meal,
+            note = request.note,
+            ipAddress = ipAddress,
+        )
+
+        rsvpRepository.save(rsvp)
+    }
+
+    fun addRsvpForOwner(invitationId: Long, userId: String, request: RsvpCreateRequest, ipAddress: String?) {
+        val invitation = getInvitationForOwner(invitationId, userId)
 
         val rsvp = Rsvp(
             invitation = invitation,
@@ -506,6 +562,8 @@ class InvitationService(
             seoTitle = content.seoTitle,
             seoDescription = content.seoDescription,
             seoImageUrl = content.seoImageUrl,
+            galleryTitle = content.galleryTitle,
+            galleryType = content.galleryType,
             // 추가 필드
             heroDesignId = content.heroDesignId,
             heroEffectType = content.heroEffectType,

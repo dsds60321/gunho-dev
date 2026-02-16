@@ -40,6 +40,8 @@ data class InvitationSaveRequest(
     val seoTitle: String? = null,
     val seoDescription: String? = null,
     val seoImageUrl: String? = null,
+    val galleryTitle: String? = null,
+    val galleryType: String? = null,
     // 추가된 필드들
     val heroDesignId: String? = null,
     val heroEffectType: String? = null,
@@ -114,6 +116,8 @@ data class InvitationEditorResponse(
     val seoTitle: String?,
     val seoDescription: String?,
     val seoImageUrl: String?,
+    val galleryTitle: String?,
+    val galleryType: String?,
     // 추가된 필드들
     val heroDesignId: String?,
     val heroEffectType: String?,
@@ -159,6 +163,8 @@ data class PublicInvitationResponse(
     val seoTitle: String?,
     val seoDescription: String?,
     val seoImageUrl: String?,
+    val galleryTitle: String?,
+    val galleryType: String?,
     // 추가 필드
     val heroDesignId: String?,
     val heroEffectType: String?,
@@ -181,6 +187,8 @@ data class PublicInvitationResponse(
     val subway: String?,
     val bus: String?,
     val car: String?,
+    val useGuestbook: Boolean,
+    val useRsvpModal: Boolean,
     val accountNumber: String?,
     val useSeparateAccounts: Boolean,
     val groomAccountNumber: String?,

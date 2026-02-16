@@ -1,6 +1,8 @@
 package com.gh.wedding.controller
 
 import com.gh.wedding.common.requireAuthUser
+import com.gh.wedding.dto.GuestbookCreateRequest
+import com.gh.wedding.dto.GuestbookResponse
 import com.gh.wedding.dto.InvitationCreateRequest
 import com.gh.wedding.dto.InvitationEditorResponse
 import com.gh.wedding.dto.InvitationPublishRequest
@@ -9,6 +11,7 @@ import com.gh.wedding.dto.InvitationSaveRequest
 import com.gh.wedding.dto.MyGuestbookResponse
 import com.gh.wedding.dto.MyInvitationResponse
 import com.gh.wedding.dto.RsvpSummaryResponse
+import com.gh.wedding.dto.RsvpCreateRequest
 import com.gh.wedding.dto.SlugCheckResponse
 import com.gh.wedding.service.InvitationService
 import org.springframework.http.MediaType
@@ -24,6 +27,8 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import org.springframework.web.multipart.MultipartFile
+import jakarta.servlet.http.HttpServletRequest
+import jakarta.validation.Valid
 
 @RestController
 @RequestMapping("/api/invitations")
@@ -138,6 +143,37 @@ class InvitationOwnerController(
     ): List<RsvpSummaryResponse> {
         val user = authentication.requireAuthUser()
         return invitationService.getRsvpsByInvitation(id, user.userId)
+    }
+
+    @PostMapping("/{id}/rsvps")
+    fun addInvitationRsvp(
+        authentication: Authentication?,
+        @PathVariable id: Long,
+        @Valid @RequestBody request: RsvpCreateRequest,
+        httpServletRequest: HttpServletRequest,
+    ): Map<String, String> {
+        val user = authentication.requireAuthUser()
+        invitationService.addRsvpForOwner(id, user.userId, request, httpServletRequest.remoteAddr)
+        return mapOf("message" to "RSVP가 등록되었습니다.")
+    }
+
+    @GetMapping("/{id}/guestbook")
+    fun invitationGuestbook(
+        authentication: Authentication?,
+        @PathVariable id: Long,
+    ): List<GuestbookResponse> {
+        val user = authentication.requireAuthUser()
+        return invitationService.getGuestbookEntriesForOwner(id, user.userId)
+    }
+
+    @PostMapping("/{id}/guestbook")
+    fun addInvitationGuestbook(
+        authentication: Authentication?,
+        @PathVariable id: Long,
+        @Valid @RequestBody request: GuestbookCreateRequest,
+    ): GuestbookResponse {
+        val user = authentication.requireAuthUser()
+        return invitationService.addGuestbookEntryForOwner(id, user.userId, request)
     }
 
     @GetMapping("/{id}/rsvps.csv", produces = ["text/csv"])

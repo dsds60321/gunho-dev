@@ -132,6 +132,14 @@ class InvitationService(
         request.seoImageUrl?.let { content.seoImageUrl = fileService.processUrl(it) }
         request.galleryTitle?.let { content.galleryTitle = it }
         request.galleryType?.let { content.galleryType = it }
+        request.themeBackgroundColor?.let { content.themeBackgroundColor = it.trim() }
+        request.themeTextColor?.let { content.themeTextColor = it.trim() }
+        request.themeAccentColor?.let { content.themeAccentColor = it.trim() }
+        request.themePattern?.let { content.themePattern = it.trim() }
+        request.themeEffectType?.let { content.themeEffectType = it.trim() }
+        request.themeFontFamily?.let { content.themeFontFamily = it }
+        request.themeFontSize?.let { content.themeFontSize = it.coerceIn(12, 28) }
+        request.themeScrollReveal?.let { content.themeScrollReveal = it }
 
         // 추가 필드 매핑
         request.heroDesignId?.let { content.heroDesignId = it }
@@ -430,6 +438,14 @@ class InvitationService(
             seoImageUrl = content.seoImageUrl,
             galleryTitle = content.galleryTitle,
             galleryType = content.galleryType,
+            themeBackgroundColor = content.themeBackgroundColor,
+            themeTextColor = content.themeTextColor,
+            themeAccentColor = content.themeAccentColor,
+            themePattern = content.themePattern,
+            themeEffectType = content.themeEffectType,
+            themeFontFamily = content.themeFontFamily,
+            themeFontSize = content.themeFontSize,
+            themeScrollReveal = content.themeScrollReveal,
             // 추가 필드
             heroDesignId = content.heroDesignId,
             heroEffectType = content.heroEffectType,
@@ -566,6 +582,14 @@ class InvitationService(
             seoImageUrl = content.seoImageUrl,
             galleryTitle = content.galleryTitle,
             galleryType = content.galleryType,
+            themeBackgroundColor = content.themeBackgroundColor,
+            themeTextColor = content.themeTextColor,
+            themeAccentColor = content.themeAccentColor,
+            themePattern = content.themePattern,
+            themeEffectType = content.themeEffectType,
+            themeFontFamily = content.themeFontFamily,
+            themeFontSize = content.themeFontSize,
+            themeScrollReveal = content.themeScrollReveal,
             // 추가 필드
             heroDesignId = content.heroDesignId,
             heroEffectType = content.heroEffectType,

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { ThemeProvider } from "./theme-provider";
+import { DEFAULT_THEME } from "@/lib/theme";
 
 export const metadata: Metadata = {
   title: "Wedding Letter",
@@ -13,7 +14,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ko" data-theme="autumn">
+    <html lang="ko" data-theme={DEFAULT_THEME}>
       <head>
         <link
           rel="stylesheet"

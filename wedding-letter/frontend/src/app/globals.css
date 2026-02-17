@@ -56,6 +56,17 @@
   --theme-accent: #a0a0a0;
 }
 
+[data-theme='gh'] {
+    --theme-bg: #fffbfc;
+    --theme-text-primary: #3d3535;
+    --theme-text-secondary: #8f7e7e;
+    --theme-divider: #f2e6e6;
+    --theme-brand: #e6b2b2;
+    --theme-accent: #a0a0a0;
+}
+
+
+
 * {
   box-sizing: border-box;
 }

@@ -1,7 +1,10 @@
 package com.gh.wedding.security
 
-import com.gh.wedding.config.JwtProperties
 import com.gh.wedding.config.OAuth2Properties
+import com.gh.wedding.domain.UserAccount
+import com.gh.wedding.domain.UserRole
+import com.gh.wedding.repository.UserAccountRepository
+import com.gh.wedding.service.AdminAuthorizationService
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 import org.springframework.security.core.Authentication
@@ -10,14 +13,14 @@ import org.springframework.security.oauth2.core.user.OAuth2User
 import org.springframework.security.web.authentication.AuthenticationFailureHandler
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler
 import org.springframework.stereotype.Component
-import org.springframework.http.ResponseCookie
-import java.time.Duration
 
 @Component
 class OAuth2LoginSuccessHandler(
     private val jwtTokenProvider: JwtTokenProvider,
     private val oauth2Properties: OAuth2Properties,
-    private val jwtProperties: JwtProperties,
+    private val accessTokenCookieService: AccessTokenCookieService,
+    private val userAccountRepository: UserAccountRepository,
+    private val adminAuthorizationService: AdminAuthorizationService,
 ) : AuthenticationSuccessHandler {
 
     override fun onAuthenticationSuccess(
@@ -29,22 +32,15 @@ class OAuth2LoginSuccessHandler(
         val provider = oauthToken.authorizedClientRegistrationId
         val oauthUser = oauthToken.principal
         val user = extractUser(provider, oauthUser)
+        upsertUserAccount(user)
         val accessToken = jwtTokenProvider.createAccessToken(user)
 
-        val cookieBuilder = ResponseCookie.from(JwtTokenProvider.ACCESS_TOKEN_COOKIE_NAME, accessToken)
-            .httpOnly(true)
-            .secure(request.isSecure)
-            .path("/")
-            .sameSite("Lax")
-            .maxAge(Duration.ofSeconds(jwtTokenProvider.tokenValiditySeconds()))
-        jwtProperties.cookieDomain
-            ?.trim()
-            ?.takeIf { it.isNotEmpty() }
-            ?.let { cookieBuilder.domain(it) }
-
-        val cookie = cookieBuilder.build()
-
-        response.addHeader("Set-Cookie", cookie.toString())
+        accessTokenCookieService.addAccessTokenCookie(
+            request = request,
+            response = response,
+            token = accessToken,
+            maxAgeSeconds = jwtTokenProvider.tokenValiditySeconds(),
+        )
         response.sendRedirect(oauth2Properties.successRedirectUri)
     }
 
@@ -85,6 +81,27 @@ class OAuth2LoginSuccessHandler(
                 )
             }
         }
+    }
+
+    private fun upsertUserAccount(user: AuthUser) {
+        val shouldBeAdmin = adminAuthorizationService.isAdmin(user.userId)
+        val account = userAccountRepository.findById(user.userId).orElse(
+            UserAccount(
+                id = user.userId,
+                role = if (shouldBeAdmin) UserRole.ADMIN else UserRole.USER,
+                isActive = true,
+            ),
+        )
+
+        account.name = user.name
+        account.email = user.email
+        account.provider = user.provider
+        if (shouldBeAdmin) {
+            account.role = UserRole.ADMIN
+        }
+        account.isActive = true
+
+        userAccountRepository.save(account)
     }
 }
 

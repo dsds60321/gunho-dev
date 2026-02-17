@@ -4,6 +4,8 @@ export type AuthMeResponse = {
   name?: string;
   email?: string;
   provider?: string;
+  role?: "USER" | "ADMIN";
+  isAdmin?: boolean;
 };
 
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080";
@@ -31,6 +33,8 @@ export async function fetchAuthMe(): Promise<AuthMeResponse> {
       name: data.name,
       email: data.email,
       provider: data.provider,
+      role: data.role,
+      isAdmin: Boolean(data.isAdmin),
     };
   } catch {
     return { loggedIn: false };
@@ -42,8 +46,17 @@ export async function logout(): Promise<void> {
     await fetch(`${API_BASE_URL}/api/auth/logout`, {
       method: "POST",
       credentials: "include",
+      cache: "no-store",
+      headers: {
+        "Cache-Control": "no-cache",
+        Pragma: "no-cache",
+      },
     });
   } catch {
     // ignore network failures during logout action
+  }
+
+  if (typeof window !== "undefined") {
+    window.sessionStorage.clear();
   }
 }

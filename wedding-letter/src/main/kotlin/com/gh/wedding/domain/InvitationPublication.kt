@@ -16,8 +16,9 @@ import java.time.LocalDateTime
 
 @Entity
 @Table(
+    name = "invitation_publication",
     indexes = [
-        Index(name = "idx_pub_invitation_created", columnList = "invitation_id,publishedAt"),
+        Index(name = "idx_pub_invitation_created", columnList = "invitation_id,published_at"),
     ],
 )
 class InvitationPublication(
@@ -35,7 +36,14 @@ class InvitationPublication(
     @Column(columnDefinition = "TEXT")
     var content: InvitationContent = InvitationContent(),
 
+    @Column(name = "published_at")
     var publishedAt: LocalDateTime? = null,
+
+    @Column(name = "watermark_enabled", nullable = false)
+    var watermarkEnabled: Boolean = false,
+
+    @Column(name = "watermark_text", length = 255)
+    var watermarkText: String? = null,
 ) {
     @PrePersist
     fun onCreate() {

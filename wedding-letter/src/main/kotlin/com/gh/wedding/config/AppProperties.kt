@@ -19,6 +19,16 @@ data class FrontendProperties(
     var origin: String = "http://localhost:3000",
 )
 
+@ConfigurationProperties(prefix = "app.admin")
+data class AdminProperties(
+    var userIds: List<String> = emptyList(),
+)
+
+@ConfigurationProperties(prefix = "app.watermark")
+data class WatermarkPolicyProperties(
+    var text: String = "Wedding Letter",
+)
+
 @ConfigurationProperties(prefix = "third-party.kakao")
 data class KakaoProperties(
     var js: String = "",

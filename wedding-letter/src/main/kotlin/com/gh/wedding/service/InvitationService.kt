@@ -2,6 +2,7 @@ package com.gh.wedding.service
 
 import com.gh.wedding.common.WeddingErrorCode
 import com.gh.wedding.common.WeddingException
+import com.gh.wedding.config.WatermarkPolicyProperties
 import com.gh.wedding.domain.Guestbook
 import com.gh.wedding.domain.Invitation
 import com.gh.wedding.domain.InvitationContent
@@ -40,12 +41,16 @@ class InvitationService(
     private val rsvpRepository: RsvpRepository,
     private val guestbookRepository: GuestbookRepository,
     private val fileService: FileService,
+    private val planPolicyService: PlanPolicyService,
+    private val watermarkPolicyProperties: WatermarkPolicyProperties,
     @Value("\${app.frontend.origin:http://localhost:3000}")
     private val frontendOrigin: String,
 ) {
     private val slugRegex = Regex("^[a-z0-9]+(?:-[a-z0-9]+)*$")
 
     fun createInvitation(userId: String, request: InvitationCreateRequest): InvitationEditorResponse {
+        planPolicyService.checkCreateLimit(userId)
+
         val invitation = Invitation(
             ownerToken = "${UUID.randomUUID()}${UUID.randomUUID()}",
             userId = userId,
@@ -54,6 +59,7 @@ class InvitationService(
         )
 
         val saved = invitationRepository.save(invitation)
+        planPolicyService.incrementCreateCount(userId)
         return toEditorResponse(saved)
     }
 
@@ -74,6 +80,7 @@ class InvitationService(
     }
 
     fun updateDraft(id: Long, userId: String, request: InvitationSaveRequest): InvitationEditorResponse {
+        planPolicyService.checkEditLimit(userId)
         val invitation = getInvitationForOwner(id, userId)
         val content = invitation.content
 
@@ -162,6 +169,7 @@ class InvitationService(
 
         invitation.content = content
 
+        planPolicyService.incrementEditCount(userId)
         return toEditorResponse(invitation)
     }
 
@@ -224,7 +232,9 @@ class InvitationService(
     }
 
     fun publish(id: Long, userId: String, request: InvitationPublishRequest): InvitationPublishResponse {
+        planPolicyService.checkPublishLimit(userId)
         val invitation = getInvitationForOwner(id, userId)
+        val activePlan = planPolicyService.getActivePlan(userId)
 
         val requestedSlug = request.slug?.takeIf { it.isNotBlank() }
         val finalSlug = when {
@@ -250,10 +260,13 @@ class InvitationService(
             invitation = invitation,
             content = invitation.content,
             version = (publicationRepository.findTopByInvitationOrderByVersionDesc(invitation)?.version ?: 0) + 1,
+            watermarkEnabled = activePlan.watermarkEnabled,
+            watermarkText = if (activePlan.watermarkEnabled) watermarkPolicyProperties.text else null,
         )
 
         publicationRepository.save(publication)
         invitation.publishedVersion = publication
+        planPolicyService.incrementPublishCount(userId)
 
         val shareUrl = "${frontendOrigin.trimEnd('/')}/invitation/$finalSlug"
         return InvitationPublishResponse(

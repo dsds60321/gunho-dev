@@ -86,6 +86,7 @@ export default function MyPage() {
   const [ready, setReady] = useState(false);
   const [memberName, setMemberName] = useState("회원");
   const [memberId, setMemberId] = useState("0000000000");
+  const [isAdmin, setIsAdmin] = useState(false);
   const [activeMenu, setActiveMenu] = useState<"invitations" | "rsvp" | "guestbook">("invitations");
   const [rsvpFilter, setRsvpFilter] = useState<"all" | RsvpStatus>("all");
   const [searchKeyword, setSearchKeyword] = useState("");
@@ -106,6 +107,7 @@ export default function MyPage() {
         }
 
         setMemberName(me.name ?? "회원");
+        setIsAdmin(Boolean(me.isAdmin));
         const normalizedId = (me.userId ?? "3386306573").replace(/[^a-zA-Z0-9]/g, "").slice(-10);
         setMemberId(normalizedId.padStart(10, "0"));
 
@@ -306,6 +308,24 @@ export default function MyPage() {
             </div>
 
             <div className="mt-6 border-t border-warm pt-6 text-sm text-theme-secondary">
+              {isAdmin ? (
+                <>
+                  <button
+                    className="block py-2 transition-colors hover:text-theme-brand"
+                    type="button"
+                    onClick={() => router.push("/mypage/admin/users")}
+                  >
+                    관리자 사용자 관리
+                  </button>
+                  <button
+                    className="block py-2 transition-colors hover:text-theme-brand"
+                    type="button"
+                    onClick={() => router.push("/mypage/admin/notices")}
+                  >
+                    관리자 공지 관리
+                  </button>
+                </>
+              ) : null}
               <button
                 className="block py-2 transition-colors hover:text-theme-brand"
                 type="button"

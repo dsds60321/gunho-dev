@@ -6,10 +6,10 @@ import { fetchAuthMe, logout } from "@/lib/auth";
 import { apiFetch, getApiErrorMessage, isApiError } from "@/lib/api";
 import { resolveAssetUrl } from "@/lib/assets";
 import InvitationMobileView from "@/app/invitation/[invitationId]/InvitationMobileView";
-import dynamic from "next/dynamic";
+import RichTextEditor from "@/components/editor/RichTextEditor";
+import MobilePreviewFrame from "@/components/editor/MobilePreviewFrame";
+import EditorToast, { useEditorToast } from "@/components/editor/EditorToast";
 import "react-quill-new/dist/quill.snow.css";
-
-const ReactQuill = dynamic(() => import("react-quill-new"), { ssr: false });
 
 type KakaoLatLng = object;
 
@@ -289,73 +289,6 @@ const defaultFormState: FormState = {
   lockMap: false,
 };
 
-// Quill 설정
-const quillModules = {
-  toolbar: [
-    [{ header: [1, 2, false] }],
-    ["bold", "italic", "underline", "strike"],
-    [{ color: [] }, { background: [] }],
-    [{ list: "ordered" }, { list: "bullet" }],
-    ["clean"],
-  ],
-};
-
-// 리치 텍스트 에디터 컴포넌트 분리 (툴바 닫힘 버그 수정 및 입력 최적화)
-const RichTextEditor = ({ value, onChange, placeholder }: { value: string; onChange: (val: string) => void; placeholder?: string }) => {
-  const [localValue, setLocalValue] = useState(value || "");
-
-  // 외부 value가 변경되면(초기 로드 등) 로컬 상태 동기화
-  useEffect(() => {
-    if (value !== localValue) {
-      setLocalValue(value || "");
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [value]);
-
-  const handleChange = (val: string) => {
-    setLocalValue(val);
-  };
-
-  const handleBlur = () => {
-    if (localValue !== value) {
-      onChange(localValue);
-    }
-  };
-
-  return (
-    <div 
-      className="bg-white rounded-xl border border-warm" 
-      onPointerDown={(e) => e.stopPropagation()} 
-      onMouseDown={(e) => e.stopPropagation()}
-      onClick={(e) => e.stopPropagation()}
-    >
-      <ReactQuill 
-        theme="snow" 
-        value={localValue} 
-        onChange={handleChange} 
-        onBlur={handleBlur}
-        modules={quillModules}
-        placeholder={placeholder}
-      />
-      <style jsx global>{`
-        .ql-toolbar.ql-snow {
-          border: none !important;
-          border-bottom: 1px solid var(--theme-divider) !important;
-          padding: 8px 12px !important;
-        }
-        .ql-container.ql-snow {
-          border: none !important;
-          min-height: 120px;
-        }
-        .ql-picker-options {
-          z-index: 1000 !important;
-          border-radius: 8px !important;
-          box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;
-        }
-      `}</style>
-    </div>
-  );
-};
 
 const HERO_DESIGNS = [
   { id: "none", name: "사용자 이미지 전용", description: "오버레이 없이 이미지만 표시합니다." },
@@ -697,6 +630,7 @@ export default function EditorPage() {
   const [invitation, setInvitation] = useState<EditorInvitation | null>(null);
   const [saving, setSaving] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  const [unpublishing, setUnpublishing] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [slugStatus, setSlugStatus] = useState("");
@@ -718,7 +652,7 @@ export default function EditorPage() {
   const [guestbookSaving, setGuestbookSaving] = useState(false);
   const [guestbookForm, setGuestbookForm] = useState({ name: "", password: "", content: "" });
   const [mapMessage, setMapMessage] = useState("주소를 검색하거나 입력하면 미리보기에 지도가 반영됩니다.");
-  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+  const { toast, showToast } = useEditorToast();
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
     basic: true,
     hero: true,
@@ -730,11 +664,6 @@ export default function EditorPage() {
     music: false,
     detail: false,
   });
-
-  const showToast = (message: string, type: "success" | "error" = "success") => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 3000);
-  };
 
   const weddingTitle = useMemo(() => {
     const groom = form.groomName.trim();
@@ -1106,12 +1035,11 @@ export default function EditorPage() {
       if (isApiError(error) && error.redirectedToLogin) {
         return;
       }
-      setToast({ message: "방명록 데이터를 불러오지 못했습니다.", type: "error" });
-      setTimeout(() => setToast(null), 3000);
+      showToast("방명록 데이터를 불러오지 못했습니다.", "error");
     } finally {
       setGuestbookLoading(false);
     }
-  }, []);
+  }, [showToast]);
 
   const handleGuestbookSubmit = async (event?: FormEvent) => {
     event?.preventDefault();
@@ -1494,6 +1422,53 @@ export default function EditorPage() {
     }
   };
 
+  const handleUnpublish = async () => {
+    if (!invitation) return;
+    setUnpublishing(true);
+    try {
+      const updated = await apiFetch<EditorInvitation>(`/api/invitations/${invitation.id}/unpublish`, {
+        method: "POST",
+      });
+      applyEditorData(updated);
+      setShareUrl("");
+      showToast("청첩장 발행이 해제되었습니다.");
+    } catch (error) {
+      if (isApiError(error) && error.redirectedToLogin) {
+        return;
+      }
+      showToast(getApiErrorMessage(error, "발행 해제에 실패했습니다."), "error");
+    } finally {
+      setUnpublishing(false);
+    }
+  };
+
+  const resolveInvitationShareUrl = () => {
+    if (shareUrl.trim()) return shareUrl.trim();
+    if (!invitation) return "";
+
+    const shareId = invitation.slug?.trim() || String(invitation.id);
+    const encoded = encodeURIComponent(shareId);
+    if (typeof window === "undefined") {
+      return `/invitation/${encoded}`;
+    }
+    return `${window.location.origin}/invitation/${encoded}`;
+  };
+
+  const copyShareUrl = async () => {
+    const target = resolveInvitationShareUrl();
+    if (!target) {
+      showToast("공유 URL이 없습니다.", "error");
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(target);
+      showToast("공유 URL이 복사되었습니다.");
+    } catch {
+      showToast("URL 복사에 실패했습니다.", "error");
+    }
+  };
+
   if (!ready || !invitation) {
     return <div className="flex min-h-screen items-center justify-center text-sm text-theme-secondary">{loadingText}</div>;
   }
@@ -1528,15 +1503,33 @@ export default function EditorPage() {
           >
             미리보기
           </button>
+          {invitation.published ? (
+            <button
+              className="rounded-full border border-warm px-4 py-2 text-xs font-bold text-theme-secondary transition-colors hover:bg-theme"
+              type="button"
+              onClick={copyShareUrl}
+            >
+              URL 복사
+            </button>
+          ) : null}
           <button
             className="rounded-full bg-theme-brand px-5 py-2 text-xs font-bold text-white"
             type="button"
             onClick={handlePublish}
-            disabled={publishing || uploading || deleting}
+            disabled={publishing || unpublishing || uploading || deleting}
           >
             {publishing ? "발행중..." : "발행하기"}
           </button>
-          {!invitation.published ? (
+          {invitation.published ? (
+            <button
+              className="rounded-full border border-warm px-4 py-2 text-xs font-bold text-theme-secondary"
+              type="button"
+              onClick={handleUnpublish}
+              disabled={unpublishing || publishing}
+            >
+              {unpublishing ? "해제중..." : "발행해제"}
+            </button>
+          ) : (
             <button
               className="rounded-full border border-red-200 bg-red-50 px-4 py-2 text-xs font-bold text-red-500"
               type="button"
@@ -1545,7 +1538,7 @@ export default function EditorPage() {
             >
               {deleting ? "삭제중..." : "삭제하기"}
             </button>
-          ) : null}
+          )}
           <button
             className="rounded-full border border-warm px-4 py-2 text-xs font-bold text-theme-secondary"
             type="button"
@@ -1561,80 +1554,78 @@ export default function EditorPage() {
 
       <main className="grid flex-1 grid-cols-1 md:grid-cols-2">
         <section className="sticky top-0 h-[calc(100vh-64px)] border-b border-warm bg-theme p-6 md:border-r md:border-b-0 md:p-8 flex items-center justify-center">
-          <div className="relative w-full max-w-[420px] h-[760px] flex flex-col overflow-hidden rounded-[2.2rem] border border-warm bg-white shadow-2xl">
-            <div className="flex-1 overflow-y-auto custom-scrollbar bg-white">
-              <InvitationMobileView
-                embedded
-                invitation={{
-                  id: String(invitation.id),
-                  slug: form.slug || String(invitation.id),
-                  groomName: form.groomName || "신랑",
-                  brideName: form.brideName || "신부",
-                  weddingDateTime: form.date,
-                  venueName: form.locationName || "예식장 정보 미입력",
-                  venueAddress: form.address || "주소 정보 미입력",
-                  coverImageUrl: form.mainImageUrl,
-                  mainImageUrl: form.mainImageUrl,
-                  imageUrls: form.imageUrls,
-                  messageLines: form.message
-                    .replace(/<[^>]+>/g, " ")
-                    .split("\n")
-                    .map((line) => line.trim())
-                    .filter(Boolean),
-                  message: form.message || "",
-                  groomContact: form.groomContact,
-                  brideContact: form.brideContact,
-                  groomFatherName: form.groomFatherName,
-                  groomFatherContact: form.groomFatherContact,
-                  groomMotherName: form.groomMotherName,
-                  groomMotherContact: form.groomMotherContact,
-                  brideFatherName: form.brideFatherName,
-                  brideFatherContact: form.brideFatherContact,
-                  brideMotherName: form.brideMotherName,
-                  brideMotherContact: form.brideMotherContact,
-                  subway: form.subway,
-                  bus: form.bus,
-                  car: form.car,
-                  useSeparateAccounts: form.useSeparateAccounts,
-                  useGuestbook: form.useGuestbook,
-                  useRsvpModal: form.useRsvpModal,
-                  accountNumber: combineBankAndAccount(form.accountBank, form.accountNumber),
-                  groomAccountNumber: combineBankAndAccount(form.groomAccountBank, form.groomAccountNumber),
-                  brideAccountNumber: combineBankAndAccount(form.brideAccountBank, form.brideAccountNumber),
-                  galleryTitle: form.galleryTitle,
-                  galleryType: form.galleryType,
-                  themeBackgroundColor: sanitizeColorValue(form.themeBackgroundColor, defaultFormState.themeBackgroundColor),
-                  themeTextColor: sanitizeColorValue(form.themeTextColor, defaultFormState.themeTextColor),
-                  themeAccentColor: sanitizeColorValue(form.themeAccentColor, defaultFormState.themeAccentColor),
-                  themePattern: form.themePattern,
-                  themeEffectType: form.themeEffectType,
-                  themeFontFamily: form.themeFontFamily,
-                  themeFontSize: Math.round(clampHeroEffectValue(form.themeFontSize, MIN_THEME_FONT_SIZE, MAX_THEME_FONT_SIZE)),
-                  themeScrollReveal: form.themeScrollReveal,
-                  heroDesignId: form.heroDesignId,
-                  heroEffectType: form.heroEffectType,
-                  heroEffectParticleCount: form.heroEffectParticleCount,
-                  heroEffectSpeed: form.heroEffectSpeed,
-                  heroEffectOpacity: form.heroEffectOpacity,
-                  messageFontFamily: form.messageFontFamily,
-                  transportFontFamily: form.transportFontFamily,
-                  rsvpTitle: form.rsvpTitle,
-                  rsvpMessage: form.rsvpMessage,
-                  rsvpButtonText: form.rsvpButtonText,
-                  rsvpFontFamily: form.rsvpFontFamily,
-                  detailContent: form.detailContent,
-                  locationTitle: form.locationTitle,
-                  locationFloorHall: form.locationFloorHall,
-                  locationContact: form.locationContact,
-                  showMap: form.showMap,
-                  lockMap: form.lockMap,
-                }}
-                preview
-                invitationIdForActions={String(invitation.id)}
-                slugForActions={form.slug || String(invitation.id)}
-              />
-            </div>
-          </div>
+          <MobilePreviewFrame>
+            <InvitationMobileView
+              embedded
+              invitation={{
+                id: String(invitation.id),
+                slug: form.slug || String(invitation.id),
+                groomName: form.groomName || "신랑",
+                brideName: form.brideName || "신부",
+                weddingDateTime: form.date,
+                venueName: form.locationName || "예식장 정보 미입력",
+                venueAddress: form.address || "주소 정보 미입력",
+                coverImageUrl: form.mainImageUrl,
+                mainImageUrl: form.mainImageUrl,
+                imageUrls: form.imageUrls,
+                messageLines: form.message
+                  .replace(/<[^>]+>/g, " ")
+                  .split("\n")
+                  .map((line) => line.trim())
+                  .filter(Boolean),
+                message: form.message || "",
+                groomContact: form.groomContact,
+                brideContact: form.brideContact,
+                groomFatherName: form.groomFatherName,
+                groomFatherContact: form.groomFatherContact,
+                groomMotherName: form.groomMotherName,
+                groomMotherContact: form.groomMotherContact,
+                brideFatherName: form.brideFatherName,
+                brideFatherContact: form.brideFatherContact,
+                brideMotherName: form.brideMotherName,
+                brideMotherContact: form.brideMotherContact,
+                subway: form.subway,
+                bus: form.bus,
+                car: form.car,
+                useSeparateAccounts: form.useSeparateAccounts,
+                useGuestbook: form.useGuestbook,
+                useRsvpModal: form.useRsvpModal,
+                accountNumber: combineBankAndAccount(form.accountBank, form.accountNumber),
+                groomAccountNumber: combineBankAndAccount(form.groomAccountBank, form.groomAccountNumber),
+                brideAccountNumber: combineBankAndAccount(form.brideAccountBank, form.brideAccountNumber),
+                galleryTitle: form.galleryTitle,
+                galleryType: form.galleryType,
+                themeBackgroundColor: sanitizeColorValue(form.themeBackgroundColor, defaultFormState.themeBackgroundColor),
+                themeTextColor: sanitizeColorValue(form.themeTextColor, defaultFormState.themeTextColor),
+                themeAccentColor: sanitizeColorValue(form.themeAccentColor, defaultFormState.themeAccentColor),
+                themePattern: form.themePattern,
+                themeEffectType: form.themeEffectType,
+                themeFontFamily: form.themeFontFamily,
+                themeFontSize: Math.round(clampHeroEffectValue(form.themeFontSize, MIN_THEME_FONT_SIZE, MAX_THEME_FONT_SIZE)),
+                themeScrollReveal: form.themeScrollReveal,
+                heroDesignId: form.heroDesignId,
+                heroEffectType: form.heroEffectType,
+                heroEffectParticleCount: form.heroEffectParticleCount,
+                heroEffectSpeed: form.heroEffectSpeed,
+                heroEffectOpacity: form.heroEffectOpacity,
+                messageFontFamily: form.messageFontFamily,
+                transportFontFamily: form.transportFontFamily,
+                rsvpTitle: form.rsvpTitle,
+                rsvpMessage: form.rsvpMessage,
+                rsvpButtonText: form.rsvpButtonText,
+                rsvpFontFamily: form.rsvpFontFamily,
+                detailContent: form.detailContent,
+                locationTitle: form.locationTitle,
+                locationFloorHall: form.locationFloorHall,
+                locationContact: form.locationContact,
+                showMap: form.showMap,
+                lockMap: form.lockMap,
+              }}
+              preview
+              invitationIdForActions={String(invitation.id)}
+              slugForActions={form.slug || String(invitation.id)}
+            />
+          </MobilePreviewFrame>
         </section>
 
         <section className="custom-scrollbar overflow-y-auto bg-theme">
@@ -2934,17 +2925,7 @@ export default function EditorPage() {
         </div>
       )}
 
-      {/* 토스트 알림 */}
-      {toast && (
-        <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[200] animate-in fade-in slide-in-from-bottom-4 duration-300">
-          <div className={`px-6 py-3 rounded-full shadow-2xl flex items-center gap-3 ${toast.type === "success" ? "bg-gray-900 text-white" : "bg-red-600 text-white"}`}>
-            <span className="material-symbols-outlined text-[20px]">
-              {toast.type === "success" ? "check_circle" : "error"}
-            </span>
-            <span className="text-sm font-bold">{toast.message}</span>
-          </div>
-        </div>
-      )}
+      <EditorToast toast={toast} />
     </div>
   );
 }

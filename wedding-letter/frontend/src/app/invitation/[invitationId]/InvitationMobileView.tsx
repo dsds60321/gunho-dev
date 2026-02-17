@@ -1,13 +1,24 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { apiFetch } from "@/lib/api";
 import { resolveAssetUrl } from "@/lib/assets";
+import {
+  THEME_DEFAULTS,
+  ThemeParticle,
+  buildThemeParticles,
+  buildThemePatternStyle,
+  clampThemeFontSize,
+  normalizeHexColor,
+  toRgba,
+} from "@/components/mobile/theme-utils";
 import InvitationLocationMap from "./InvitationLocationMap";
 import WeddingGallery from "@/components/WeddingGallery";
 import MapShortcutButtons from "@/components/MapShortcutButtons";
 import CopyTextButton from "@/components/CopyTextButton";
 import GuestbookSection from "./GuestbookSection";
 import RsvpEntryModal from "./RsvpEntryModal";
+import InvitationFullscreenModal from "./InvitationFullscreenModal";
 
 export type InvitationMobileViewData = {
   id: string;
@@ -94,32 +105,6 @@ const HERO_EFFECT_DEFAULTS: HeroEffectOptions = {
   opacity: 72,
 };
 
-const THEME_DEFAULTS = {
-  backgroundColor: "#fdf8f5",
-  textColor: "#4a2c2a",
-  accentColor: "#803b2a",
-  pattern: "none",
-  effectType: "none",
-  fontFamily: "'Noto Sans KR', sans-serif",
-  fontSize: 16,
-  scrollReveal: false,
-};
-
-type ThemeParticle = {
-  left: number;
-  startTop: number;
-  width: number;
-  height: number;
-  delay: number;
-  duration: number;
-  opacity: number;
-  driftX: number;
-  rotate: number;
-  blur: number;
-  background: string;
-  radius: string;
-};
-
 function clampHeroEffectValue(value: number, min: number, max: number): number {
   if (!Number.isFinite(value)) return min;
   return Math.min(max, Math.max(min, value));
@@ -171,114 +156,6 @@ function buildStarParticles(options: HeroEffectOptions) {
     size: 8 + (idx % 4) * 4,
     opacity: clampHeroEffectValue((0.36 + (idx % 4) * 0.16) * opacityRatio, 0.14, 1),
   }));
-}
-
-function normalizeHexColor(value: string | undefined, fallback: string): string {
-  if (!value) return fallback;
-  const normalized = value.trim();
-  return /^#[0-9a-fA-F]{6}$/.test(normalized) ? normalized : fallback;
-}
-
-function toRgba(hex: string, alpha: number): string {
-  const normalized = normalizeHexColor(hex, "#000000");
-  const red = Number.parseInt(normalized.slice(1, 3), 16);
-  const green = Number.parseInt(normalized.slice(3, 5), 16);
-  const blue = Number.parseInt(normalized.slice(5, 7), 16);
-  return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
-}
-
-function clampThemeFontSize(value: number | undefined): number {
-  if (!Number.isFinite(value)) return THEME_DEFAULTS.fontSize;
-  return Math.min(28, Math.max(12, Math.round(value as number)));
-}
-
-function buildThemePatternStyle(pattern: string, accentColor: string): CSSProperties {
-  const strong = toRgba(accentColor, 0.12);
-  const soft = toRgba(accentColor, 0.08);
-  const subtle = toRgba(accentColor, 0.05);
-
-  if (pattern === "dot") {
-    return {
-      backgroundImage: `radial-gradient(circle at 1px 1px, ${soft} 1px, transparent 0)`,
-      backgroundSize: "16px 16px",
-    };
-  }
-
-  if (pattern === "grid") {
-    return {
-      backgroundImage: `linear-gradient(${subtle} 1px, transparent 1px), linear-gradient(90deg, ${subtle} 1px, transparent 1px)`,
-      backgroundSize: "22px 22px",
-    };
-  }
-
-  if (pattern === "linen") {
-    return {
-      backgroundImage: `repeating-linear-gradient(45deg, ${subtle} 0 2px, transparent 2px 8px), repeating-linear-gradient(-45deg, ${subtle} 0 2px, transparent 2px 8px)`,
-      backgroundSize: "18px 18px",
-    };
-  }
-
-  if (pattern === "petal") {
-    return {
-      backgroundImage: `radial-gradient(circle at 20% 20%, ${soft} 0 12%, transparent 13%), radial-gradient(circle at 80% 80%, ${strong} 0 10%, transparent 11%)`,
-      backgroundSize: "48px 48px",
-    };
-  }
-
-  return {};
-}
-
-function buildThemeParticles(effectType: string): ThemeParticle[] {
-  if (effectType === "none") return [];
-
-  const densityMap: Record<string, number> = {
-    "cherry-blossom": 34,
-    snow: 52,
-    "falling-leaves": 28,
-    "baby-breath": 56,
-    forsythia: 32,
-  };
-  const count = densityMap[effectType] ?? 0;
-  if (count <= 0) return [];
-
-  const colorMap: Record<string, string[]> = {
-    "cherry-blossom": ["#ffd6e5", "#ffc0d8", "#ffe7f0"],
-    snow: ["#ffffff", "#eff7ff", "#f8fcff"],
-    "falling-leaves": ["#d58f55", "#bf6f3a", "#cf9f6d"],
-    "baby-breath": ["#ffffff", "#f4f8ff", "#eef6ff"],
-    forsythia: ["#ffe55c", "#ffd733", "#f5c112"],
-  };
-  const colors = colorMap[effectType] ?? ["#ffffff"];
-
-  return Array.from({ length: count }, (_, index) => {
-    const seed = index + 1;
-    const baseSize = effectType === "baby-breath" ? 3 : effectType === "snow" ? 6 : 7;
-    const width = baseSize + (seed % 5) * (effectType === "snow" ? 1.2 : 0.9);
-    const height = effectType === "falling-leaves" || effectType === "forsythia" ? width * 1.6 : width;
-    const radius =
-      effectType === "cherry-blossom"
-        ? "58% 42% 54% 46%"
-        : effectType === "falling-leaves"
-          ? "45% 55% 48% 52%"
-          : effectType === "forsythia"
-            ? "42% 58% 44% 56%"
-            : "9999px";
-
-    return {
-      left: (seed * 17 + (seed % 7) * 9) % 100,
-      startTop: -18 - (seed % 6) * 4,
-      width,
-      height,
-      delay: -((seed % 14) * 0.7),
-      duration: 11 + (seed % 8) * 1.2,
-      opacity: effectType === "baby-breath" ? 0.55 + (seed % 3) * 0.12 : 0.45 + (seed % 4) * 0.1,
-      driftX: -34 + (seed % 9) * 8,
-      rotate: seed % 2 === 0 ? 320 : -320,
-      blur: effectType === "baby-breath" ? 8 : effectType === "snow" ? 4 : 3,
-      background: colors[seed % colors.length],
-      radius,
-    };
-  });
 }
 
 function createTelHref(phone?: string) {
@@ -483,6 +360,27 @@ export default function InvitationMobileView({
   );
 
   useEffect(() => {
+    if (preview) return;
+    if (!slugForActions) return;
+
+    const storageKey = `invite-visit:${slugForActions}:${new Date().toISOString().slice(0, 10)}`;
+    const alreadyTracked = typeof window !== "undefined" && window.sessionStorage.getItem(storageKey) === "1";
+    if (alreadyTracked) return;
+
+    apiFetch<{ message: string }>(`/api/public/invitations/${encodeURIComponent(slugForActions)}/visit`, {
+      method: "POST",
+    })
+      .then(() => {
+        if (typeof window !== "undefined") {
+          window.sessionStorage.setItem(storageKey, "1");
+        }
+      })
+      .catch(() => {
+        // 방문 집계 실패는 UI를 막지 않음
+      });
+  }, [preview, slugForActions]);
+
+  useEffect(() => {
     const updateCountdown = () => {
       setCountdownInfo(buildCountdownInfo(invitation.weddingDateTime, Date.now()));
     };
@@ -523,15 +421,6 @@ export default function InvitationMobileView({
     targets.forEach((target) => observer.observe(target));
     return () => observer.disconnect();
   }, [embedded, revealEnabled, invitation.id]);
-
-  useEffect(() => {
-    if (!isContactModalOpen || embedded) return;
-    const originalOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = originalOverflow;
-    };
-  }, [isContactModalOpen, embedded]);
 
   const accountRows = invitation.useSeparateAccounts
     ? [
@@ -951,6 +840,21 @@ export default function InvitationMobileView({
           </section>
         ) : null}
 
+        <RsvpEntryModal
+          enabled={invitation.useRsvpModal}
+          invitationId={invitationIdForActions}
+          slug={slugForActions}
+          preview={preview}
+          embedded={embedded}
+          venueAddress={invitation.venueAddress}
+          venueName={invitation.venueName}
+          weddingDateText={dateInfo.infoDate}
+          rsvpTitle={invitation.rsvpTitle}
+          rsvpMessage={invitation.rsvpMessage}
+          rsvpButtonText={invitation.rsvpButtonText}
+          rsvpFontFamily={invitation.rsvpFontFamily}
+        />
+
         <div data-invite-reveal>
           <GuestbookSection
             enabled={invitation.useGuestbook}
@@ -962,77 +866,49 @@ export default function InvitationMobileView({
         </div>
       </div>
 
-      <RsvpEntryModal
-        enabled={invitation.useRsvpModal}
-        invitationId={invitationIdForActions}
-        slug={slugForActions}
-        preview={preview}
+      <InvitationFullscreenModal
+        open={isContactModalOpen}
         embedded={embedded}
-        venueAddress={invitation.venueAddress}
-        venueName={invitation.venueName}
-        weddingDateText={dateInfo.infoDate}
-        rsvpTitle={invitation.rsvpTitle}
-        rsvpMessage={invitation.rsvpMessage}
-        rsvpButtonText={invitation.rsvpButtonText}
-        rsvpFontFamily={invitation.rsvpFontFamily}
-      />
-
-      {isContactModalOpen ? (
-        <div className={`${embedded ? "absolute" : "fixed"} inset-0 z-[90]`}>
-          <button className="absolute inset-0 bg-black/35" type="button" onClick={() => setIsContactModalOpen(false)} aria-label="연락처 모달 닫기 배경" />
-          <div className="absolute inset-0 bg-white">
-            <div className="relative flex h-16 items-center justify-center px-4">
-              <h3 className="text-[16px] font-semibold tracking-[-0.01em] text-[#2f3136]">연락하기</h3>
-              <button
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-[#44474d]"
-                type="button"
-                onClick={() => setIsContactModalOpen(false)}
-                aria-label="연락처 모달 닫기"
-              >
-                <span className="material-symbols-outlined text-[24px]">close</span>
-              </button>
-            </div>
-
-            <div className="h-[calc(100%-4rem)] overflow-y-auto px-5 pt-2 pb-8">
-              <div className="space-y-8">
-                {availableContactGroups.map((group) => (
-                  <section key={`${invitation.id}-${group.side}`} className="space-y-2">
-                    <h4 className="text-[12px] font-semibold text-[#2f3136]">{group.side}</h4>
-                    <div className="space-y-0.5 border-t border-[#ececed] pt-2.5">
-                      {group.rows.map((row) => (
-                        <div key={`${group.side}-${row.relation}-${row.name}`} className="grid grid-cols-[56px_1fr_auto] items-center gap-3 py-2.5">
-                          <span className="text-[13px] font-medium text-[#9a9ca1]">{row.relation}</span>
-                          <span className="truncate text-[13px] font-semibold text-[#3b3d42]">{row.name}</span>
-                          <div className="flex items-center gap-1.5">
-                            <a
-                              className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-[#e8e8ea] bg-white text-[#8d9096]"
-                              href={row.tel}
-                              aria-label={`${group.side} ${row.relation} 전화`}
-                            >
-                              <span className="material-symbols-outlined text-[22px]" style={{ fontVariationSettings: "'FILL' 1, 'wght' 400" }}>
-                                call
-                              </span>
-                            </a>
-                            <a
-                              className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-[#e8e8ea] bg-white text-[#8d9096]"
-                              href={row.sms}
-                              aria-label={`${group.side} ${row.relation} 문자`}
-                            >
-                              <span className="material-symbols-outlined text-[22px]" style={{ fontVariationSettings: "'FILL' 1, 'wght' 400" }}>
-                                mail
-                              </span>
-                            </a>
-                          </div>
-                        </div>
-                      ))}
+        title="연락하기"
+        onClose={() => setIsContactModalOpen(false)}
+        closeLabel="연락처 모달 닫기"
+      >
+        <div className="space-y-8">
+          {availableContactGroups.map((group) => (
+            <section key={`${invitation.id}-${group.side}`} className="space-y-2">
+              <h4 className="text-[12px] font-semibold text-[#2f3136]">{group.side}</h4>
+              <div className="space-y-0.5 border-t border-[#ececed] pt-2.5">
+                {group.rows.map((row) => (
+                  <div key={`${group.side}-${row.relation}-${row.name}`} className="grid grid-cols-[56px_1fr_auto] items-center gap-3 py-2.5">
+                    <span className="text-[13px] font-medium text-[#9a9ca1]">{row.relation}</span>
+                    <span className="truncate text-[13px] font-semibold text-[#3b3d42]">{row.name}</span>
+                    <div className="flex items-center gap-1.5">
+                      <a
+                        className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-[#e8e8ea] bg-white text-[#8d9096]"
+                        href={row.tel}
+                        aria-label={`${group.side} ${row.relation} 전화`}
+                      >
+                        <span className="material-symbols-outlined text-[22px]" style={{ fontVariationSettings: "'FILL' 1, 'wght' 400" }}>
+                          call
+                        </span>
+                      </a>
+                      <a
+                        className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-[#e8e8ea] bg-white text-[#8d9096]"
+                        href={row.sms}
+                        aria-label={`${group.side} ${row.relation} 문자`}
+                      >
+                        <span className="material-symbols-outlined text-[22px]" style={{ fontVariationSettings: "'FILL' 1, 'wght' 400" }}>
+                          mail
+                        </span>
+                      </a>
                     </div>
-                  </section>
+                  </div>
                 ))}
               </div>
-            </div>
-          </div>
+            </section>
+          ))}
         </div>
-      ) : null}
+      </InvitationFullscreenModal>
     </div>
     </div>
   );

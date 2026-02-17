@@ -8,8 +8,13 @@ import com.gh.wedding.domain.Invitation
 import com.gh.wedding.domain.InvitationContent
 import com.gh.wedding.domain.InvitationPublication
 import com.gh.wedding.domain.InvitationStatus
+import com.gh.wedding.domain.InvitationVisitDaily
 import com.gh.wedding.domain.Rsvp
+import com.gh.wedding.dto.DashboardSummaryResponse
+import com.gh.wedding.dto.DashboardVisitPointResponse
 import com.gh.wedding.dto.GuestbookCreateRequest
+import com.gh.wedding.dto.GuestbookDeleteRequest
+import com.gh.wedding.dto.GuestbookUpdateRequest
 import com.gh.wedding.dto.MyGuestbookResponse
 import com.gh.wedding.dto.GuestbookResponse
 import com.gh.wedding.dto.InvitationEditorResponse
@@ -19,16 +24,20 @@ import com.gh.wedding.dto.InvitationSaveRequest
 import com.gh.wedding.dto.MyInvitationResponse
 import com.gh.wedding.dto.PublicInvitationResponse
 import com.gh.wedding.dto.RsvpCreateRequest
+import com.gh.wedding.dto.RsvpDeleteRequest
 import com.gh.wedding.dto.RsvpSummaryResponse
+import com.gh.wedding.dto.RsvpUpdateRequest
 import com.gh.wedding.dto.SlugCheckResponse
 import com.gh.wedding.repository.GuestbookRepository
 import com.gh.wedding.repository.InvitationPublicationRepository
 import com.gh.wedding.repository.InvitationRepository
+import com.gh.wedding.repository.InvitationVisitDailyRepository
 import com.gh.wedding.repository.RsvpRepository
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.multipart.MultipartFile
+import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.UUID
 
@@ -39,6 +48,7 @@ class InvitationService(
     private val publicationRepository: InvitationPublicationRepository,
     private val rsvpRepository: RsvpRepository,
     private val guestbookRepository: GuestbookRepository,
+    private val invitationVisitDailyRepository: InvitationVisitDailyRepository,
     private val fileService: FileService,
     private val planPolicyService: PlanPolicyService,
     private val watermarkPolicyProperties: WatermarkPolicyProperties,
@@ -276,6 +286,12 @@ class InvitationService(
         )
     }
 
+    fun unpublish(id: Long, userId: String): InvitationEditorResponse {
+        val invitation = getInvitationForOwner(id, userId)
+        invitation.publishedVersion = null
+        return toEditorResponse(invitation)
+    }
+
     fun softDeleteInvitation(id: Long, userId: String) {
         val invitation = invitationRepository.findByIdAndUserId(id, userId)
             ?: throw WeddingException(WeddingErrorCode.RESOURCE_NOT_FOUND, "초대장을 찾을 수 없습니다.")
@@ -332,20 +348,68 @@ class InvitationService(
             .map { guestbook ->
                 val invitation = guestbook.invitation
                     ?: throw WeddingException(WeddingErrorCode.SERVER_ERROR, "초대장 정보 누락")
-                val content = invitation.content
-                val title = listOfNotNull(content.groomName, content.brideName)
-                    .joinToString(" & ")
-                    .ifBlank { "제목 미입력 초대장" }
 
                 MyGuestbookResponse(
                     id = guestbook.id ?: 0,
                     invitationId = invitation.id ?: 0,
-                    invitationTitle = title,
+                    invitationTitle = buildInvitationTitle(invitation),
                     name = guestbook.name,
                     content = guestbook.content,
                     createdAt = guestbook.createdAt?.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME) ?: "",
                 )
             }
+    }
+
+    @Transactional(readOnly = true)
+    fun getMyDashboard(userId: String): DashboardSummaryResponse {
+        val invitations = invitationRepository.findByUserIdOrderByCreatedAtDesc(userId)
+            .filterNot { isDeleted(it) }
+        val rsvps = rsvpRepository.findByInvitation_UserIdOrderByCreatedAtDesc(userId)
+            .filter { row -> row.invitation?.let { !isDeleted(it) } ?: false }
+        val guestbooks = guestbookRepository.findByInvitation_UserIdOrderByCreatedAtDesc(userId)
+            .filter { row -> row.invitation?.let { !isDeleted(it) } ?: false }
+
+        val today = LocalDate.now()
+        val startDate = today.minusDays(6)
+        val dateRange = (0L..6L).map { startDate.plusDays(it) }
+        val trendMap = dateRange.associateWith { 0L }.toMutableMap()
+
+        val totalVisitors = if (invitations.isEmpty()) {
+            0L
+        } else {
+            val records = invitationVisitDailyRepository.findByInvitationInAndVisitDateBetween(invitations, startDate, today)
+            records.forEach { record ->
+                val date = record.visitDate
+                trendMap[date] = (trendMap[date] ?: 0L) + record.visitCount
+            }
+            invitationVisitDailyRepository.sumVisitCountByInvitationIn(invitations)
+        }
+
+        val trend = dateRange.map { date ->
+            DashboardVisitPointResponse(
+                date = date.toString(),
+                count = trendMap[date] ?: 0L,
+            )
+        }
+
+        return DashboardSummaryResponse(
+            totalVisitors = totalVisitors,
+            totalRsvps = rsvps.size,
+            totalGuestbooks = guestbooks.size,
+            visitorTrend = trend,
+            recentRsvps = rsvps.take(10).map { toRsvpSummary(it) },
+            recentGuestbooks = guestbooks.take(5).map { row ->
+                val invitation = row.invitation ?: throw WeddingException(WeddingErrorCode.SERVER_ERROR, "초대장 정보 누락")
+                MyGuestbookResponse(
+                    id = row.id ?: 0,
+                    invitationId = invitation.id ?: 0,
+                    invitationTitle = buildInvitationTitle(invitation),
+                    name = row.name,
+                    content = row.content,
+                    createdAt = row.createdAt?.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME) ?: "",
+                )
+            },
+        )
     }
 
     fun deleteMyGuestbook(guestbookId: Long, userId: String) {
@@ -361,10 +425,67 @@ class InvitationService(
         guestbookRepository.delete(guestbook)
     }
 
+    fun updateMyGuestbook(guestbookId: Long, userId: String, request: GuestbookUpdateRequest): MyGuestbookResponse {
+        val guestbook = guestbookRepository.findByIdAndInvitation_UserId(guestbookId, userId)
+            ?: throw WeddingException(WeddingErrorCode.RESOURCE_NOT_FOUND, "방명록을 찾을 수 없습니다.")
+
+        val invitation = guestbook.invitation
+            ?: throw WeddingException(WeddingErrorCode.RESOURCE_NOT_FOUND, "초대장 정보를 찾을 수 없습니다.")
+        if (isDeleted(invitation)) {
+            throw WeddingException(WeddingErrorCode.RESOURCE_NOT_FOUND, "삭제된 초대장의 방명록입니다.")
+        }
+
+        validateEntryPassword(guestbook.password, request.password, "방명록")
+
+        guestbook.name = request.name.trim()
+        guestbook.content = request.content.trim()
+        val saved = guestbookRepository.save(guestbook)
+
+        return MyGuestbookResponse(
+            id = saved.id ?: 0,
+            invitationId = invitation.id ?: 0,
+            invitationTitle = buildInvitationTitle(invitation),
+            name = saved.name,
+            content = saved.content,
+            createdAt = saved.createdAt?.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME) ?: "",
+        )
+    }
+
+    fun updateMyRsvp(rsvpId: Long, userId: String, request: RsvpUpdateRequest): RsvpSummaryResponse {
+        val rsvp = rsvpRepository.findByIdAndInvitation_UserId(rsvpId, userId)
+            ?: throw WeddingException(WeddingErrorCode.RESOURCE_NOT_FOUND, "RSVP를 찾을 수 없습니다.")
+        val invitation = rsvp.invitation
+            ?: throw WeddingException(WeddingErrorCode.RESOURCE_NOT_FOUND, "초대장 정보를 찾을 수 없습니다.")
+        if (isDeleted(invitation)) {
+            throw WeddingException(WeddingErrorCode.RESOURCE_NOT_FOUND, "삭제된 초대장의 RSVP입니다.")
+        }
+
+        validateEntryPassword(rsvp.password, request.password, "RSVP")
+
+        rsvp.name = request.name.trim()
+        rsvp.attending = request.attending
+        rsvp.side = normalizeRsvpSide(request.side)
+        rsvp.partyCount = if (request.attending) request.partyCount?.takeIf { it > 0 } else null
+        rsvp.contact = request.contact?.trim()?.takeIf { it.isNotBlank() }
+        rsvp.meal = request.meal
+        rsvp.bus = request.bus
+        rsvp.note = request.note?.trim()?.takeIf { it.isNotBlank() }
+
+        val saved = rsvpRepository.save(rsvp)
+        return toRsvpSummary(saved)
+    }
+
     @Transactional(readOnly = true)
     fun getRsvpsByInvitation(invitationId: Long, userId: String): List<RsvpSummaryResponse> {
         val invitation = getInvitationForOwner(invitationId, userId)
         return rsvpRepository.findByInvitationOrderByCreatedAtDesc(invitation)
+            .map { toRsvpSummary(it) }
+    }
+
+    @Transactional(readOnly = true)
+    fun getPublicRsvps(slug: String): List<RsvpSummaryResponse> {
+        val invitation = findPublishedInvitationBySlug(slug)
+        return rsvpRepository.findByInvitationIdOrderByCreatedAtDesc(invitation.id ?: 0)
             .map { toRsvpSummary(it) }
     }
 
@@ -400,6 +521,22 @@ class InvitationService(
             content = saved.content,
             createdAt = saved.createdAt?.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME) ?: "",
         )
+    }
+
+    fun deletePublicGuestbook(slug: String, guestbookId: Long, request: GuestbookDeleteRequest) {
+        val invitation = findPublishedInvitationBySlug(slug)
+        val guestbook = guestbookRepository.findByIdAndInvitationId(guestbookId, invitation.id ?: 0)
+            ?: throw WeddingException(WeddingErrorCode.RESOURCE_NOT_FOUND, "방명록을 찾을 수 없습니다.")
+        validateEntryPassword(guestbook.password, request.password, "방명록")
+        guestbookRepository.delete(guestbook)
+    }
+
+    fun deletePublicRsvp(slug: String, rsvpId: Long, request: RsvpDeleteRequest) {
+        val invitation = findPublishedInvitationBySlug(slug)
+        val rsvp = rsvpRepository.findByIdAndInvitationId(rsvpId, invitation.id ?: 0)
+            ?: throw WeddingException(WeddingErrorCode.RESOURCE_NOT_FOUND, "RSVP를 찾을 수 없습니다.")
+        validateEntryPassword(rsvp.password, request.password, "RSVP")
+        rsvpRepository.delete(rsvp)
     }
 
     @Transactional(readOnly = true)
@@ -504,11 +641,15 @@ class InvitationService(
 
         val rsvp = Rsvp(
             invitation = invitation,
-            name = request.name,
+            name = request.name.trim(),
+            password = request.password.trim(),
             attending = request.attending,
-            partyCount = if (request.attending) request.partyCount.coerceAtLeast(1) else 0,
+            side = normalizeRsvpSide(request.side),
+            partyCount = if (request.attending) request.partyCount?.takeIf { it > 0 } else null,
+            contact = request.contact?.trim()?.takeIf { it.isNotBlank() },
             meal = request.meal,
-            note = request.note,
+            bus = request.bus,
+            note = request.note?.trim()?.takeIf { it.isNotBlank() },
             ipAddress = ipAddress,
         )
 
@@ -520,15 +661,32 @@ class InvitationService(
 
         val rsvp = Rsvp(
             invitation = invitation,
-            name = request.name,
+            name = request.name.trim(),
+            password = request.password.trim(),
             attending = request.attending,
-            partyCount = if (request.attending) request.partyCount.coerceAtLeast(1) else 0,
+            side = normalizeRsvpSide(request.side),
+            partyCount = if (request.attending) request.partyCount?.takeIf { it > 0 } else null,
+            contact = request.contact?.trim()?.takeIf { it.isNotBlank() },
             meal = request.meal,
-            note = request.note,
+            bus = request.bus,
+            note = request.note?.trim()?.takeIf { it.isNotBlank() },
             ipAddress = ipAddress,
         )
 
         rsvpRepository.save(rsvp)
+    }
+
+    fun recordInvitationVisit(slug: String) {
+        val invitation = findPublishedInvitationBySlug(slug)
+        val today = LocalDate.now()
+        val record = invitationVisitDailyRepository.findByInvitationAndVisitDate(invitation, today)
+            ?: InvitationVisitDaily(
+                invitation = invitation,
+                visitDate = today,
+                visitCount = 0,
+            )
+        record.visitCount += 1
+        invitationVisitDailyRepository.save(record)
     }
 
     fun addGuestbookEntry(slug: String, request: GuestbookCreateRequest) {
@@ -637,21 +795,46 @@ class InvitationService(
     private fun toRsvpSummary(rsvp: Rsvp): RsvpSummaryResponse {
         val invitation = rsvp.invitation
             ?: throw WeddingException(WeddingErrorCode.SERVER_ERROR, "초대장 정보 누락")
-        val content = invitation.content
-        val title = listOfNotNull(content.groomName, content.brideName)
-            .joinToString(" & ")
-            .ifBlank { "제목 미입력 초대장" }
 
         return RsvpSummaryResponse(
+            id = rsvp.id ?: 0,
             invitationId = invitation.id ?: 0,
-            invitationTitle = title,
+            invitationTitle = buildInvitationTitle(invitation),
             name = rsvp.name,
+            side = normalizeRsvpSide(rsvp.side),
             attending = rsvp.attending,
             partyCount = rsvp.partyCount,
+            contact = rsvp.contact,
             meal = rsvp.meal,
+            bus = rsvp.bus,
             note = rsvp.note,
             createdAt = rsvp.createdAt?.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME) ?: "",
         )
+    }
+
+    private fun buildInvitationTitle(invitation: Invitation): String {
+        val content = invitation.content
+        return listOfNotNull(content.groomName, content.brideName)
+            .joinToString(" & ")
+            .ifBlank { "제목 미입력 초대장" }
+    }
+
+    private fun validateEntryPassword(savedPassword: String?, rawPassword: String, label: String) {
+        val expected = savedPassword?.trim() ?: ""
+        val provided = rawPassword.trim()
+        if (expected.isBlank()) {
+            throw WeddingException(WeddingErrorCode.INVALID_INPUT, "$label 비밀번호가 설정되지 않아 수정할 수 없습니다.")
+        }
+        if (provided != expected) {
+            throw WeddingException(WeddingErrorCode.INVALID_INPUT, "$label 비밀번호가 일치하지 않습니다.")
+        }
+    }
+
+    private fun normalizeRsvpSide(rawSide: String?): String {
+        return when (rawSide?.trim()?.lowercase()) {
+            "bride", "bride_side", "신부", "신부측" -> "bride"
+            else -> "groom"
+        }
     }
 
     private fun validateSlugAvailableOrThrow(slug: String, invitationId: Long?) {

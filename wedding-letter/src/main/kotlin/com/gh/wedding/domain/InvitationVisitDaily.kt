@@ -9,10 +9,14 @@ import jakarta.persistence.Id
 import jakarta.persistence.JoinColumn
 import jakarta.persistence.ManyToOne
 import jakarta.persistence.PrePersist
+import jakarta.persistence.PreUpdate
+import jakarta.persistence.Table
+import java.time.LocalDate
 import java.time.LocalDateTime
 
 @Entity
-class Rsvp(
+@Table(name = "invitation_visit_daily")
+class InvitationVisitDaily(
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     var id: Long? = null,
@@ -22,27 +26,25 @@ class Rsvp(
     var invitation: Invitation? = null,
 
     @Column(nullable = false)
-    var name: String = "",
-
-    @Column(nullable = false, length = 120)
-    var password: String = "",
+    var visitDate: LocalDate = LocalDate.now(),
 
     @Column(nullable = false)
-    var attending: Boolean = false,
+    var visitCount: Long = 0,
 
-    @Column(nullable = false, length = 10)
-    var side: String = "groom",
-
-    var partyCount: Int? = null,
-    var contact: String? = null,
-    var meal: Boolean? = null,
-    var bus: Boolean? = null,
-    var note: String? = null,
-    var ipAddress: String? = null,
     var createdAt: LocalDateTime? = null,
+    var updatedAt: LocalDateTime? = null,
 ) {
     @PrePersist
     fun onCreate() {
-        createdAt = LocalDateTime.now()
+        val now = LocalDateTime.now()
+        if (createdAt == null) {
+            createdAt = now
+        }
+        updatedAt = now
+    }
+
+    @PreUpdate
+    fun onUpdate() {
+        updatedAt = LocalDateTime.now()
     }
 }

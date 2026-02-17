@@ -3,7 +3,9 @@ package com.gh.wedding.controller
 import com.gh.wedding.common.requireAuthUser
 import com.gh.wedding.dto.GuestbookCreateRequest
 import com.gh.wedding.dto.GuestbookResponse
+import com.gh.wedding.dto.GuestbookUpdateRequest
 import com.gh.wedding.dto.InvitationEditorResponse
+import com.gh.wedding.dto.DashboardSummaryResponse
 import com.gh.wedding.dto.InvitationPublishRequest
 import com.gh.wedding.dto.InvitationPublishResponse
 import com.gh.wedding.dto.InvitationSaveRequest
@@ -112,10 +114,25 @@ class InvitationOwnerController(
         return invitationService.publish(id, user.userId, request ?: InvitationPublishRequest())
     }
 
+    @PostMapping("/{id}/unpublish")
+    fun unpublish(
+        authentication: Authentication?,
+        @PathVariable id: Long,
+    ): InvitationEditorResponse {
+        val user = authentication.requireAuthUser()
+        return invitationService.unpublish(id, user.userId)
+    }
+
     @GetMapping("/me")
     fun myInvitations(authentication: Authentication?): List<MyInvitationResponse> {
         val user = authentication.requireAuthUser()
         return invitationService.getMyInvitations(user.userId)
+    }
+
+    @GetMapping("/me/dashboard")
+    fun myDashboard(authentication: Authentication?): DashboardSummaryResponse {
+        val user = authentication.requireAuthUser()
+        return invitationService.getMyDashboard(user.userId)
     }
 
     @GetMapping("/me/guestbooks")
@@ -132,6 +149,16 @@ class InvitationOwnerController(
         val user = authentication.requireAuthUser()
         invitationService.deleteMyGuestbook(guestbookId, user.userId)
         return mapOf("message" to "방명록이 삭제되었습니다.")
+    }
+
+    @PutMapping("/me/guestbooks/{guestbookId}")
+    fun updateMyGuestbook(
+        authentication: Authentication?,
+        @PathVariable guestbookId: Long,
+        @Valid @RequestBody request: GuestbookUpdateRequest,
+    ): MyGuestbookResponse {
+        val user = authentication.requireAuthUser()
+        return invitationService.updateMyGuestbook(guestbookId, user.userId, request)
     }
 
     @GetMapping("/{id}/rsvps")
@@ -182,13 +209,13 @@ class InvitationOwnerController(
         val user = authentication.requireAuthUser()
         val rows = invitationService.getRsvpsByInvitation(id, user.userId)
 
-        val header = "Name,Attending,PartyCount,Meal,Note,Date"
+        val header = "Name,Side,Attending,PartyCount,Note,Date"
         val body = rows.joinToString("\n") {
             listOf(
                 escapeCsv(it.name),
+                escapeCsv(if (it.side == "bride") "Bride" else "Groom"),
                 if (it.attending) "Yes" else "No",
-                it.partyCount.toString(),
-                if (it.meal) "Yes" else "No",
+                it.partyCount?.toString() ?: "",
                 escapeCsv(it.note),
                 escapeCsv(it.createdAt),
             ).joinToString(",")
@@ -202,14 +229,14 @@ class InvitationOwnerController(
         val user = authentication.requireAuthUser()
         val rows = invitationService.getMyRsvps(user.userId)
 
-        val header = "Invitation,Name,Attending,PartyCount,Meal,Note,Date"
+        val header = "Invitation,Name,Side,Attending,PartyCount,Note,Date"
         val body = rows.joinToString("\n") {
             listOf(
                 escapeCsv(it.invitationTitle),
                 escapeCsv(it.name),
+                escapeCsv(if (it.side == "bride") "Bride" else "Groom"),
                 if (it.attending) "Yes" else "No",
-                it.partyCount.toString(),
-                if (it.meal) "Yes" else "No",
+                it.partyCount?.toString() ?: "",
                 escapeCsv(it.note),
                 escapeCsv(it.createdAt),
             ).joinToString(",")

@@ -7,7 +7,6 @@ import java.time.LocalDateTime
 data class AdminUserInvitationSummaryRow(
     val invitationId: Long,
     val slug: String?,
-    val templateId: String?,
     val createdAt: LocalDateTime?,
     val isPublished: Boolean,
     val publishedAt: LocalDateTime?,

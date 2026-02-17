@@ -23,7 +23,6 @@ class InvitationRepositoryImpl(
                     AdminUserInvitationSummaryRow::class.java,
                     invitation.id,
                     invitation.slug,
-                    invitation.templateId,
                     invitation.createdAt,
                     invitationPublication.id.isNotNull,
                     invitationPublication.publishedAt,

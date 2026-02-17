@@ -1,11 +1,6 @@
 package com.gh.wedding.dto
 
-data class InvitationCreateRequest(
-    val templateId: String? = "wedding-warm",
-)
-
 data class InvitationSaveRequest(
-    val templateId: String? = null,
     val slug: String? = null,
     val groomName: String? = null,
     val brideName: String? = null,
@@ -24,10 +19,14 @@ data class InvitationSaveRequest(
     val brideAccountNumber: String? = null,
     val groomRelation: String? = null,
     val groomFatherName: String? = null,
+    val groomFatherContact: String? = null,
     val groomMotherName: String? = null,
+    val groomMotherContact: String? = null,
     val brideRelation: String? = null,
     val brideFatherName: String? = null,
+    val brideFatherContact: String? = null,
     val brideMotherName: String? = null,
+    val brideMotherContact: String? = null,
     val bus: String? = null,
     val subway: String? = null,
     val car: String? = null,
@@ -87,7 +86,6 @@ data class InvitationPublishResponse(
 
 data class InvitationEditorResponse(
     val id: Long,
-    val templateId: String?,
     val slug: String?,
     val published: Boolean,
     val updatedAt: String?,
@@ -108,10 +106,14 @@ data class InvitationEditorResponse(
     val brideAccountNumber: String?,
     val groomRelation: String?,
     val groomFatherName: String?,
+    val groomFatherContact: String?,
     val groomMotherName: String?,
+    val groomMotherContact: String?,
     val brideRelation: String?,
     val brideFatherName: String?,
+    val brideFatherContact: String?,
     val brideMotherName: String?,
+    val brideMotherContact: String?,
     val bus: String?,
     val subway: String?,
     val car: String?,
@@ -158,7 +160,6 @@ data class MyInvitationResponse(
     val id: Long,
     val slug: String?,
     val published: Boolean,
-    val templateId: String?,
     val title: String,
     val weddingDate: String?,
     val mainImageUrl: String?,
@@ -221,4 +222,12 @@ data class PublicInvitationResponse(
     val brideAccountNumber: String?,
     val groomContact: String?,
     val brideContact: String?,
+    val groomFatherName: String?,
+    val groomFatherContact: String?,
+    val groomMotherName: String?,
+    val groomMotherContact: String?,
+    val brideFatherName: String?,
+    val brideFatherContact: String?,
+    val brideMotherName: String?,
+    val brideMotherContact: String?,
 )

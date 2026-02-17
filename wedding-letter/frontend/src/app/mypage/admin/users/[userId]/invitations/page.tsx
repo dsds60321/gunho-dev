@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import { apiFetch } from "@/lib/api";
@@ -34,7 +34,7 @@ function parsePage(raw: string | null): number {
   return Math.floor(parsed);
 }
 
-export default function AdminUserInvitationsPage() {
+function AdminUserInvitationsPageContent() {
   const router = useRouter();
   const pathname = usePathname();
   const params = useParams<{ userId: string }>();
@@ -62,7 +62,7 @@ export default function AdminUserInvitationsPage() {
 
       if (!normalizedKeyword) return true;
 
-      const candidate = `${row.invitationId} ${row.slug ?? ""} ${row.templateId ?? ""}`.toLowerCase();
+      const candidate = `${row.invitationId} ${row.slug ?? ""}`.toLowerCase();
       return candidate.includes(normalizedKeyword);
     });
   }, [payload, keyword, publishFilter]);
@@ -186,7 +186,7 @@ export default function AdminUserInvitationsPage() {
           >
             <input
               className="h-10 w-full rounded-xl border border-warm px-3 text-sm outline-none"
-              placeholder="ID/slug/template 검색"
+              placeholder="ID/slug 검색"
               value={keywordInput}
               onChange={(event) => setKeywordInput(event.target.value)}
               onKeyDown={(event) => {
@@ -235,7 +235,6 @@ export default function AdminUserInvitationsPage() {
                   <tr>
                     <th className="px-4 py-3">ID</th>
                     <th className="px-4 py-3">Slug</th>
-                    <th className="hidden px-4 py-3 md:table-cell">Template</th>
                     <th className="hidden px-4 py-3 md:table-cell">생성일</th>
                     <th className="px-4 py-3">발행 여부</th>
                     <th className="px-4 py-3">발행일시</th>
@@ -248,7 +247,6 @@ export default function AdminUserInvitationsPage() {
                     <tr key={row.invitationId}>
                       <td className="px-4 py-3 font-medium text-theme-brand">{row.invitationId}</td>
                       <td className="px-4 py-3">{row.slug ?? "-"}</td>
-                      <td className="hidden px-4 py-3 md:table-cell">{row.templateId ?? "-"}</td>
                       <td className="hidden px-4 py-3 md:table-cell">{formatDate(row.createdAt)}</td>
                       <td className="px-4 py-3">
                         <StatusBadge label={row.isPublished ? "발행" : "미발행"} tone={row.isPublished ? "success" : "neutral"} />
@@ -315,5 +313,13 @@ export default function AdminUserInvitationsPage() {
 
       <ToastViewport toasts={toasts} onClose={removeToast} />
     </div>
+  );
+}
+
+export default function AdminUserInvitationsPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-theme px-6 py-10 text-sm text-theme-secondary">페이지 로딩 중...</div>}>
+      <AdminUserInvitationsPageContent />
+    </Suspense>
   );
 }

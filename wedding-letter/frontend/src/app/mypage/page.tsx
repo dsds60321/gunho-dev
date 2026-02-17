@@ -12,7 +12,6 @@ type MyInvitation = {
   id: number;
   slug?: string | null;
   published: boolean;
-  templateId?: string | null;
   title: string;
   weddingDate?: string | null;
   mainImageUrl?: string | null;

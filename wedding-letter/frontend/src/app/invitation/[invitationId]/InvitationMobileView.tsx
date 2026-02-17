@@ -24,6 +24,14 @@ export type InvitationMobileViewData = {
   message?: string;
   groomContact?: string;
   brideContact?: string;
+  groomFatherName?: string;
+  groomFatherContact?: string;
+  groomMotherName?: string;
+  groomMotherContact?: string;
+  brideFatherName?: string;
+  brideFatherContact?: string;
+  brideMotherName?: string;
+  brideMotherContact?: string;
   subway?: string;
   bus?: string;
   car?: string;
@@ -279,6 +287,12 @@ function createTelHref(phone?: string) {
   return digits ? `tel:${digits}` : "";
 }
 
+function createSmsHref(phone?: string) {
+  if (!phone) return "";
+  const digits = phone.replace(/[^0-9+]/g, "");
+  return digits ? `sms:${digits}` : "";
+}
+
 const SEOUL_TIME_ZONE = "Asia/Seoul";
 
 type SeoulDateParts = {
@@ -412,11 +426,22 @@ export default function InvitationMobileView({
   embedded = false,
 }: InvitationMobileViewProps) {
   const rootRef = useRef<HTMLDivElement>(null);
+  const [isContactModalOpen, setIsContactModalOpen] = useState(false);
   const dateInfo = useMemo(() => formatInvitationDate(invitation.weddingDateTime), [invitation.weddingDateTime]);
   const calendarInfo = useMemo(() => buildCalendarInfo(invitation.weddingDateTime), [invitation.weddingDateTime]);
   const [countdownInfo, setCountdownInfo] = useState(() => ({ days: "00", hours: "00", mins: "00", secs: "00", diffDaysText: "0" }));
   const groomTel = useMemo(() => createTelHref(invitation.groomContact), [invitation.groomContact]);
   const brideTel = useMemo(() => createTelHref(invitation.brideContact), [invitation.brideContact]);
+  const groomFatherTel = useMemo(() => createTelHref(invitation.groomFatherContact), [invitation.groomFatherContact]);
+  const groomMotherTel = useMemo(() => createTelHref(invitation.groomMotherContact), [invitation.groomMotherContact]);
+  const brideFatherTel = useMemo(() => createTelHref(invitation.brideFatherContact), [invitation.brideFatherContact]);
+  const brideMotherTel = useMemo(() => createTelHref(invitation.brideMotherContact), [invitation.brideMotherContact]);
+  const groomSms = useMemo(() => createSmsHref(invitation.groomContact), [invitation.groomContact]);
+  const brideSms = useMemo(() => createSmsHref(invitation.brideContact), [invitation.brideContact]);
+  const groomFatherSms = useMemo(() => createSmsHref(invitation.groomFatherContact), [invitation.groomFatherContact]);
+  const groomMotherSms = useMemo(() => createSmsHref(invitation.groomMotherContact), [invitation.groomMotherContact]);
+  const brideFatherSms = useMemo(() => createSmsHref(invitation.brideFatherContact), [invitation.brideFatherContact]);
+  const brideMotherSms = useMemo(() => createSmsHref(invitation.brideMotherContact), [invitation.brideMotherContact]);
   const themeBackgroundColor = useMemo(
     () => normalizeHexColor(invitation.themeBackgroundColor, THEME_DEFAULTS.backgroundColor),
     [invitation.themeBackgroundColor],
@@ -499,6 +524,15 @@ export default function InvitationMobileView({
     return () => observer.disconnect();
   }, [embedded, revealEnabled, invitation.id]);
 
+  useEffect(() => {
+    if (!isContactModalOpen || embedded) return;
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [isContactModalOpen, embedded]);
+
   const accountRows = invitation.useSeparateAccounts
     ? [
         { label: "신랑측", value: invitation.groomAccountNumber },
@@ -510,6 +544,56 @@ export default function InvitationMobileView({
   const heroImageUrl = resolveAssetUrl(
     invitation.mainImageUrl || invitation.coverImageUrl || invitation.imageUrls?.[0] || "",
     apiBaseUrl,
+  );
+  const contactGroups = useMemo(
+    () => [
+      {
+        side: "신랑측",
+        rows: [
+          { relation: "신랑", name: invitation.groomName || "신랑", tel: groomTel, sms: groomSms },
+          { relation: "아버지", name: invitation.groomFatherName || "아버지", tel: groomFatherTel, sms: groomFatherSms },
+          { relation: "어머니", name: invitation.groomMotherName || "어머니", tel: groomMotherTel, sms: groomMotherSms },
+        ],
+      },
+      {
+        side: "신부측",
+        rows: [
+          { relation: "신부", name: invitation.brideName || "신부", tel: brideTel, sms: brideSms },
+          { relation: "아버지", name: invitation.brideFatherName || "아버지", tel: brideFatherTel, sms: brideFatherSms },
+          { relation: "어머니", name: invitation.brideMotherName || "어머니", tel: brideMotherTel, sms: brideMotherSms },
+        ],
+      },
+    ],
+    [
+      invitation.groomName,
+      invitation.brideName,
+      invitation.groomFatherName,
+      invitation.groomMotherName,
+      invitation.brideFatherName,
+      invitation.brideMotherName,
+      groomTel,
+      brideTel,
+      groomSms,
+      brideSms,
+      groomFatherTel,
+      groomMotherTel,
+      brideFatherTel,
+      brideMotherTel,
+      groomFatherSms,
+      groomMotherSms,
+      brideFatherSms,
+      brideMotherSms,
+    ],
+  );
+  const availableContactGroups = useMemo(
+    () =>
+      contactGroups
+        .map((group) => ({
+          ...group,
+          rows: group.rows.filter((row) => Boolean(row.tel)),
+        }))
+        .filter((group) => group.rows.length > 0),
+    [contactGroups],
   );
 
   const renderHeroOverlay = () => {
@@ -773,28 +857,18 @@ export default function InvitationMobileView({
           </div>
         </section>
 
-        <section className="pb-16 px-6 text-center" data-invite-reveal>
-          <div className="flex justify-center gap-4">
-            {groomTel ? (
-              <a className="rounded-full border border-warm bg-white px-8 py-3 text-[11px] font-bold text-theme-secondary hover:bg-theme transition-colors shadow-sm" href={groomTel}>
-                신랑측 연락하기
-              </a>
-            ) : (
-              <button className="rounded-full border border-warm bg-white/70 px-8 py-3 text-[11px] font-bold text-theme-secondary opacity-60 shadow-sm" type="button" disabled>
-                신랑측 연락하기
-              </button>
-            )}
-            {brideTel ? (
-              <a className="rounded-full border border-warm bg-white px-8 py-3 text-[11px] font-bold text-theme-secondary hover:bg-theme transition-colors shadow-sm" href={brideTel}>
-                신부측 연락하기
-              </a>
-            ) : (
-              <button className="rounded-full border border-warm bg-white/70 px-8 py-3 text-[11px] font-bold text-theme-secondary opacity-60 shadow-sm" type="button" disabled>
-                신부측 연락하기
-              </button>
-            )}
-          </div>
-        </section>
+        {availableContactGroups.length > 0 ? (
+          <section className="pb-16 px-6 text-center" data-invite-reveal>
+            <button
+              className="inline-flex items-center gap-2 rounded-2xl border border-warm bg-white px-10 py-3 text-sm font-bold text-theme-secondary shadow-sm transition-colors hover:bg-theme"
+              type="button"
+              onClick={() => setIsContactModalOpen(true)}
+            >
+              <span className="material-symbols-outlined text-[20px]">call</span>
+              <span>연락하기</span>
+            </button>
+          </section>
+        ) : null}
 
         {invitation.imageUrls.length > 0 ? (
           <section className="space-y-3" data-invite-reveal>
@@ -902,6 +976,63 @@ export default function InvitationMobileView({
         rsvpButtonText={invitation.rsvpButtonText}
         rsvpFontFamily={invitation.rsvpFontFamily}
       />
+
+      {isContactModalOpen ? (
+        <div className={`${embedded ? "absolute" : "fixed"} inset-0 z-[90]`}>
+          <button className="absolute inset-0 bg-black/35" type="button" onClick={() => setIsContactModalOpen(false)} aria-label="연락처 모달 닫기 배경" />
+          <div className="absolute inset-0 bg-white">
+            <div className="relative flex h-16 items-center justify-center px-4">
+              <h3 className="text-[16px] font-semibold tracking-[-0.01em] text-[#2f3136]">연락하기</h3>
+              <button
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-[#44474d]"
+                type="button"
+                onClick={() => setIsContactModalOpen(false)}
+                aria-label="연락처 모달 닫기"
+              >
+                <span className="material-symbols-outlined text-[24px]">close</span>
+              </button>
+            </div>
+
+            <div className="h-[calc(100%-4rem)] overflow-y-auto px-5 pt-2 pb-8">
+              <div className="space-y-8">
+                {availableContactGroups.map((group) => (
+                  <section key={`${invitation.id}-${group.side}`} className="space-y-2">
+                    <h4 className="text-[12px] font-semibold text-[#2f3136]">{group.side}</h4>
+                    <div className="space-y-0.5 border-t border-[#ececed] pt-2.5">
+                      {group.rows.map((row) => (
+                        <div key={`${group.side}-${row.relation}-${row.name}`} className="grid grid-cols-[56px_1fr_auto] items-center gap-3 py-2.5">
+                          <span className="text-[13px] font-medium text-[#9a9ca1]">{row.relation}</span>
+                          <span className="truncate text-[13px] font-semibold text-[#3b3d42]">{row.name}</span>
+                          <div className="flex items-center gap-1.5">
+                            <a
+                              className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-[#e8e8ea] bg-white text-[#8d9096]"
+                              href={row.tel}
+                              aria-label={`${group.side} ${row.relation} 전화`}
+                            >
+                              <span className="material-symbols-outlined text-[22px]" style={{ fontVariationSettings: "'FILL' 1, 'wght' 400" }}>
+                                call
+                              </span>
+                            </a>
+                            <a
+                              className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-[#e8e8ea] bg-white text-[#8d9096]"
+                              href={row.sms}
+                              aria-label={`${group.side} ${row.relation} 문자`}
+                            >
+                              <span className="material-symbols-outlined text-[22px]" style={{ fontVariationSettings: "'FILL' 1, 'wght' 400" }}>
+                                mail
+                              </span>
+                            </a>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
     </div>
   );

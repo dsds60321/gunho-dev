@@ -3,7 +3,6 @@ package com.gh.wedding.controller
 import com.gh.wedding.common.requireAuthUser
 import com.gh.wedding.dto.GuestbookCreateRequest
 import com.gh.wedding.dto.GuestbookResponse
-import com.gh.wedding.dto.InvitationCreateRequest
 import com.gh.wedding.dto.InvitationEditorResponse
 import com.gh.wedding.dto.InvitationPublishRequest
 import com.gh.wedding.dto.InvitationPublishResponse
@@ -39,10 +38,9 @@ class InvitationOwnerController(
     @PostMapping
     fun create(
         authentication: Authentication?,
-        @RequestBody(required = false) request: InvitationCreateRequest?,
     ): InvitationEditorResponse {
         val user = authentication.requireAuthUser()
-        return invitationService.createInvitation(user.userId, request ?: InvitationCreateRequest())
+        return invitationService.createInvitation(user.userId)
     }
 
     @GetMapping("/{id}")

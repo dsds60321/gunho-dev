@@ -81,10 +81,14 @@ type EditorInvitation = {
   brideAccountNumber?: string | null;
   groomRelation?: string | null;
   groomFatherName?: string | null;
+  groomFatherContact?: string | null;
   groomMotherName?: string | null;
+  groomMotherContact?: string | null;
   brideRelation?: string | null;
   brideFatherName?: string | null;
+  brideFatherContact?: string | null;
   brideMotherName?: string | null;
+  brideMotherContact?: string | null;
   bus?: string | null;
   subway?: string | null;
   car?: string | null;
@@ -159,10 +163,14 @@ type FormState = {
   brideAccountNumber: string;
   groomRelation: string;
   groomFatherName: string;
+  groomFatherContact: string;
   groomMotherName: string;
+  groomMotherContact: string;
   brideRelation: string;
   brideFatherName: string;
+  brideFatherContact: string;
   brideMotherName: string;
+  brideMotherContact: string;
   bus: string;
   subway: string;
   car: string;
@@ -228,10 +236,14 @@ const defaultFormState: FormState = {
   brideAccountNumber: "",
   groomRelation: "아들",
   groomFatherName: "",
+  groomFatherContact: "",
   groomMotherName: "",
+  groomMotherContact: "",
   brideRelation: "딸",
   brideFatherName: "",
+  brideFatherContact: "",
   brideMotherName: "",
+  brideMotherContact: "",
   bus: "",
   subway: "",
   car: "",
@@ -596,10 +608,14 @@ function buildFormStateFromInvitation(data: EditorInvitation): FormState {
     brideAccountNumber: sanitizeAccountValue(brideAccount.number),
     groomRelation: data.groomRelation ?? "아들",
     groomFatherName: data.groomFatherName ?? "",
+    groomFatherContact: sanitizeContactValue(data.groomFatherContact ?? ""),
     groomMotherName: data.groomMotherName ?? "",
+    groomMotherContact: sanitizeContactValue(data.groomMotherContact ?? ""),
     brideRelation: data.brideRelation ?? "딸",
     brideFatherName: data.brideFatherName ?? "",
+    brideFatherContact: sanitizeContactValue(data.brideFatherContact ?? ""),
     brideMotherName: data.brideMotherName ?? "",
+    brideMotherContact: sanitizeContactValue(data.brideMotherContact ?? ""),
     bus: data.bus ?? "",
     subway: data.subway ?? "",
     car: data.car ?? "",
@@ -982,7 +998,7 @@ export default function EditorPage() {
           setLoadingText("새 초대장 생성 중...");
           editorData = await apiFetch<EditorInvitation>("/api/invitations", {
             method: "POST",
-            body: JSON.stringify({ templateId: "wedding-warm" }),
+            body: JSON.stringify({}),
           });
           router.replace(`/editor?id=${editorData.id}`);
         }
@@ -1054,7 +1070,17 @@ export default function EditorPage() {
     setForm((prev) => ({ ...prev, [key]: value }));
   };
 
-  const updateContactField = (key: "groomContact" | "brideContact" | "locationContact", value: string) => {
+  const updateContactField = (
+    key:
+      | "groomContact"
+      | "brideContact"
+      | "locationContact"
+      | "groomFatherContact"
+      | "groomMotherContact"
+      | "brideFatherContact"
+      | "brideMotherContact",
+    value: string,
+  ) => {
     updateField(key, sanitizeContactValue(value));
   };
 
@@ -1335,10 +1361,14 @@ export default function EditorPage() {
           brideAccountNumber: combineBankAndAccount(form.brideAccountBank, sanitizeAccountValue(form.brideAccountNumber)),
           groomRelation: form.groomRelation,
           groomFatherName: form.groomFatherName,
+          groomFatherContact: sanitizeContactValue(form.groomFatherContact),
           groomMotherName: form.groomMotherName,
+          groomMotherContact: sanitizeContactValue(form.groomMotherContact),
           brideRelation: form.brideRelation,
           brideFatherName: form.brideFatherName,
+          brideFatherContact: sanitizeContactValue(form.brideFatherContact),
           brideMotherName: form.brideMotherName,
+          brideMotherContact: sanitizeContactValue(form.brideMotherContact),
           bus: form.bus,
           subway: form.subway,
           car: form.car,
@@ -1554,6 +1584,14 @@ export default function EditorPage() {
                   message: form.message || "",
                   groomContact: form.groomContact,
                   brideContact: form.brideContact,
+                  groomFatherName: form.groomFatherName,
+                  groomFatherContact: form.groomFatherContact,
+                  groomMotherName: form.groomMotherName,
+                  groomMotherContact: form.groomMotherContact,
+                  brideFatherName: form.brideFatherName,
+                  brideFatherContact: form.brideFatherContact,
+                  brideMotherName: form.brideMotherName,
+                  brideMotherContact: form.brideMotherContact,
                   subway: form.subway,
                   bus: form.bus,
                   car: form.car,
@@ -1841,9 +1879,49 @@ export default function EditorPage() {
                     </div>
 
                     <div className="grid grid-cols-[72px_1fr_1fr] gap-3 items-center">
+                      <span className="text-xs font-bold text-theme-secondary">아버지 연락처</span>
+                      <input
+                        className="input-premium"
+                        value={form.groomFatherContact}
+                        onChange={(e) => updateContactField("groomFatherContact", e.target.value)}
+                        inputMode="numeric"
+                        maxLength={MAX_CONTACT_LENGTH}
+                        placeholder="숫자와 -만 입력"
+                      />
+                      <input
+                        className="input-premium"
+                        value={form.brideFatherContact}
+                        onChange={(e) => updateContactField("brideFatherContact", e.target.value)}
+                        inputMode="numeric"
+                        maxLength={MAX_CONTACT_LENGTH}
+                        placeholder="숫자와 -만 입력"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-[72px_1fr_1fr] gap-3 items-center">
                       <span className="text-xs font-bold text-theme-secondary">어머니</span>
                       <input className="input-premium" value={form.groomMotherName} onChange={(e) => updateField("groomMotherName", e.target.value)} />
                       <input className="input-premium" value={form.brideMotherName} onChange={(e) => updateField("brideMotherName", e.target.value)} />
+                    </div>
+
+                    <div className="grid grid-cols-[72px_1fr_1fr] gap-3 items-center">
+                      <span className="text-xs font-bold text-theme-secondary">어머니 연락처</span>
+                      <input
+                        className="input-premium"
+                        value={form.groomMotherContact}
+                        onChange={(e) => updateContactField("groomMotherContact", e.target.value)}
+                        inputMode="numeric"
+                        maxLength={MAX_CONTACT_LENGTH}
+                        placeholder="숫자와 -만 입력"
+                      />
+                      <input
+                        className="input-premium"
+                        value={form.brideMotherContact}
+                        onChange={(e) => updateContactField("brideMotherContact", e.target.value)}
+                        inputMode="numeric"
+                        maxLength={MAX_CONTACT_LENGTH}
+                        placeholder="숫자와 -만 입력"
+                      />
                     </div>
                   </div>
                 </div>

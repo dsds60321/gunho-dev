@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { apiFetch } from "@/lib/api";
 
 type KakaoLatLng = object;
 
@@ -55,9 +56,9 @@ export default function InvitationLocationMap({ address }: InvitationLocationMap
     let active = true;
     const loadConfig = async () => {
       try {
-        const response = await fetch("/api/public/config", { cache: "no-store" });
-        if (!response.ok) return;
-        const payload = (await response.json()) as { kakaoJsKey?: string };
+        const payload = await apiFetch<{ kakaoJsKey?: string }>("/api/public/config", {
+          cache: "no-store",
+        });
         if (!active) return;
         if (payload.kakaoJsKey && payload.kakaoJsKey.trim().length > 10) {
           setKakaoJsKey(payload.kakaoJsKey.trim());

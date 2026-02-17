@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { apiFetch } from "@/lib/api";
@@ -55,7 +55,7 @@ function isInDateRange(value: string | null | undefined, fromDate: string, toDat
   return true;
 }
 
-export default function AdminUsersPage() {
+function AdminUsersPageContent() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -365,5 +365,13 @@ export default function AdminUsersPage() {
 
       <ToastViewport toasts={toasts} onClose={removeToast} />
     </div>
+  );
+}
+
+export default function AdminUsersPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-theme px-6 py-10 text-sm text-theme-secondary">페이지 로딩 중...</div>}>
+      <AdminUsersPageContent />
+    </Suspense>
   );
 }

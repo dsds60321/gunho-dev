@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { apiFetch } from "@/lib/api";
@@ -93,7 +93,7 @@ function getStatusBadge(status: NoticeViewStatus): { label: string; tone: "neutr
   }
 }
 
-export default function AdminNoticesPage() {
+function AdminNoticesPageContent() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -489,5 +489,13 @@ export default function AdminNoticesPage() {
 
       <ToastViewport toasts={toasts} onClose={removeToast} />
     </div>
+  );
+}
+
+export default function AdminNoticesPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-theme px-6 py-10 text-sm text-theme-secondary">페이지 로딩 중...</div>}>
+      <AdminNoticesPageContent />
+    </Suspense>
   );
 }

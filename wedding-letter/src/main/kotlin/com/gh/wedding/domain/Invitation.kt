@@ -35,8 +35,6 @@ class Invitation(
 
     var userId: String? = null,
 
-    var templateId: String? = null,
-
     @Convert(converter = InvitationContentConverter::class)
     @Column(columnDefinition = "TEXT")
     var content: InvitationContent = InvitationContent(),

@@ -12,7 +12,6 @@ import com.gh.wedding.domain.Rsvp
 import com.gh.wedding.dto.GuestbookCreateRequest
 import com.gh.wedding.dto.MyGuestbookResponse
 import com.gh.wedding.dto.GuestbookResponse
-import com.gh.wedding.dto.InvitationCreateRequest
 import com.gh.wedding.dto.InvitationEditorResponse
 import com.gh.wedding.dto.InvitationPublishRequest
 import com.gh.wedding.dto.InvitationPublishResponse
@@ -48,13 +47,12 @@ class InvitationService(
 ) {
     private val slugRegex = Regex("^[a-z0-9]+(?:-[a-z0-9]+)*$")
 
-    fun createInvitation(userId: String, request: InvitationCreateRequest): InvitationEditorResponse {
+    fun createInvitation(userId: String): InvitationEditorResponse {
         planPolicyService.checkCreateLimit(userId)
 
         val invitation = Invitation(
             ownerToken = "${UUID.randomUUID()}${UUID.randomUUID()}",
             userId = userId,
-            templateId = request.templateId ?: "wedding-warm",
             content = InvitationContent(status = InvitationStatus.ACTIVE),
         )
 
@@ -83,8 +81,6 @@ class InvitationService(
         planPolicyService.checkEditLimit(userId)
         val invitation = getInvitationForOwner(id, userId)
         val content = invitation.content
-
-        request.templateId?.let { invitation.templateId = it }
 
         if (request.slug != null) {
             if (request.slug.isBlank()) {
@@ -121,10 +117,14 @@ class InvitationService(
         request.brideAccountNumber?.let { content.brideAccountNumber = it }
         request.groomRelation?.let { content.groomRelation = it }
         request.groomFatherName?.let { content.groomFatherName = it }
+        request.groomFatherContact?.let { content.groomFatherContact = it }
         request.groomMotherName?.let { content.groomMotherName = it }
+        request.groomMotherContact?.let { content.groomMotherContact = it }
         request.brideRelation?.let { content.brideRelation = it }
         request.brideFatherName?.let { content.brideFatherName = it }
+        request.brideFatherContact?.let { content.brideFatherContact = it }
         request.brideMotherName?.let { content.brideMotherName = it }
+        request.brideMotherContact?.let { content.brideMotherContact = it }
         request.bus?.let { content.bus = it }
         request.subway?.let { content.subway = it }
         request.car?.let { content.car = it }
@@ -310,7 +310,6 @@ class InvitationService(
                     id = invitation.id ?: 0,
                     slug = invitation.slug,
                     published = invitation.publishedVersion != null,
-                    templateId = invitation.templateId,
                     title = title,
                     weddingDate = content.date,
                     mainImageUrl = content.mainImageUrl ?: content.imageUrls.firstOrNull(),
@@ -489,6 +488,14 @@ class InvitationService(
             brideAccountNumber = content.brideAccountNumber,
             groomContact = content.groomContact,
             brideContact = content.brideContact,
+            groomFatherName = content.groomFatherName,
+            groomFatherContact = content.groomFatherContact,
+            groomMotherName = content.groomMotherName,
+            groomMotherContact = content.groomMotherContact,
+            brideFatherName = content.brideFatherName,
+            brideFatherContact = content.brideFatherContact,
+            brideMotherName = content.brideMotherName,
+            brideMotherContact = content.brideMotherContact,
         )
     }
 
@@ -556,7 +563,6 @@ class InvitationService(
         val content = invitation.content
         return InvitationEditorResponse(
             id = invitation.id ?: 0,
-            templateId = invitation.templateId,
             slug = invitation.slug,
             published = invitation.publishedVersion != null,
             updatedAt = invitation.updatedAt?.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
@@ -577,10 +583,14 @@ class InvitationService(
             brideAccountNumber = content.brideAccountNumber,
             groomRelation = content.groomRelation,
             groomFatherName = content.groomFatherName,
+            groomFatherContact = content.groomFatherContact,
             groomMotherName = content.groomMotherName,
+            groomMotherContact = content.groomMotherContact,
             brideRelation = content.brideRelation,
             brideFatherName = content.brideFatherName,
+            brideFatherContact = content.brideFatherContact,
             brideMotherName = content.brideMotherName,
+            brideMotherContact = content.brideMotherContact,
             bus = content.bus,
             subway = content.subway,
             car = content.car,

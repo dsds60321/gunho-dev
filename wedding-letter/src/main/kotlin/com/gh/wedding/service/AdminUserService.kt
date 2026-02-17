@@ -46,7 +46,6 @@ class AdminUserService(
                 AdminUserInvitationSummaryResponse(
                     invitationId = row.invitationId,
                     slug = row.slug,
-                    templateId = row.templateId,
                     createdAt = row.createdAt,
                     isPublished = row.isPublished,
                     publishedAt = row.publishedAt,

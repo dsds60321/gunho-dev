@@ -14,6 +14,13 @@ import java.io.InputStream
 import java.time.LocalDate
 import java.util.UUID
 
+data class StoredFileResult(
+    val publicUrl: String,
+    val storagePath: String,
+    val contentType: String,
+    val sizeBytes: Long,
+)
+
 @Service
 class FileService(
     private val storageService: StorageService,
@@ -25,6 +32,10 @@ class FileService(
     }
 
     fun uploadImage(file: MultipartFile?, userId: String?, invitationId: String?, slot: String): String? {
+        return uploadImageResult(file, userId, invitationId, slot)?.publicUrl
+    }
+
+    fun uploadImageResult(file: MultipartFile?, userId: String?, invitationId: String?, slot: String): StoredFileResult? {
         if (file == null || file.isEmpty) return null
         validateFileSize(file, uploadPolicyProperties.imageMaxBytes, "이미지")
         validateAllowedContentType(file.contentType, uploadPolicyProperties.allowedImageContentTypes, "이미지")
@@ -39,8 +50,13 @@ class FileService(
         val compressedBytes = file.inputStream.use { input ->
             compressImage(input)
         }
-
-        return storageService.store(relativePath, compressedBytes, "image/jpeg")
+        val publicUrl = storageService.store(relativePath, compressedBytes, "image/jpeg")
+        return StoredFileResult(
+            publicUrl = publicUrl,
+            storagePath = relativePath,
+            contentType = "image/jpeg",
+            sizeBytes = compressedBytes.size.toLong(),
+        )
     }
 
     fun uploadRaw(
@@ -50,6 +66,16 @@ class FileService(
         category: String = "files",
         requiredContentTypePrefix: String? = null,
     ): String? {
+        return uploadRawResult(file, userId, invitationId, category, requiredContentTypePrefix)?.publicUrl
+    }
+
+    fun uploadRawResult(
+        file: MultipartFile?,
+        userId: String?,
+        invitationId: String?,
+        category: String = "files",
+        requiredContentTypePrefix: String? = null,
+    ): StoredFileResult? {
         if (file == null || file.isEmpty) return null
         requiredContentTypePrefix?.let {
             if (it.equals("audio/", ignoreCase = true)) {
@@ -69,7 +95,14 @@ class FileService(
         )
 
         val contentType = file.contentType ?: "application/octet-stream"
-        return storageService.store(relativePath, file.bytes, contentType)
+        val bytes = file.bytes
+        val publicUrl = storageService.store(relativePath, bytes, contentType)
+        return StoredFileResult(
+            publicUrl = publicUrl,
+            storagePath = relativePath,
+            contentType = contentType,
+            sizeBytes = bytes.size.toLong(),
+        )
     }
 
     fun processUrl(url: String?): String? {

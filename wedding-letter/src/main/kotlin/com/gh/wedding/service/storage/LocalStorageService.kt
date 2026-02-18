@@ -23,6 +23,12 @@ class LocalStorageService(
         return "$publicPrefix/$normalized"
     }
 
+    override fun delete(relativePath: String) {
+        val normalized = normalize(relativePath)
+        val destination = Paths.get(storageProperties.localBasePath, normalized)
+        Files.deleteIfExists(destination)
+    }
+
     private fun normalize(value: String): String {
         return value
             .replace("\\", "/")

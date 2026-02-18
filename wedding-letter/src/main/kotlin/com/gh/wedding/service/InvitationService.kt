@@ -9,6 +9,7 @@ import com.gh.wedding.domain.InvitationContent
 import com.gh.wedding.domain.InvitationPublication
 import com.gh.wedding.domain.InvitationStatus
 import com.gh.wedding.domain.InvitationVisitDaily
+import com.gh.wedding.domain.FileAssetOwnerType
 import com.gh.wedding.domain.Rsvp
 import com.gh.wedding.dto.DashboardSummaryResponse
 import com.gh.wedding.dto.DashboardVisitPointResponse
@@ -50,6 +51,7 @@ class InvitationService(
     private val guestbookRepository: GuestbookRepository,
     private val invitationVisitDailyRepository: InvitationVisitDailyRepository,
     private val fileService: FileService,
+    private val fileAssetService: FileAssetService,
     private val planPolicyService: PlanPolicyService,
     private val watermarkPolicyProperties: WatermarkPolicyProperties,
     @Value("\${app.frontend.origin:http://localhost:3000}")
@@ -196,36 +198,86 @@ class InvitationService(
         val content = invitation.content
         val invitationId = invitation.id?.toString()
             ?: throw WeddingException(WeddingErrorCode.SERVER_ERROR, "초대장 ID 오류")
+        val ownerId = invitation.id ?: throw WeddingException(WeddingErrorCode.SERVER_ERROR, "초대장 ID 오류")
 
         if (mainImageFile != null && !mainImageFile.isEmpty) {
-            content.mainImageUrl = fileService.uploadImage(mainImageFile, userId, invitationId, "main")
+            val uploaded = fileService.uploadImageResult(mainImageFile, userId, invitationId, "main")
+            if (uploaded != null) {
+                content.mainImageUrl = uploaded.publicUrl
+                fileAssetService.registerUploadedFile(
+                    ownerType = FileAssetOwnerType.INVITATION,
+                    ownerId = ownerId,
+                    userId = userId,
+                    storagePath = uploaded.storagePath,
+                    publicUrl = uploaded.publicUrl,
+                )
+            }
         }
 
         if (paperInvitationFile != null && !paperInvitationFile.isEmpty) {
-            content.paperInvitationUrl = fileService.uploadImage(paperInvitationFile, userId, invitationId, "paper")
+            val uploaded = fileService.uploadImageResult(paperInvitationFile, userId, invitationId, "paper")
+            if (uploaded != null) {
+                content.paperInvitationUrl = uploaded.publicUrl
+                fileAssetService.registerUploadedFile(
+                    ownerType = FileAssetOwnerType.INVITATION,
+                    ownerId = ownerId,
+                    userId = userId,
+                    storagePath = uploaded.storagePath,
+                    publicUrl = uploaded.publicUrl,
+                )
+            }
         }
 
         if (seoImageFile != null && !seoImageFile.isEmpty) {
-            content.seoImageUrl = fileService.uploadImage(seoImageFile, userId, invitationId, "seo")
+            val uploaded = fileService.uploadImageResult(seoImageFile, userId, invitationId, "seo")
+            if (uploaded != null) {
+                content.seoImageUrl = uploaded.publicUrl
+                fileAssetService.registerUploadedFile(
+                    ownerType = FileAssetOwnerType.INVITATION,
+                    ownerId = ownerId,
+                    userId = userId,
+                    storagePath = uploaded.storagePath,
+                    publicUrl = uploaded.publicUrl,
+                )
+            }
         }
 
         if (backgroundMusicFile != null && !backgroundMusicFile.isEmpty) {
-            content.backgroundMusicUrl = fileService.uploadRaw(
+            val uploaded = fileService.uploadRawResult(
                 file = backgroundMusicFile,
                 userId = userId,
                 invitationId = invitationId,
                 category = "audio/bgm",
                 requiredContentTypePrefix = "audio/",
             )
+            if (uploaded != null) {
+                content.backgroundMusicUrl = uploaded.publicUrl
+                fileAssetService.registerUploadedFile(
+                    ownerType = FileAssetOwnerType.INVITATION,
+                    ownerId = ownerId,
+                    userId = userId,
+                    storagePath = uploaded.storagePath,
+                    publicUrl = uploaded.publicUrl,
+                )
+            }
         }
 
         if (!galleryFiles.isNullOrEmpty()) {
-            val uploadedUrls = galleryFiles
+            val uploadedAssets = galleryFiles
                 .filterNot { it.isEmpty }
-                .mapNotNull { fileService.uploadImage(it, userId, invitationId, "gallery") }
+                .mapNotNull { fileService.uploadImageResult(it, userId, invitationId, "gallery") }
 
-            if (uploadedUrls.isNotEmpty()) {
-                content.imageUrls = (content.imageUrls + uploadedUrls).toMutableList()
+            if (uploadedAssets.isNotEmpty()) {
+                content.imageUrls = (content.imageUrls + uploadedAssets.map { it.publicUrl }).toMutableList()
+                uploadedAssets.forEach { uploaded ->
+                    fileAssetService.registerUploadedFile(
+                        ownerType = FileAssetOwnerType.INVITATION,
+                        ownerId = ownerId,
+                        userId = userId,
+                        storagePath = uploaded.storagePath,
+                        publicUrl = uploaded.publicUrl,
+                    )
+                }
             }
         }
 
@@ -310,6 +362,7 @@ class InvitationService(
         content.slug = null
         content.status = InvitationStatus.DELETED
         invitation.content = content
+        fileAssetService.scheduleDeletion(FileAssetOwnerType.INVITATION, id)
     }
 
     @Transactional(readOnly = true)

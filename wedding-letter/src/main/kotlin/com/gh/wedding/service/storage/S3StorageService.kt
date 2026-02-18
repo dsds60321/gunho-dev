@@ -5,6 +5,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.stereotype.Service
 import software.amazon.awssdk.core.sync.RequestBody
 import software.amazon.awssdk.services.s3.S3Client
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest
 import software.amazon.awssdk.services.s3.model.PutObjectRequest
 
 @Service
@@ -38,6 +39,23 @@ class S3StorageService(
         } else {
             "https://$bucket.s3.${storageProperties.s3.region}.amazonaws.com/$key"
         }
+    }
+
+    override fun delete(relativePath: String) {
+        val bucket = storageProperties.s3.bucket.trim()
+        if (bucket.isBlank()) {
+            throw IllegalStateException("S3 bucket is required when app.storage.type=s3")
+        }
+
+        val normalized = normalize(relativePath)
+        val prefix = storageProperties.s3.prefix.trim().trim('/').takeIf { it.isNotBlank() }
+        val key = if (prefix == null) normalized else "$prefix/$normalized"
+
+        val request = DeleteObjectRequest.builder()
+            .bucket(bucket)
+            .key(key)
+            .build()
+        s3Client.deleteObject(request)
     }
 
     private fun normalize(value: String): String {

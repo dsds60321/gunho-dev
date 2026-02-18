@@ -5,6 +5,7 @@ import com.gh.wedding.common.WeddingException
 import com.gh.wedding.domain.ThankyouCard
 import com.gh.wedding.domain.ThankyouContent
 import com.gh.wedding.domain.ThankyouStatus
+import com.gh.wedding.domain.FileAssetOwnerType
 import com.gh.wedding.dto.MyThankyouResponse
 import com.gh.wedding.dto.PublicThankyouResponse
 import com.gh.wedding.dto.SlugCheckResponse
@@ -31,6 +32,7 @@ import java.util.UUID
 class ThankyouService(
     private val thankyouCardRepository: ThankyouCardRepository,
     private val fileService: FileService,
+    private val fileAssetService: FileAssetService,
     @Value("\${app.frontend.origin:http://localhost:3000}")
     private val frontendOrigin: String,
 ) {
@@ -208,17 +210,48 @@ class ThankyouService(
         val content = thankyouCard.content
         val thankyouId = thankyouCard.id?.toString()
             ?: throw WeddingException(WeddingErrorCode.SERVER_ERROR, "감사장 ID 오류")
+        val ownerId = thankyouCard.id ?: throw WeddingException(WeddingErrorCode.SERVER_ERROR, "감사장 ID 오류")
 
         if (mainImageFile != null && !mainImageFile.isEmpty) {
-            content.mainImageUrl = fileService.uploadImage(mainImageFile, userId, thankyouId, "thankyou-main")
+            val uploaded = fileService.uploadImageResult(mainImageFile, userId, thankyouId, "thankyou-main")
+            if (uploaded != null) {
+                content.mainImageUrl = uploaded.publicUrl
+                fileAssetService.registerUploadedFile(
+                    ownerType = FileAssetOwnerType.THANKYOU,
+                    ownerId = ownerId,
+                    userId = userId,
+                    storagePath = uploaded.storagePath,
+                    publicUrl = uploaded.publicUrl,
+                )
+            }
         }
 
         if (endingImageFile != null && !endingImageFile.isEmpty) {
-            content.endingImageUrl = fileService.uploadImage(endingImageFile, userId, thankyouId, "thankyou-ending")
+            val uploaded = fileService.uploadImageResult(endingImageFile, userId, thankyouId, "thankyou-ending")
+            if (uploaded != null) {
+                content.endingImageUrl = uploaded.publicUrl
+                fileAssetService.registerUploadedFile(
+                    ownerType = FileAssetOwnerType.THANKYOU,
+                    ownerId = ownerId,
+                    userId = userId,
+                    storagePath = uploaded.storagePath,
+                    publicUrl = uploaded.publicUrl,
+                )
+            }
         }
 
         if (ogImageFile != null && !ogImageFile.isEmpty) {
-            content.ogImageUrl = fileService.uploadImage(ogImageFile, userId, thankyouId, "thankyou-og")
+            val uploaded = fileService.uploadImageResult(ogImageFile, userId, thankyouId, "thankyou-og")
+            if (uploaded != null) {
+                content.ogImageUrl = uploaded.publicUrl
+                fileAssetService.registerUploadedFile(
+                    ownerType = FileAssetOwnerType.THANKYOU,
+                    ownerId = ownerId,
+                    userId = userId,
+                    storagePath = uploaded.storagePath,
+                    publicUrl = uploaded.publicUrl,
+                )
+            }
         }
 
         thankyouCard.content = content
@@ -278,6 +311,7 @@ class ThankyouService(
         thankyouCard.slug = null
         thankyouCard.publishedAt = null
         thankyouCard.status = ThankyouStatus.DELETED
+        fileAssetService.scheduleDeletion(FileAssetOwnerType.THANKYOU, id)
     }
 
     @Transactional(readOnly = true)

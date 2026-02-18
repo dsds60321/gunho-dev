@@ -82,7 +82,6 @@ AGENTS.md
 /wedding-letter/src/main/resources/application-dev.yml
 /wedding-letter/src/main/resources/application-local.yml
 /wedding-letter/src/main/resources/application-prod.yml
-/frontend_backup/
 /wedding-letter/.gradle-home/
 .gradle-home/
 /gradle/

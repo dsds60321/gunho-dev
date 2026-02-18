@@ -50,8 +50,12 @@ class ThankyouService(
 
     @Transactional(readOnly = true)
     fun getThankyouForOwner(id: Long, userId: String): ThankyouCard {
-        return thankyouCardRepository.findByIdAndUserId(id, userId)
+        val thankyouCard = thankyouCardRepository.findByIdAndUserId(id, userId)
             ?: throw WeddingException(WeddingErrorCode.RESOURCE_NOT_FOUND, "감사장을 찾을 수 없습니다.")
+        if (isDeleted(thankyouCard)) {
+            throw WeddingException(WeddingErrorCode.RESOURCE_NOT_FOUND, "감사장을 찾을 수 없습니다.")
+        }
+        return thankyouCard
     }
 
     @Transactional(readOnly = true)
@@ -267,10 +271,13 @@ class ThankyouService(
 
     fun softDeleteDraft(id: Long, userId: String) {
         val thankyouCard = getThankyouForOwner(id, userId)
+        if (isDeleted(thankyouCard)) return
         if (thankyouCard.status == ThankyouStatus.PUBLISHED) {
             throw WeddingException(WeddingErrorCode.INVALID_INPUT, "발행된 감사장은 삭제할 수 없습니다.")
         }
-        thankyouCardRepository.delete(thankyouCard)
+        thankyouCard.slug = null
+        thankyouCard.publishedAt = null
+        thankyouCard.status = ThankyouStatus.DELETED
     }
 
     @Transactional(readOnly = true)
@@ -284,6 +291,7 @@ class ThankyouService(
     @Transactional(readOnly = true)
     fun getMyThankyouCards(userId: String): List<MyThankyouResponse> {
         return thankyouCardRepository.findByUserIdOrderByCreatedAtDesc(userId)
+            .filterNot { isDeleted(it) }
             .map { card ->
                 val content = card.content
                 MyThankyouResponse(
@@ -510,6 +518,10 @@ class ThankyouService(
 
     private fun buildShareUrl(slug: String): String {
         return "${frontendOrigin.trimEnd('/')}/thankyou/$slug"
+    }
+
+    private fun isDeleted(thankyouCard: ThankyouCard): Boolean {
+        return thankyouCard.status == ThankyouStatus.DELETED
     }
 
     private fun isBlankHtml(rawHtml: String?): Boolean {

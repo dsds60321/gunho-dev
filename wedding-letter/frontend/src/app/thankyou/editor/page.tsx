@@ -220,6 +220,62 @@ function buildFormStateFromPayload(payload: ThankyouEditorPayload): FormState {
   };
 }
 
+function createUnsavedThankyou(): ThankyouEditorPayload {
+  return {
+    id: 0,
+    themeId: defaultFormState.themeId,
+    status: "draft",
+    published: false,
+    main: {
+      imageUrl: null,
+      caption: null,
+    },
+    basicInfo: {
+      title: "",
+      senderType: "couple",
+      groomName: null,
+      brideName: null,
+      groomParentName: null,
+      brideParentName: null,
+      recipientName: null,
+      headingPrefixText: null,
+      headingPrefixColor: defaultFormState.headingPrefixColor,
+      headingPrefixFontSize: defaultFormState.headingPrefixFontSize,
+      headingTitleColor: defaultFormState.headingTitleColor,
+      headingTitleFontSize: defaultFormState.headingTitleFontSize,
+      senderName: "신랑 · 신부",
+      receiverName: null,
+      eventDate: null,
+    },
+    greetingHtml: "",
+    detail: {
+      bodyText: null,
+      ending: {
+        imageUrl: null,
+        caption: null,
+      },
+    },
+    share: {
+      slug: null,
+      shareUrl: null,
+      ogTitle: null,
+      ogDescription: null,
+      ogImageUrl: null,
+    },
+    publishedAt: null,
+    createdAt: null,
+    updatedAt: null,
+    themeBackgroundColor: defaultFormState.themeBackgroundColor,
+    themeTextColor: defaultFormState.themeTextColor,
+    themeAccentColor: defaultFormState.themeAccentColor,
+    themePattern: defaultFormState.themePattern,
+    themeEffectType: defaultFormState.themeEffectType,
+    themeFontFamily: defaultFormState.themeFontFamily,
+    themeFontSize: defaultFormState.themeFontSize,
+    themeScrollReveal: defaultFormState.themeScrollReveal,
+  };
+}
+
 export default function ThankyouEditorPage() {
   const router = useRouter();
 
@@ -277,12 +333,8 @@ export default function ThankyouEditorPage() {
           setLoadingText("기존 감사장을 불러오는 중...");
           payload = await apiFetch<ThankyouEditorPayload>(`/api/thankyou-cards/${thankyouId}`);
         } else {
-          setLoadingText("새 감사장을 생성 중...");
-          payload = await apiFetch<ThankyouEditorPayload>("/api/thankyou-cards", {
-            method: "POST",
-            body: JSON.stringify({}),
-          });
-          router.replace(`/thankyou/editor?id=${payload.id}`);
+          setLoadingText("새 감사장 작성 화면 준비 중...");
+          payload = createUnsavedThankyou();
         }
 
         applyPayload(payload);
@@ -298,6 +350,10 @@ export default function ThankyouEditorPage() {
 
   const handleAssetUpload = async (payload: { mainImageFile?: File; endingImageFile?: File; ogImageFile?: File }) => {
     if (!thankyou) return;
+    if (thankyou.id <= 0) {
+      showToast("먼저 저장 후 이미지 업로드를 진행해 주세요.", "error");
+      return;
+    }
 
     const formData = new FormData();
     if (payload.mainImageFile) formData.append("mainImageFile", payload.mainImageFile);
@@ -331,55 +387,68 @@ export default function ThankyouEditorPage() {
     setSaving(true);
     setSlugStatus("");
 
+    const savePayload = {
+      themeId: form.themeId,
+      main: {
+        imageUrl: form.mainImageUrl || null,
+        caption: form.mainCaption || null,
+      },
+      basicInfo: {
+        title: form.title || null,
+        senderType: form.senderType,
+        groomName: form.groomName || null,
+        brideName: form.brideName || null,
+        groomParentName: form.groomParentName || null,
+        brideParentName: form.brideParentName || null,
+        recipientName: form.recipientName || null,
+        headingPrefixText: form.headingPrefixText || null,
+        headingPrefixColor: sanitizeColorValue(form.headingPrefixColor, defaultFormState.headingPrefixColor),
+        headingPrefixFontSize: clampHeadingPrefixFontSize(form.headingPrefixFontSize),
+        headingTitleColor: sanitizeColorValue(form.headingTitleColor, defaultFormState.headingTitleColor),
+        headingTitleFontSize: clampHeadingTitleFontSize(form.headingTitleFontSize),
+        senderName: senderDisplayText || null,
+        receiverName: form.recipientName || null,
+        eventDate: form.eventDate || null,
+      },
+      greetingHtml: form.greetingHtml || null,
+      detail: {
+        bodyText: form.detailBodyText || null,
+        ending: {
+          imageUrl: form.endingImageUrl || null,
+          caption: form.endingCaption || null,
+        },
+      },
+      share: {
+        slug: form.slug || null,
+        ogTitle: form.ogTitle || null,
+        ogDescription: form.ogDescription || null,
+        ogImageUrl: form.ogImageUrl || null,
+      },
+      themeBackgroundColor: sanitizeColorValue(form.themeBackgroundColor, defaultFormState.themeBackgroundColor),
+      themeTextColor: sanitizeColorValue(form.themeTextColor, defaultFormState.themeTextColor),
+      themeAccentColor: sanitizeColorValue(form.themeAccentColor, defaultFormState.themeAccentColor),
+      themePattern: form.themePattern,
+      themeEffectType: form.themeEffectType,
+      themeFontFamily: form.themeFontFamily,
+      themeFontSize: clampThemeFontSize(form.themeFontSize),
+      themeScrollReveal: form.themeScrollReveal,
+    };
+
     try {
-      const saved = await apiFetch<ThankyouEditorPayload>(`/api/thankyou-cards/${thankyou.id}`, {
+      let targetThankyou = thankyou;
+      if (thankyou.id <= 0) {
+        const created = await apiFetch<ThankyouEditorPayload>("/api/thankyou-cards", {
+          method: "POST",
+          body: JSON.stringify({}),
+        });
+        targetThankyou = created;
+        setThankyou(created);
+        router.replace(`/thankyou/editor?id=${created.id}`);
+      }
+
+      const saved = await apiFetch<ThankyouEditorPayload>(`/api/thankyou-cards/${targetThankyou.id}`, {
         method: "PUT",
-        body: JSON.stringify({
-          themeId: form.themeId,
-          main: {
-            imageUrl: form.mainImageUrl || null,
-            caption: form.mainCaption || null,
-          },
-          basicInfo: {
-            title: form.title || null,
-            senderType: form.senderType,
-            groomName: form.groomName || null,
-            brideName: form.brideName || null,
-            groomParentName: form.groomParentName || null,
-            brideParentName: form.brideParentName || null,
-            recipientName: form.recipientName || null,
-            headingPrefixText: form.headingPrefixText || null,
-            headingPrefixColor: sanitizeColorValue(form.headingPrefixColor, defaultFormState.headingPrefixColor),
-            headingPrefixFontSize: clampHeadingPrefixFontSize(form.headingPrefixFontSize),
-            headingTitleColor: sanitizeColorValue(form.headingTitleColor, defaultFormState.headingTitleColor),
-            headingTitleFontSize: clampHeadingTitleFontSize(form.headingTitleFontSize),
-            senderName: senderDisplayText || null,
-            receiverName: form.recipientName || null,
-            eventDate: form.eventDate || null,
-          },
-          greetingHtml: form.greetingHtml || null,
-          detail: {
-            bodyText: form.detailBodyText || null,
-            ending: {
-              imageUrl: form.endingImageUrl || null,
-              caption: form.endingCaption || null,
-            },
-          },
-          share: {
-            slug: form.slug || null,
-            ogTitle: form.ogTitle || null,
-            ogDescription: form.ogDescription || null,
-            ogImageUrl: form.ogImageUrl || null,
-          },
-          themeBackgroundColor: sanitizeColorValue(form.themeBackgroundColor, defaultFormState.themeBackgroundColor),
-          themeTextColor: sanitizeColorValue(form.themeTextColor, defaultFormState.themeTextColor),
-          themeAccentColor: sanitizeColorValue(form.themeAccentColor, defaultFormState.themeAccentColor),
-          themePattern: form.themePattern,
-          themeEffectType: form.themeEffectType,
-          themeFontFamily: form.themeFontFamily,
-          themeFontSize: clampThemeFontSize(form.themeFontSize),
-          themeScrollReveal: form.themeScrollReveal,
-        }),
+        body: JSON.stringify(savePayload),
       });
       applyPayload(saved);
       showToast("감사장 내용이 저장되었습니다.");
@@ -394,6 +463,10 @@ export default function ThankyouEditorPage() {
 
   const handleSlugCheck = async () => {
     if (!thankyou) return;
+    if (thankyou.id <= 0) {
+      setSlugStatus("신규 감사장은 저장 후 slug 검사가 가능합니다.");
+      return;
+    }
     if (!form.slug.trim()) {
       setSlugStatus("slug를 입력해 주세요.");
       return;
@@ -413,6 +486,10 @@ export default function ThankyouEditorPage() {
 
   const handlePublish = async () => {
     if (!thankyou) return;
+    if (thankyou.id <= 0) {
+      showToast("먼저 저장 후 발행해 주세요.", "error");
+      return;
+    }
 
     if (!form.mainImageUrl.trim()) {
       showToast("메인 이미지는 발행 시 필수입니다.", "error");
@@ -464,6 +541,10 @@ export default function ThankyouEditorPage() {
 
   const handleUnpublish = async () => {
     if (!thankyou) return;
+    if (thankyou.id <= 0) {
+      showToast("먼저 저장 후 발행 해제를 진행해 주세요.", "error");
+      return;
+    }
     setUnpublishing(true);
     try {
       const updated = await apiFetch<ThankyouEditorPayload>(`/api/thankyou-cards/${thankyou.id}/unpublish`, {
@@ -481,14 +562,18 @@ export default function ThankyouEditorPage() {
 
   const handleDelete = async () => {
     if (!thankyou) return;
-    if (!window.confirm("이 감사장을 삭제하시겠습니까? 삭제 후 복구할 수 없습니다.")) return;
+    if (thankyou.id <= 0) {
+      showToast("아직 저장되지 않은 새 감사장입니다.", "error");
+      return;
+    }
+    if (!window.confirm("이 감사장을 삭제하시겠습니까? 상태가 삭제로 변경되며 목록에서 숨김 처리됩니다.")) return;
 
     setDeleting(true);
     try {
       await apiFetch<{ message: string }>(`/api/thankyou-cards/${thankyou.id}`, {
         method: "DELETE",
       });
-      showToast("감사장이 삭제되었습니다.");
+      showToast("감사장이 삭제 처리되었습니다.");
       router.push("/mypage");
     } catch (error) {
       if (isApiError(error) && error.redirectedToLogin) return;
@@ -564,6 +649,8 @@ export default function ThankyouEditorPage() {
       themeScrollReveal: form.themeScrollReveal,
     };
   }, [thankyou, form, shareUrl, senderDisplayText]);
+  const isThankyouSaved = Boolean(thankyou && thankyou.id > 0);
+  const actionLockedUntilSaved = !isThankyouSaved;
 
   if (!ready || !thankyou || !previewData) {
     return <div className="flex min-h-screen items-center justify-center text-sm text-theme-secondary">{loadingText}</div>;
@@ -578,17 +665,24 @@ export default function ThankyouEditorPage() {
             <span className="text-sm font-medium">Wedding Letter 에디터</span>
           </button>
           <div className="hidden h-4 w-px bg-[var(--theme-divider)] md:block" />
-          <div className="hidden text-xs font-medium text-gray-400 md:block">감사장 ID: {thankyou.id}</div>
+          <div className="hidden text-xs font-medium text-gray-400 md:block">감사장 ID: {isThankyouSaved ? thankyou.id : "미저장"}</div>
         </div>
 
         <div className="flex items-center gap-2">
-          <button className="rounded-full border border-warm px-4 py-2 text-xs font-bold text-theme-secondary transition-colors hover:bg-theme" type="button" onClick={handleSave} disabled={saving || uploading || publishing}>
+          <button className="rounded-full border border-warm px-4 py-2 text-xs font-bold text-theme-secondary transition-colors hover:bg-theme disabled:cursor-not-allowed disabled:opacity-50" type="button" onClick={handleSave} disabled={saving || uploading || publishing}>
             {saving ? "저장중..." : "저장하기"}
           </button>
           <button
-            className="rounded-full border border-warm px-4 py-2 text-xs font-bold text-theme-secondary transition-colors hover:bg-theme"
+            className="rounded-full border border-warm px-4 py-2 text-xs font-bold text-theme-secondary transition-colors hover:bg-theme disabled:cursor-not-allowed disabled:opacity-50"
             type="button"
-            onClick={() => router.push(`/thankyou/${thankyou.id}?preview=1`)}
+            onClick={() => {
+              if (!isThankyouSaved) {
+                showToast("먼저 저장 후 미리보기를 이용해 주세요.", "error");
+                return;
+              }
+              router.push(`/thankyou/${thankyou.id}?preview=1`);
+            }}
+            disabled={actionLockedUntilSaved}
           >
             미리보기
           </button>
@@ -597,15 +691,15 @@ export default function ThankyouEditorPage() {
               URL 복사
             </button>
           ) : null}
-          <button className="rounded-full bg-theme-brand px-5 py-2 text-xs font-bold text-white" type="button" onClick={handlePublish} disabled={publishing || saving || uploading || deleting}>
+          <button className="rounded-full bg-theme-brand px-5 py-2 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-50" type="button" onClick={handlePublish} disabled={actionLockedUntilSaved || publishing || saving || uploading || deleting}>
             {publishing ? "발행중..." : "발행하기"}
           </button>
           {thankyou.published ? (
-            <button className="rounded-full border border-warm px-4 py-2 text-xs font-bold text-theme-secondary" type="button" onClick={handleUnpublish} disabled={unpublishing || publishing}>
+            <button className="rounded-full border border-warm px-4 py-2 text-xs font-bold text-theme-secondary disabled:cursor-not-allowed disabled:opacity-50" type="button" onClick={handleUnpublish} disabled={actionLockedUntilSaved || unpublishing || publishing}>
               {unpublishing ? "해제중..." : "발행해제"}
             </button>
           ) : (
-            <button className="rounded-full border border-red-200 bg-red-50 px-4 py-2 text-xs font-bold text-red-500" type="button" onClick={handleDelete} disabled={deleting || saving || publishing || uploading}>
+            <button className="rounded-full border border-red-200 bg-red-50 px-4 py-2 text-xs font-bold text-red-500 disabled:cursor-not-allowed disabled:opacity-50" type="button" onClick={handleDelete} disabled={actionLockedUntilSaved || deleting || saving || publishing || uploading}>
               {deleting ? "삭제중..." : "삭제하기"}
             </button>
           )}
@@ -634,6 +728,11 @@ export default function ThankyouEditorPage() {
             <div className="space-y-2 px-6 py-10 md:px-10">
               <h1 className="serif-font text-3xl text-theme-brand">감사장 편집</h1>
               <p className="text-sm text-theme-secondary opacity-70">청첩장과 동일한 스타일로 감사 메시지를 관리하세요.</p>
+              <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-900">
+                {!isThankyouSaved
+                  ? "안내: 신규 감사장은 저장 후에만 이미지 업로드, 미리보기, 발행/삭제를 사용할 수 있습니다."
+                  : "안내: 저장된 감사장만 이미지 업로드, 미리보기, 발행/삭제 기능을 사용할 수 있습니다."}
+              </div>
             </div>
 
             <div className={`relative border-b border-warm transition-colors ${openSections.theme ? "bg-white" : "bg-[#fdfcfb]"}`}>
@@ -882,7 +981,8 @@ export default function ThankyouEditorPage() {
                       <input
                         type="file"
                         accept="image/*"
-                        className="absolute inset-0 cursor-pointer opacity-0"
+                        className="absolute inset-0 cursor-pointer opacity-0 disabled:cursor-not-allowed"
+                        disabled={actionLockedUntilSaved}
                         onChange={(event) => {
                           const file = event.target.files?.[0];
                           if (file) void handleAssetUpload({ mainImageFile: file });
@@ -949,7 +1049,8 @@ export default function ThankyouEditorPage() {
                       <input
                         type="file"
                         accept="image/*"
-                        className="absolute inset-0 cursor-pointer opacity-0"
+                        className="absolute inset-0 cursor-pointer opacity-0 disabled:cursor-not-allowed"
+                        disabled={actionLockedUntilSaved}
                         onChange={(event) => {
                           const file = event.target.files?.[0];
                           if (file) void handleAssetUpload({ endingImageFile: file });
@@ -986,7 +1087,7 @@ export default function ThankyouEditorPage() {
                     <span className="text-xs font-bold text-theme-secondary">Slug</span>
                     <div className="flex gap-2">
                       <input className="input-premium flex-1" value={form.slug} onChange={(event) => updateField("slug", event.target.value)} placeholder="예: thankyou-gunho-sebin" />
-                      <button className="rounded-xl border border-warm px-4 py-2 text-xs font-bold text-theme-secondary hover:bg-theme" type="button" onClick={handleSlugCheck}>
+                      <button className="rounded-xl border border-warm px-4 py-2 text-xs font-bold text-theme-secondary hover:bg-theme disabled:cursor-not-allowed disabled:opacity-50" type="button" onClick={handleSlugCheck} disabled={actionLockedUntilSaved}>
                         중복확인
                       </button>
                     </div>
@@ -1007,12 +1108,17 @@ export default function ThankyouEditorPage() {
                     <span className="text-xs font-bold text-theme-secondary">OG 이미지 (선택)</span>
                     <div className="flex gap-2">
                       <input className="input-premium flex-1" value={form.ogImageUrl} onChange={(event) => updateField("ogImageUrl", event.target.value)} placeholder="URL 입력 또는 업로드" />
-                      <label className="cursor-pointer rounded-xl border border-warm px-4 py-2 text-xs font-bold text-theme-secondary hover:bg-theme">
+                      <label
+                        className={`rounded-xl border border-warm px-4 py-2 text-xs font-bold text-theme-secondary ${
+                          actionLockedUntilSaved ? "cursor-not-allowed opacity-50" : "cursor-pointer hover:bg-theme"
+                        }`}
+                      >
                         업로드
                         <input
                           type="file"
                           accept="image/*"
                           className="hidden"
+                          disabled={actionLockedUntilSaved}
                           onChange={(event) => {
                             const file = event.target.files?.[0];
                             if (file) void handleAssetUpload({ ogImageFile: file });

@@ -3,9 +3,9 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { apiFetch } from "@/lib/api";
 import { resolveAssetUrl } from "@/lib/assets";
+import { normalizeFontFamilyValue } from "@/lib/font-family-options";
 import {
   THEME_DEFAULTS,
-  ThemeParticle,
   buildThemeParticles,
   buildThemePatternStyle,
   clampThemeFontSize,
@@ -323,9 +323,20 @@ export default function InvitationMobileView({
     () => normalizeHexColor(invitation.themeBackgroundColor, THEME_DEFAULTS.backgroundColor),
     [invitation.themeBackgroundColor],
   );
-  const themeTextColor = useMemo(
+  const legacyTextColor = useMemo(
+    () => normalizeHexColor(invitation.fontColor, THEME_DEFAULTS.textColor),
+    [invitation.fontColor],
+  );
+  const normalizedThemeTextColor = useMemo(
     () => normalizeHexColor(invitation.themeTextColor, THEME_DEFAULTS.textColor),
     [invitation.themeTextColor],
+  );
+  const themeTextColor = useMemo(
+    () =>
+      invitation.themeTextColor && normalizedThemeTextColor !== THEME_DEFAULTS.textColor
+        ? normalizedThemeTextColor
+        : legacyTextColor,
+    [invitation.themeTextColor, normalizedThemeTextColor, legacyTextColor],
   );
   const themeAccentColor = useMemo(
     () => normalizeHexColor(invitation.themeAccentColor, THEME_DEFAULTS.accentColor),
@@ -333,8 +344,42 @@ export default function InvitationMobileView({
   );
   const themePattern = invitation.themePattern ?? THEME_DEFAULTS.pattern;
   const themeEffectType = invitation.themeEffectType ?? THEME_DEFAULTS.effectType;
-  const themeFontFamily = invitation.themeFontFamily ?? invitation.fontFamily ?? THEME_DEFAULTS.fontFamily;
-  const themeFontSize = clampThemeFontSize(invitation.themeFontSize);
+  const legacyFontFamily = useMemo(
+    () => normalizeFontFamilyValue(invitation.fontFamily, THEME_DEFAULTS.fontFamily),
+    [invitation.fontFamily],
+  );
+  const normalizedThemeFontFamily = useMemo(
+    () => normalizeFontFamilyValue(invitation.themeFontFamily, THEME_DEFAULTS.fontFamily),
+    [invitation.themeFontFamily],
+  );
+  const themeFontFamily = useMemo(
+    () =>
+      invitation.themeFontFamily && normalizedThemeFontFamily !== THEME_DEFAULTS.fontFamily
+        ? normalizedThemeFontFamily
+        : legacyFontFamily,
+    [invitation.themeFontFamily, normalizedThemeFontFamily, legacyFontFamily],
+  );
+  const legacyFontSize = useMemo(() => clampThemeFontSize(invitation.fontSize), [invitation.fontSize]);
+  const normalizedThemeFontSize = useMemo(() => clampThemeFontSize(invitation.themeFontSize), [invitation.themeFontSize]);
+  const themeFontSize = useMemo(
+    () =>
+      Number.isFinite(invitation.themeFontSize) && normalizedThemeFontSize !== THEME_DEFAULTS.fontSize
+        ? normalizedThemeFontSize
+        : legacyFontSize,
+    [invitation.themeFontSize, normalizedThemeFontSize, legacyFontSize],
+  );
+  const messageFontFamily = useMemo(
+    () => normalizeFontFamilyValue(invitation.messageFontFamily, themeFontFamily),
+    [invitation.messageFontFamily, themeFontFamily],
+  );
+  const transportFontFamily = useMemo(
+    () => normalizeFontFamilyValue(invitation.transportFontFamily, themeFontFamily),
+    [invitation.transportFontFamily, themeFontFamily],
+  );
+  const rsvpFontFamily = useMemo(
+    () => normalizeFontFamilyValue(invitation.rsvpFontFamily, themeFontFamily),
+    [invitation.rsvpFontFamily, themeFontFamily],
+  );
   const revealEnabled = invitation.themeScrollReveal ?? THEME_DEFAULTS.scrollReveal;
   const patternStyle = useMemo(() => buildThemePatternStyle(themePattern, themeAccentColor), [themePattern, themeAccentColor]);
   const themeParticles = useMemo(() => buildThemeParticles(themeEffectType), [themeEffectType]);
@@ -485,21 +530,84 @@ export default function InvitationMobileView({
     [contactGroups],
   );
 
+  const designId = invitation.heroDesignId ?? "simply-meant";
+  const heroTitleFontFamily = themeFontFamily;
+  const heroBodyFontFamily = normalizeFontFamilyValue(invitation.fontFamily, themeFontFamily);
+  const heroTitleSize = clampHeroEffectValue(themeFontSize, 12, 36);
+  const heroBodySize = clampHeroEffectValue(
+    Number.isFinite(invitation.fontSize) ? (invitation.fontSize as number) : themeFontSize,
+    10,
+    28,
+  );
+  const heroPrimaryColor = themeTextColor;
+  const heroAccentTextColor = themeAccentColor;
+  const heroBodyColor = normalizeHexColor(invitation.fontColor, themeTextColor);
+  const heroDateCompact = `${dateInfo.year}.${dateInfo.month}.${String(dateInfo.day).padStart(2, "0")}`;
+  const heroLocationText = invitation.venueName || "예식장 정보 미입력";
+
   const renderHeroOverlay = () => {
-    const designId = invitation.heroDesignId ?? "simply-meant";
     if (designId === "none") return null;
+
+    if (designId === "happy-wedding-day") {
+      return (
+        <>
+          <div className="absolute inset-0 bg-black/10" />
+          <div className="pointer-events-none absolute inset-0 z-10">
+            <div className="flex items-center gap-3 px-5 pt-6">
+              <span
+                className="truncate"
+                style={{ fontFamily: heroBodyFontFamily, fontSize: `${heroBodySize * 0.92}px`, color: toRgba(heroBodyColor, 0.98) }}
+              >
+                {weddingTitle}
+              </span>
+              <span className="h-px flex-1" style={{ backgroundColor: toRgba(heroBodyColor, 0.64) }} />
+              <span style={{ fontFamily: heroBodyFontFamily, fontSize: `${heroBodySize * 0.92}px`, color: toRgba(heroBodyColor, 0.98) }}>결혼합니다</span>
+            </div>
+            <div className="absolute left-10 top-[16%]">
+              <p
+                className="leading-[0.86]"
+                style={{
+                  fontFamily: heroTitleFontFamily,
+                  color: heroAccentTextColor,
+                  fontSize: `${heroTitleSize * 3}px`,
+                  fontWeight: 700,
+                  textShadow: `0 2px 10px ${toRgba("#000000", 0.2)}`,
+                }}
+              >
+                Happy
+                <br />
+                Wedding
+                <br />
+                Day
+              </p>
+            </div>
+            <div className="absolute left-4 top-[24%] text-white/90 text-2xl">✶</div>
+            <div className="absolute right-5 top-[30%] text-white/90 text-xl">♡</div>
+            <div className="absolute left-8 bottom-[29%] text-white/90 text-xl">✶</div>
+            <div className="absolute right-7 bottom-[35%] text-white/90 text-xl">♡</div>
+            <div className="absolute inset-x-0 bottom-7 text-center space-y-1">
+              <p style={{ fontFamily: heroBodyFontFamily, color: toRgba(heroBodyColor, 0.98), fontSize: `${heroBodySize}px` }}>{dateInfo.infoDate}</p>
+              <p style={{ fontFamily: heroBodyFontFamily, color: toRgba(heroBodyColor, 0.92), fontSize: `${heroBodySize * 0.95}px` }}>{heroLocationText}</p>
+            </div>
+          </div>
+        </>
+      );
+    }
 
     if (designId === "simply-meant") {
       return (
         <>
           <div className="absolute inset-0 bg-[#4f5568]/30" />
           <div className="pointer-events-none absolute inset-0 z-10">
-            <div className="flex justify-between px-5 pt-6 text-[28px] text-white/75">
-              <span className="serif-font text-sm tracking-[0.08em] font-semibold">SIMPLY</span>
-              <span className="serif-font text-sm tracking-[0.08em] font-semibold">MEANT</span>
+            <div className="flex justify-between px-5 pt-6 text-[28px]">
+              <span className="serif-font text-sm tracking-[0.08em] font-semibold" style={{ color: toRgba(heroBodyColor, 0.86) }}>SIMPLY</span>
+              <span className="serif-font text-sm tracking-[0.08em] font-semibold" style={{ color: toRgba(heroBodyColor, 0.86) }}>MEANT</span>
             </div>
             <div className="absolute inset-x-0 top-1/2 -translate-y-1/2">
-              <p className="serif-font text-[112px] leading-[0.82] font-bold text-white/95">
+              <p
+                className="serif-font leading-[0.82] font-bold"
+                style={{ fontSize: `${heroTitleSize * 6.6}px`, color: toRgba(heroPrimaryColor, 0.96) }}
+              >
                 {dateInfo.yearShort}
                 <br />
                 {dateInfo.month}
@@ -507,9 +615,9 @@ export default function InvitationMobileView({
                 {`${dateInfo.day}`.padStart(2, "0")}
               </p>
             </div>
-            <div className="absolute inset-x-0 bottom-6 flex justify-between px-5 text-white/90">
-              <span className="serif-font text-[30px] font-semibold tracking-[0.05em]">TO BE</span>
-              <span className="serif-font text-[30px] font-semibold tracking-[0.05em]">TOGETHER</span>
+            <div className="absolute inset-x-0 bottom-6 flex justify-between px-5">
+              <span className="serif-font font-semibold tracking-[0.05em]" style={{ fontSize: `${heroTitleSize * 1.8}px`, color: toRgba(heroPrimaryColor, 0.92) }}>TO BE</span>
+              <span className="serif-font font-semibold tracking-[0.05em]" style={{ fontSize: `${heroTitleSize * 1.8}px`, color: toRgba(heroPrimaryColor, 0.92) }}>TOGETHER</span>
             </div>
           </div>
         </>
@@ -518,32 +626,173 @@ export default function InvitationMobileView({
 
     if (designId === "modern-center") {
       return (
-        <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center text-white text-center bg-black/10">
-          <p className="text-sm tracking-[0.4em] font-light mb-4">
+        <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center text-center bg-black/10">
+          <p className="tracking-[0.4em] font-light mb-4" style={{ fontFamily: heroBodyFontFamily, color: toRgba(heroBodyColor, 0.95), fontSize: `${heroBodySize * 0.9}px` }}>
             {dateInfo.year} / {dateInfo.month} / {dateInfo.day}
           </p>
-          <div className="w-8 h-px bg-white/50 my-6" />
-          <p className="text-3xl font-bold tracking-widest">{weddingTitle}</p>
-          <p className="mt-4 text-xs opacity-70 italic tracking-widest">We are getting married</p>
+          <div className="w-8 h-px my-6" style={{ backgroundColor: toRgba(heroPrimaryColor, 0.58) }} />
+          <p className="font-bold tracking-widest" style={{ fontFamily: heroTitleFontFamily, color: toRgba(heroPrimaryColor, 0.97), fontSize: `${heroTitleSize * 1.8}px` }}>{weddingTitle}</p>
+          <p className="mt-4 italic tracking-widest" style={{ fontFamily: heroBodyFontFamily, color: toRgba(heroBodyColor, 0.82), fontSize: `${heroBodySize * 0.78}px` }}>We are getting married</p>
         </div>
       );
     }
 
     if (designId === "serif-classic") {
       return (
-        <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center text-white p-8">
-          <div className="border border-white/30 p-8 w-full h-full flex flex-col items-center justify-center">
-            <p className="serif-font text-6xl mb-6">
+        <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center p-8">
+          <div className="p-8 w-full h-full flex flex-col items-center justify-center" style={{ border: `1px solid ${toRgba(heroPrimaryColor, 0.4)}` }}>
+            <p className="serif-font mb-6" style={{ fontSize: `${heroTitleSize * 2.8}px`, color: toRgba(heroPrimaryColor, 0.96) }}>
               {dateInfo.month}.{dateInfo.day}
             </p>
-            <p className="text-base tracking-[0.3em] font-medium uppercase">{weddingTitle}</p>
-            <div className="mt-10 text-[10px] tracking-[0.5em] opacity-60">INVITATION</div>
+            <p className="tracking-[0.3em] font-medium uppercase" style={{ fontFamily: heroBodyFontFamily, fontSize: `${heroBodySize}px`, color: toRgba(heroBodyColor, 0.96) }}>{weddingTitle}</p>
+            <div className="mt-10 tracking-[0.5em]" style={{ fontFamily: heroBodyFontFamily, fontSize: `${heroBodySize * 0.62}px`, color: toRgba(heroBodyColor, 0.72) }}>INVITATION</div>
           </div>
         </div>
       );
     }
 
     return null;
+  };
+
+  const renderHeroSection = () => {
+    if (designId === "happily-ever-after") {
+      return (
+        <section className="relative overflow-hidden text-center bg-[#16171b] h-[560px]" data-invite-reveal>
+          <div className="absolute inset-x-0 top-[23%] h-[54%]">
+            {heroImageUrl ? <img className="h-full w-full object-cover" src={heroImageUrl} alt="hero" /> : <div className="h-full w-full bg-stone-200" />}
+          </div>
+          {renderHeroEffectLayer(invitation.heroEffectType, {
+            particleCount: invitation.heroEffectParticleCount,
+            speed: invitation.heroEffectSpeed,
+            opacity: invitation.heroEffectOpacity,
+          })}
+          <div className="absolute inset-x-0 top-10 text-center">
+            <p style={{ fontFamily: heroBodyFontFamily, color: toRgba(heroBodyColor, 0.92), fontSize: `${heroBodySize * 0.84}px` }}>{weddingTitle}</p>
+          </div>
+          <p
+            className="absolute left-5 top-[12%] leading-none"
+            style={{ fontFamily: heroTitleFontFamily, color: heroAccentTextColor, fontSize: `${heroTitleSize * 2.8}px`, fontWeight: 700 }}
+          >
+            Happily
+          </p>
+          <p
+            className="absolute left-4 bottom-[20%] leading-[0.88] text-left"
+            style={{ fontFamily: heroTitleFontFamily, color: heroAccentTextColor, fontSize: `${heroTitleSize * 2.25}px`, fontWeight: 700 }}
+          >
+            Ever
+            <br />
+            After
+          </p>
+          <div className="absolute inset-x-0 bottom-7 text-center space-y-1">
+            <p style={{ fontFamily: heroBodyFontFamily, color: toRgba(heroBodyColor, 0.95), fontSize: `${heroBodySize}px` }}>{dateInfo.infoDate}</p>
+            <p style={{ fontFamily: heroBodyFontFamily, color: toRgba(heroBodyColor, 0.88), fontSize: `${heroBodySize * 0.94}px` }}>{heroLocationText}</p>
+          </div>
+        </section>
+      );
+    }
+
+    if (designId === "blush-circle") {
+      return (
+        <section className="relative overflow-hidden text-center bg-[#e8d4d8] h-[700px]" data-invite-reveal>
+          <div className="pt-14">
+            <p style={{ fontFamily: heroTitleFontFamily, color: toRgba(heroPrimaryColor, 0.95), fontSize: `${heroTitleSize * 1.9}px`, fontWeight: 700 }}>결혼합니다</p>
+            <p className="mt-2" style={{ fontFamily: heroBodyFontFamily, color: toRgba(heroBodyColor, 0.92), fontSize: `${heroBodySize * 1.05}px` }}>{weddingTitle}</p>
+          </div>
+          <div className="absolute left-2 top-[48%] -translate-y-1/2 [writing-mode:vertical-rl]" style={{ fontFamily: heroBodyFontFamily, color: toRgba(heroBodyColor, 0.74), fontSize: `${heroBodySize * 0.74}px` }}>
+            Wedding
+          </div>
+          <div className="absolute right-2 top-[48%] -translate-y-1/2 [writing-mode:vertical-rl]" style={{ fontFamily: heroBodyFontFamily, color: toRgba(heroBodyColor, 0.74), fontSize: `${heroBodySize * 0.74}px` }}>
+            Invitation
+          </div>
+          <div className="mx-auto mt-12 h-[330px] w-[330px] overflow-hidden rounded-full bg-[#cbdff0] shadow-md">
+            {heroImageUrl ? <img className="h-full w-full object-cover" src={heroImageUrl} alt="hero" /> : <div className="h-full w-full bg-stone-200" />}
+          </div>
+          {renderHeroEffectLayer(invitation.heroEffectType, {
+            particleCount: invitation.heroEffectParticleCount,
+            speed: invitation.heroEffectSpeed,
+            opacity: invitation.heroEffectOpacity,
+          })}
+          <p className="mt-11" style={{ fontFamily: heroBodyFontFamily, color: toRgba(heroBodyColor, 0.95), fontSize: `${heroBodySize * 1.06}px` }}>{heroDateCompact}</p>
+          <div className="absolute inset-x-0 bottom-7 text-center space-y-1">
+            <p style={{ fontFamily: heroBodyFontFamily, color: toRgba(heroBodyColor, 0.94), fontSize: `${heroBodySize}px` }}>{dateInfo.infoDate}</p>
+            <p style={{ fontFamily: heroBodyFontFamily, color: toRgba(heroBodyColor, 0.9), fontSize: `${heroBodySize * 0.94}px` }}>{heroLocationText}</p>
+          </div>
+        </section>
+      );
+    }
+
+    if (designId === "two-become-one") {
+      return (
+        <section className="relative overflow-hidden text-center bg-[#baa596] h-[680px]" data-invite-reveal>
+          <div className="pt-10 space-y-3">
+            <p
+              className="leading-[0.9]"
+              style={{ fontFamily: heroTitleFontFamily, color: toRgba("#ffffff", 0.96), fontSize: `${heroTitleSize * 2.3}px`, fontWeight: 600 }}
+            >
+              TWO
+              <br />
+              BECOME
+              <br />
+              ONE
+            </p>
+            <p style={{ fontFamily: heroBodyFontFamily, color: toRgba("#ffffff", 0.92), fontSize: `${heroBodySize * 1.02}px` }}>
+              {invitation.groomName || "신랑"} 그리고 {invitation.brideName || "신부"}, 결혼합니다.
+            </p>
+          </div>
+          <div className="mx-auto mt-9 h-[380px] w-[88%] overflow-hidden bg-[#ded4cb] shadow-md">
+            {heroImageUrl ? <img className="h-full w-full object-cover" src={heroImageUrl} alt="hero" /> : <div className="h-full w-full bg-stone-200" />}
+          </div>
+          {renderHeroEffectLayer(invitation.heroEffectType, {
+            particleCount: invitation.heroEffectParticleCount,
+            speed: invitation.heroEffectSpeed,
+            opacity: invitation.heroEffectOpacity,
+          })}
+          <div className="absolute inset-x-0 bottom-9 text-center space-y-1">
+            <p style={{ fontFamily: heroBodyFontFamily, color: toRgba("#ffffff", 0.95), fontSize: `${heroBodySize}px` }}>{dateInfo.infoDate}</p>
+            <p style={{ fontFamily: heroBodyFontFamily, color: toRgba("#ffffff", 0.88), fontSize: `${heroBodySize * 0.94}px` }}>{heroLocationText}</p>
+          </div>
+        </section>
+      );
+    }
+
+    if (designId === "sky-invitation") {
+      return (
+        <section className="relative overflow-hidden text-center h-[620px]" data-invite-reveal>
+          <div className="relative h-[74%] overflow-hidden bg-[#8db5da]">
+            {heroImageUrl ? <img className="h-full w-full object-cover" src={heroImageUrl} alt="hero" /> : <div className="h-full w-full bg-sky-200" />}
+            {renderHeroEffectLayer(invitation.heroEffectType, {
+              particleCount: invitation.heroEffectParticleCount,
+              speed: invitation.heroEffectSpeed,
+              opacity: invitation.heroEffectOpacity,
+            })}
+            <div className="absolute inset-x-0 top-10 text-center">
+              <p style={{ fontFamily: heroTitleFontFamily, color: toRgba(heroPrimaryColor, 0.95), fontSize: `${heroTitleSize * 1.85}px`, fontWeight: 700 }}>결혼합니다</p>
+              <p className="mt-1" style={{ fontFamily: heroTitleFontFamily, color: toRgba(heroAccentTextColor, 0.9), fontSize: `${heroTitleSize * 0.98}px` }}>Wedding Invitation</p>
+              <p className="mt-8" style={{ fontFamily: heroBodyFontFamily, color: toRgba(heroBodyColor, 0.94), fontSize: `${heroBodySize * 1.02}px` }}>{weddingTitle}</p>
+            </div>
+            <p className="absolute inset-x-0 bottom-6 text-center" style={{ fontFamily: heroBodyFontFamily, color: toRgba("#ffffff", 0.86), fontSize: `${heroBodySize * 1.28}px`, fontWeight: 600 }}>
+              {heroDateCompact}
+            </p>
+          </div>
+          <div className="flex h-[26%] flex-col items-center justify-center bg-[#f6f6f6] text-center">
+            <p style={{ fontFamily: heroBodyFontFamily, color: toRgba(heroBodyColor, 0.86), fontSize: `${heroBodySize * 0.5}px` }}>{dateInfo.infoDate}</p>
+            <p className="mt-1" style={{ fontFamily: heroBodyFontFamily, color: toRgba(heroBodyColor, 0.82), fontSize: `${heroBodySize * 0.5}px` }}>{heroLocationText}</p>
+          </div>
+        </section>
+      );
+    }
+
+    return (
+      <section className="relative overflow-hidden text-center" data-invite-reveal>
+        {heroImageUrl ? <img className="h-[560px] w-full object-cover" src={heroImageUrl} alt="hero" /> : <div className="h-[560px] w-full bg-stone-100" />}
+        {renderHeroEffectLayer(invitation.heroEffectType, {
+          particleCount: invitation.heroEffectParticleCount,
+          speed: invitation.heroEffectSpeed,
+          opacity: invitation.heroEffectOpacity,
+        })}
+        {renderHeroOverlay()}
+      </section>
+    );
   };
 
   const renderHeroEffectLayer = (effectType?: string, inputOptions?: Partial<HeroEffectOptions>) => {
@@ -654,18 +903,10 @@ export default function InvitationMobileView({
       ) : null}
 
       <div className="relative z-[2]">
-      <section className="relative overflow-hidden text-center" data-invite-reveal>
-        {heroImageUrl ? <img className="h-[560px] w-full object-cover" src={heroImageUrl} alt="hero" /> : <div className="h-[560px] w-full bg-stone-100" />}
-        {renderHeroEffectLayer(invitation.heroEffectType, {
-          particleCount: invitation.heroEffectParticleCount,
-          speed: invitation.heroEffectSpeed,
-          opacity: invitation.heroEffectOpacity,
-        })}
-        {renderHeroOverlay()}
-      </section>
+      {renderHeroSection()}
 
       <div className="space-y-8 px-6 py-10">
-        <section className="space-y-5 text-center" data-invite-reveal style={{ fontFamily: invitation.messageFontFamily }}>
+        <section className="space-y-5 text-center" data-invite-reveal style={{ fontFamily: messageFontFamily }}>
           <p className="serif-font text-xs tracking-[0.33em] text-gray-400 uppercase">Invitation</p>
           <h3 className="serif-kr text-3xl font-semibold text-gray-800">소중한 분들을 초대합니다</h3>
           <div className="text-sm leading-8 text-theme-secondary ql-editor !p-0">
@@ -766,7 +1007,7 @@ export default function InvitationMobileView({
           </section>
         ) : null}
 
-        <section className="py-12 space-y-8" data-invite-reveal style={{ fontFamily: invitation.transportFontFamily }}>
+        <section className="py-12 space-y-8" data-invite-reveal style={{ fontFamily: transportFontFamily }}>
           <div className="text-center space-y-2">
             <p className="serif-font text-xs tracking-widest text-theme-accent italic uppercase">Location</p>
             <h3 className="serif-kr text-xl font-semibold text-gray-800">{invitation.locationTitle}</h3>
@@ -852,7 +1093,7 @@ export default function InvitationMobileView({
           rsvpTitle={invitation.rsvpTitle}
           rsvpMessage={invitation.rsvpMessage}
           rsvpButtonText={invitation.rsvpButtonText}
-          rsvpFontFamily={invitation.rsvpFontFamily}
+          rsvpFontFamily={rsvpFontFamily}
         />
 
         <div data-invite-reveal>

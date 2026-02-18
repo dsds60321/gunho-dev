@@ -5,6 +5,11 @@ import { useRouter } from "next/navigation";
 import { fetchAuthMe, logout } from "@/lib/auth";
 import { apiFetch, getApiErrorMessage, isApiError } from "@/lib/api";
 import { resolveAssetUrl } from "@/lib/assets";
+import {
+  DEFAULT_FONT_FAMILY,
+  EDITOR_FONT_FAMILY_OPTIONS,
+  normalizeFontFamilyValue,
+} from "@/lib/font-family-options";
 import InvitationMobileView from "@/app/invitation/[invitationId]/InvitationMobileView";
 import RichTextEditor from "@/components/editor/RichTextEditor";
 import MobilePreviewFrame from "@/components/editor/MobilePreviewFrame";
@@ -247,7 +252,7 @@ const defaultFormState: FormState = {
   bus: "",
   subway: "",
   car: "",
-  fontFamily: "'Noto Sans KR', sans-serif",
+  fontFamily: DEFAULT_FONT_FAMILY,
   fontColor: "#333333",
   fontSize: "16",
   useGuestbook: true,
@@ -266,7 +271,7 @@ const defaultFormState: FormState = {
   themeAccentColor: "#803b2a",
   themePattern: "none",
   themeEffectType: "none",
-  themeFontFamily: "'Noto Sans KR', sans-serif",
+  themeFontFamily: DEFAULT_FONT_FAMILY,
   themeFontSize: 16,
   themeScrollReveal: false,
   // 초기값
@@ -275,12 +280,12 @@ const defaultFormState: FormState = {
   heroEffectParticleCount: 30,
   heroEffectSpeed: 100,
   heroEffectOpacity: 72,
-  messageFontFamily: "'Noto Sans KR', sans-serif",
-  transportFontFamily: "'Noto Sans KR', sans-serif",
+  messageFontFamily: DEFAULT_FONT_FAMILY,
+  transportFontFamily: DEFAULT_FONT_FAMILY,
   rsvpTitle: "참석 의사 전달",
   rsvpMessage: "특별한 날 축하의 마음으로 참석해주시는 모든 분들을 위해\n참석 여부 전달을 부탁드립니다.",
   rsvpButtonText: "참석의사 전달하기",
-  rsvpFontFamily: "'Noto Sans KR', sans-serif",
+  rsvpFontFamily: DEFAULT_FONT_FAMILY,
   detailContent: "",
   locationTitle: "오시는 길",
   locationFloorHall: "",
@@ -292,10 +297,14 @@ const defaultFormState: FormState = {
 
 const HERO_DESIGNS = [
   { id: "none", name: "사용자 이미지 전용", description: "오버레이 없이 이미지만 표시합니다." },
+  { id: "happy-wedding-day", name: "Happy Wedding Day", description: "손글씨 감성의 스카이 포스터 스타일" },
+  { id: "happily-ever-after", name: "Happily Ever After", description: "블랙 프레임과 옐로우 타이포 무드" },
+  { id: "blush-circle", name: "Blush Circle", description: "핑크 배경 + 원형 포토 클래식" },
+  { id: "two-become-one", name: "Two Become One", description: "베이지 톤 무드의 필름 포스터" },
+  { id: "sky-invitation", name: "Sky Invitation", description: "스카이톤 상단 + 하단 정보 카드" },
   { id: "simply-meant", name: "Simply Meant", description: "상하단 텍스트와 중앙 대형 날짜 오버레이" },
   { id: "modern-center", name: "Modern Center", description: "중앙 정렬된 깔끔한 일시와 이름" },
   { id: "serif-classic", name: "Serif Classic", description: "세리프 폰트를 활용한 클래식한 감성" },
-  { id: "minimal-top", name: "Minimal Top", description: "상단에 작게 표시되는 날짜와 이름" },
 ];
 
 const HERO_EFFECTS = [
@@ -406,12 +415,6 @@ const THEME_EFFECT_OPTIONS = [
   { id: "falling-leaves", name: "낙엽" },
   { id: "baby-breath", name: "안개꽃" },
   { id: "forsythia", name: "개나리" },
-];
-
-const THEME_FONT_OPTIONS = [
-  { value: "'Noto Sans KR', sans-serif", label: "Noto Sans KR" },
-  { value: "'Pretendard', 'Noto Sans KR', sans-serif", label: "Pretendard" },
-  { value: "'Noto Serif KR', serif", label: "Noto Serif KR" },
 ];
 
 const MAX_IMAGE_UPLOAD_BYTES = 10 * 1024 * 1024;
@@ -552,7 +555,7 @@ function buildFormStateFromInvitation(data: EditorInvitation): FormState {
     bus: data.bus ?? "",
     subway: data.subway ?? "",
     car: data.car ?? "",
-    fontFamily: data.fontFamily ?? "'Noto Sans KR', sans-serif",
+    fontFamily: normalizeFontFamilyValue(data.fontFamily, defaultFormState.fontFamily),
     fontColor: data.fontColor ?? "#333333",
     fontSize: String(data.fontSize ?? 16),
     useGuestbook: data.useGuestbook ?? true,
@@ -580,7 +583,10 @@ function buildFormStateFromInvitation(data: EditorInvitation): FormState {
     ),
     themePattern: typedData.themePattern ?? defaultFormState.themePattern,
     themeEffectType: typedData.themeEffectType ?? defaultFormState.themeEffectType,
-    themeFontFamily: typedData.themeFontFamily ?? data.fontFamily ?? defaultFormState.themeFontFamily,
+    themeFontFamily: normalizeFontFamilyValue(
+      typedData.themeFontFamily ?? data.fontFamily,
+      defaultFormState.themeFontFamily,
+    ),
     themeFontSize: Math.round(
       clampHeroEffectValue(
       Number(typedData.themeFontSize ?? data.fontSize ?? defaultFormState.themeFontSize),
@@ -603,18 +609,57 @@ function buildFormStateFromInvitation(data: EditorInvitation): FormState {
       15,
       100,
     ),
-    messageFontFamily: typedData.messageFontFamily ?? defaultFormState.messageFontFamily,
-    transportFontFamily: typedData.transportFontFamily ?? defaultFormState.transportFontFamily,
+    messageFontFamily: normalizeFontFamilyValue(typedData.messageFontFamily, defaultFormState.messageFontFamily),
+    transportFontFamily: normalizeFontFamilyValue(
+      typedData.transportFontFamily,
+      defaultFormState.transportFontFamily,
+    ),
     rsvpTitle: typedData.rsvpTitle ?? defaultFormState.rsvpTitle,
     rsvpMessage: typedData.rsvpMessage ?? defaultFormState.rsvpMessage,
     rsvpButtonText: typedData.rsvpButtonText ?? defaultFormState.rsvpButtonText,
-    rsvpFontFamily: typedData.rsvpFontFamily ?? defaultFormState.rsvpFontFamily,
+    rsvpFontFamily: normalizeFontFamilyValue(typedData.rsvpFontFamily, defaultFormState.rsvpFontFamily),
     detailContent: typedData.detailContent ?? defaultFormState.detailContent,
     locationTitle: typedData.locationTitle ?? defaultFormState.locationTitle,
     locationFloorHall: typedData.locationFloorHall ?? defaultFormState.locationFloorHall,
     locationContact: sanitizeContactValue(typedData.locationContact ?? defaultFormState.locationContact),
     showMap: typedData.showMap ?? defaultFormState.showMap,
     lockMap: typedData.lockMap ?? defaultFormState.lockMap,
+  };
+}
+
+function createUnsavedInvitation(): EditorInvitation {
+  return {
+    id: 0,
+    published: false,
+    imageUrls: [],
+    useSeparateAccounts: defaultFormState.useSeparateAccounts,
+    useGuestbook: defaultFormState.useGuestbook,
+    useRsvpModal: defaultFormState.useRsvpModal,
+    heroDesignId: defaultFormState.heroDesignId,
+    heroEffectType: defaultFormState.heroEffectType,
+    heroEffectParticleCount: defaultFormState.heroEffectParticleCount,
+    heroEffectSpeed: defaultFormState.heroEffectSpeed,
+    heroEffectOpacity: defaultFormState.heroEffectOpacity,
+    messageFontFamily: defaultFormState.messageFontFamily,
+    transportFontFamily: defaultFormState.transportFontFamily,
+    rsvpTitle: defaultFormState.rsvpTitle,
+    rsvpMessage: defaultFormState.rsvpMessage,
+    rsvpButtonText: defaultFormState.rsvpButtonText,
+    rsvpFontFamily: defaultFormState.rsvpFontFamily,
+    detailContent: defaultFormState.detailContent,
+    locationTitle: defaultFormState.locationTitle,
+    locationFloorHall: defaultFormState.locationFloorHall,
+    locationContact: defaultFormState.locationContact,
+    showMap: defaultFormState.showMap,
+    lockMap: defaultFormState.lockMap,
+    themeBackgroundColor: defaultFormState.themeBackgroundColor,
+    themeTextColor: defaultFormState.themeTextColor,
+    themeAccentColor: defaultFormState.themeAccentColor,
+    themePattern: defaultFormState.themePattern,
+    themeEffectType: defaultFormState.themeEffectType,
+    themeFontFamily: defaultFormState.themeFontFamily,
+    themeFontSize: defaultFormState.themeFontSize,
+    themeScrollReveal: defaultFormState.themeScrollReveal,
   };
 }
 
@@ -924,12 +969,8 @@ export default function EditorPage() {
           setLoadingText("기존 초대장 불러오는 중...");
           editorData = await apiFetch<EditorInvitation>(`/api/invitations/${invitationId}`);
         } else {
-          setLoadingText("새 초대장 생성 중...");
-          editorData = await apiFetch<EditorInvitation>("/api/invitations", {
-            method: "POST",
-            body: JSON.stringify({}),
-          });
-          router.replace(`/editor?id=${editorData.id}`);
+          setLoadingText("새 초대장 작성 화면 준비 중...");
+          editorData = createUnsavedInvitation();
         }
 
         setInvitation(editorData);
@@ -1196,6 +1237,10 @@ export default function EditorPage() {
     },
   ) => {
     if (!invitation) return;
+    if (invitation.id <= 0) {
+      showToast("먼저 저장 후 파일 업로드를 진행해 주세요.", "error");
+      return;
+    }
 
     const galleryFile = payload.galleryFile && payload.galleryFile.size > 0 ? payload.galleryFile : null;
 
@@ -1267,78 +1312,89 @@ export default function EditorPage() {
 
     const parsedFontSize = Number(form.fontSize);
 
+    const savePayload = {
+      groomName: form.groomName,
+      brideName: form.brideName,
+      date: form.date,
+      locationName: form.locationName,
+      address: form.address,
+      message: form.message,
+      slug: form.slug,
+      mainImageUrl: form.mainImageUrl,
+      imageUrls: form.imageUrls,
+      paperInvitationUrl: form.paperInvitationUrl,
+      groomContact: sanitizeContactValue(form.groomContact),
+      brideContact: sanitizeContactValue(form.brideContact),
+      accountNumber: combineBankAndAccount(form.accountBank, sanitizeAccountValue(form.accountNumber)),
+      useSeparateAccounts: form.useSeparateAccounts,
+      groomAccountNumber: combineBankAndAccount(form.groomAccountBank, sanitizeAccountValue(form.groomAccountNumber)),
+      brideAccountNumber: combineBankAndAccount(form.brideAccountBank, sanitizeAccountValue(form.brideAccountNumber)),
+      groomRelation: form.groomRelation,
+      groomFatherName: form.groomFatherName,
+      groomFatherContact: sanitizeContactValue(form.groomFatherContact),
+      groomMotherName: form.groomMotherName,
+      groomMotherContact: sanitizeContactValue(form.groomMotherContact),
+      brideRelation: form.brideRelation,
+      brideFatherName: form.brideFatherName,
+      brideFatherContact: sanitizeContactValue(form.brideFatherContact),
+      brideMotherName: form.brideMotherName,
+      brideMotherContact: sanitizeContactValue(form.brideMotherContact),
+      bus: form.bus,
+      subway: form.subway,
+      car: form.car,
+      fontFamily: form.fontFamily,
+      fontColor: form.fontColor,
+      fontSize: Number.isFinite(parsedFontSize) && parsedFontSize > 0 ? parsedFontSize : null,
+      useGuestbook: form.useGuestbook,
+      useRsvpModal: form.useRsvpModal,
+      backgroundMusicUrl: form.backgroundMusicUrl,
+      seoTitle: form.seoTitle,
+      seoDescription: form.seoDescription,
+      seoImageUrl: form.seoImageUrl,
+      galleryTitle: form.galleryTitle,
+      galleryType: form.galleryType,
+      themeBackgroundColor: sanitizeColorValue(form.themeBackgroundColor, defaultFormState.themeBackgroundColor),
+      themeTextColor: sanitizeColorValue(form.themeTextColor, defaultFormState.themeTextColor),
+      themeAccentColor: sanitizeColorValue(form.themeAccentColor, defaultFormState.themeAccentColor),
+      themePattern: form.themePattern,
+      themeEffectType: form.themeEffectType,
+      themeFontFamily: form.themeFontFamily,
+      themeFontSize: Math.round(clampHeroEffectValue(form.themeFontSize, MIN_THEME_FONT_SIZE, MAX_THEME_FONT_SIZE)),
+      themeScrollReveal: form.themeScrollReveal,
+      heroDesignId: form.heroDesignId,
+      heroEffectType: form.heroEffectType,
+      heroEffectParticleCount: form.heroEffectParticleCount,
+      heroEffectSpeed: form.heroEffectSpeed,
+      heroEffectOpacity: form.heroEffectOpacity,
+      messageFontFamily: form.messageFontFamily,
+      transportFontFamily: form.transportFontFamily,
+      rsvpTitle: form.rsvpTitle,
+      rsvpMessage: form.rsvpMessage,
+      rsvpButtonText: form.rsvpButtonText,
+      rsvpFontFamily: form.rsvpFontFamily,
+      detailContent: form.detailContent,
+      locationTitle: form.locationTitle,
+      locationFloorHall: form.locationFloorHall,
+      locationContact: sanitizeContactValue(form.locationContact),
+      showMap: form.showMap,
+      lockMap: form.lockMap,
+    };
+
     try {
-      const saved = await apiFetch<EditorInvitation>(`/api/invitations/${invitation.id}`, {
+      let targetInvitation = invitation;
+      if (invitation.id <= 0) {
+        const created = await apiFetch<EditorInvitation>("/api/invitations", {
+          method: "POST",
+          body: JSON.stringify({}),
+        });
+        targetInvitation = created;
+        setInvitation(created);
+        router.replace(`/editor?id=${created.id}`);
+      }
+
+      const saved = await apiFetch<EditorInvitation>(`/api/invitations/${targetInvitation.id}`, {
         method: "PUT",
-        body: JSON.stringify({
-          groomName: form.groomName,
-          brideName: form.brideName,
-          date: form.date,
-          locationName: form.locationName,
-          address: form.address,
-          message: form.message,
-          slug: form.slug,
-          mainImageUrl: form.mainImageUrl,
-          imageUrls: form.imageUrls,
-          paperInvitationUrl: form.paperInvitationUrl,
-          groomContact: sanitizeContactValue(form.groomContact),
-          brideContact: sanitizeContactValue(form.brideContact),
-          accountNumber: combineBankAndAccount(form.accountBank, sanitizeAccountValue(form.accountNumber)),
-          useSeparateAccounts: form.useSeparateAccounts,
-          groomAccountNumber: combineBankAndAccount(form.groomAccountBank, sanitizeAccountValue(form.groomAccountNumber)),
-          brideAccountNumber: combineBankAndAccount(form.brideAccountBank, sanitizeAccountValue(form.brideAccountNumber)),
-          groomRelation: form.groomRelation,
-          groomFatherName: form.groomFatherName,
-          groomFatherContact: sanitizeContactValue(form.groomFatherContact),
-          groomMotherName: form.groomMotherName,
-          groomMotherContact: sanitizeContactValue(form.groomMotherContact),
-          brideRelation: form.brideRelation,
-          brideFatherName: form.brideFatherName,
-          brideFatherContact: sanitizeContactValue(form.brideFatherContact),
-          brideMotherName: form.brideMotherName,
-          brideMotherContact: sanitizeContactValue(form.brideMotherContact),
-          bus: form.bus,
-          subway: form.subway,
-          car: form.car,
-          fontFamily: form.fontFamily,
-          fontColor: form.fontColor,
-          fontSize: Number.isFinite(parsedFontSize) && parsedFontSize > 0 ? parsedFontSize : null,
-          useGuestbook: form.useGuestbook,
-          useRsvpModal: form.useRsvpModal,
-          backgroundMusicUrl: form.backgroundMusicUrl,
-          seoTitle: form.seoTitle,
-          seoDescription: form.seoDescription,
-          seoImageUrl: form.seoImageUrl,
-          galleryTitle: form.galleryTitle,
-          galleryType: form.galleryType,
-          themeBackgroundColor: sanitizeColorValue(form.themeBackgroundColor, defaultFormState.themeBackgroundColor),
-          themeTextColor: sanitizeColorValue(form.themeTextColor, defaultFormState.themeTextColor),
-          themeAccentColor: sanitizeColorValue(form.themeAccentColor, defaultFormState.themeAccentColor),
-          themePattern: form.themePattern,
-          themeEffectType: form.themeEffectType,
-          themeFontFamily: form.themeFontFamily,
-          themeFontSize: Math.round(clampHeroEffectValue(form.themeFontSize, MIN_THEME_FONT_SIZE, MAX_THEME_FONT_SIZE)),
-          themeScrollReveal: form.themeScrollReveal,
-          // 추가 필드 저장
-          heroDesignId: form.heroDesignId,
-          heroEffectType: form.heroEffectType,
-          heroEffectParticleCount: form.heroEffectParticleCount,
-          heroEffectSpeed: form.heroEffectSpeed,
-          heroEffectOpacity: form.heroEffectOpacity,
-          messageFontFamily: form.messageFontFamily,
-          transportFontFamily: form.transportFontFamily,
-          rsvpTitle: form.rsvpTitle,
-          rsvpMessage: form.rsvpMessage,
-          rsvpButtonText: form.rsvpButtonText,
-          rsvpFontFamily: form.rsvpFontFamily,
-          detailContent: form.detailContent,
-          // 추가 필드 저장
-          locationTitle: form.locationTitle,
-          locationFloorHall: form.locationFloorHall,
-          locationContact: sanitizeContactValue(form.locationContact),
-          showMap: form.showMap,
-          lockMap: form.lockMap,
-        }),
+        body: JSON.stringify(savePayload),
       });
 
       applyEditorData(saved);
@@ -1355,7 +1411,10 @@ export default function EditorPage() {
   };
 
   const handleSlugCheck = async () => {
-    if (!invitation) return;
+    if (!invitation || invitation.id <= 0) {
+      setSlugStatus("신규 초대장은 저장 후 slug 검사가 가능합니다.");
+      return;
+    }
     if (!form.slug.trim()) {
       setSlugStatus("slug를 입력해 주세요.");
       return;
@@ -1378,6 +1437,10 @@ export default function EditorPage() {
 
   const handlePublish = async () => {
     if (!invitation) return;
+    if (invitation.id <= 0) {
+      showToast("먼저 저장 후 발행해 주세요.", "error");
+      return;
+    }
     setPublishing(true);
 
     try {
@@ -1403,14 +1466,18 @@ export default function EditorPage() {
 
   const handleDelete = async () => {
     if (!invitation) return;
-    if (!window.confirm("이 청첩장을 삭제하시겠습니까? 삭제 후 복구할 수 없습니다.")) return;
+    if (invitation.id <= 0) {
+      showToast("아직 저장되지 않은 새 초대장입니다.", "error");
+      return;
+    }
+    if (!window.confirm("이 청첩장을 삭제하시겠습니까? 상태가 삭제로 변경되며 목록에서 숨김 처리됩니다.")) return;
 
     setDeleting(true);
     try {
       await apiFetch<{ message: string }>(`/api/invitations/${invitation.id}`, {
         method: "DELETE",
       });
-      showToast("초대장이 삭제되었습니다.");
+      showToast("초대장이 삭제 처리되었습니다.");
       router.push("/mypage");
     } catch (error) {
       if (isApiError(error) && error.redirectedToLogin) {
@@ -1423,7 +1490,7 @@ export default function EditorPage() {
   };
 
   const handleUnpublish = async () => {
-    if (!invitation) return;
+    if (!invitation || invitation.id <= 0) return;
     setUnpublishing(true);
     try {
       const updated = await apiFetch<EditorInvitation>(`/api/invitations/${invitation.id}/unpublish`, {
@@ -1444,7 +1511,7 @@ export default function EditorPage() {
 
   const resolveInvitationShareUrl = () => {
     if (shareUrl.trim()) return shareUrl.trim();
-    if (!invitation) return "";
+    if (!invitation || invitation.id <= 0) return "";
 
     const shareId = invitation.slug?.trim() || String(invitation.id);
     const encoded = encodeURIComponent(shareId);
@@ -1469,6 +1536,9 @@ export default function EditorPage() {
     }
   };
 
+  const isInvitationSaved = Boolean(invitation && invitation.id > 0);
+  const actionLockedUntilSaved = !isInvitationSaved;
+
   if (!ready || !invitation) {
     return <div className="flex min-h-screen items-center justify-center text-sm text-theme-secondary">{loadingText}</div>;
   }
@@ -1482,12 +1552,12 @@ export default function EditorPage() {
             <span className="text-sm font-medium">Wedding Letter 에디터</span>
           </button>
           <div className="hidden h-4 w-px bg-[var(--theme-divider)] md:block" />
-          <div className="hidden text-xs font-medium text-gray-400 md:block">초대장 ID: {invitation.id}</div>
+          <div className="hidden text-xs font-medium text-gray-400 md:block">초대장 ID: {invitation.id > 0 ? invitation.id : "미저장"}</div>
         </div>
 
         <div className="flex items-center gap-2">
           <button
-            className="rounded-full border border-warm px-4 py-2 text-xs font-bold text-theme-secondary transition-colors hover:bg-theme"
+            className="rounded-full border border-warm px-4 py-2 text-xs font-bold text-theme-secondary transition-colors hover:bg-theme disabled:cursor-not-allowed disabled:opacity-50"
             type="button"
             onClick={handleSave}
             disabled={saving || uploading}
@@ -1495,11 +1565,16 @@ export default function EditorPage() {
             {saving ? "저장중..." : "저장하기"}
           </button>
           <button
-            className="rounded-full border border-warm px-4 py-2 text-xs font-bold text-theme-secondary transition-colors hover:bg-theme"
+            className="rounded-full border border-warm px-4 py-2 text-xs font-bold text-theme-secondary transition-colors hover:bg-theme disabled:cursor-not-allowed disabled:opacity-50"
             type="button"
             onClick={() => {
+              if (!isInvitationSaved) {
+                showToast("먼저 저장 후 미리보기를 이용해 주세요.", "error");
+                return;
+              }
               router.push(`/invitation/${invitation.id}?preview=1`);
             }}
+            disabled={actionLockedUntilSaved}
           >
             미리보기
           </button>
@@ -1513,28 +1588,28 @@ export default function EditorPage() {
             </button>
           ) : null}
           <button
-            className="rounded-full bg-theme-brand px-5 py-2 text-xs font-bold text-white"
+            className="rounded-full bg-theme-brand px-5 py-2 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
             type="button"
             onClick={handlePublish}
-            disabled={publishing || unpublishing || uploading || deleting}
+            disabled={actionLockedUntilSaved || publishing || unpublishing || uploading || deleting}
           >
             {publishing ? "발행중..." : "발행하기"}
           </button>
           {invitation.published ? (
             <button
-              className="rounded-full border border-warm px-4 py-2 text-xs font-bold text-theme-secondary"
+              className="rounded-full border border-warm px-4 py-2 text-xs font-bold text-theme-secondary disabled:cursor-not-allowed disabled:opacity-50"
               type="button"
               onClick={handleUnpublish}
-              disabled={unpublishing || publishing}
+              disabled={actionLockedUntilSaved || unpublishing || publishing}
             >
               {unpublishing ? "해제중..." : "발행해제"}
             </button>
           ) : (
             <button
-              className="rounded-full border border-red-200 bg-red-50 px-4 py-2 text-xs font-bold text-red-500"
+              className="rounded-full border border-red-200 bg-red-50 px-4 py-2 text-xs font-bold text-red-500 disabled:cursor-not-allowed disabled:opacity-50"
               type="button"
               onClick={handleDelete}
-              disabled={saving || publishing || uploading || deleting}
+              disabled={actionLockedUntilSaved || saving || publishing || uploading || deleting}
             >
               {deleting ? "삭제중..." : "삭제하기"}
             </button>
@@ -1587,6 +1662,9 @@ export default function EditorPage() {
                 subway: form.subway,
                 bus: form.bus,
                 car: form.car,
+                fontFamily: form.fontFamily,
+                fontColor: form.fontColor,
+                fontSize: Number.isFinite(Number(form.fontSize)) ? Number(form.fontSize) : undefined,
                 useSeparateAccounts: form.useSeparateAccounts,
                 useGuestbook: form.useGuestbook,
                 useRsvpModal: form.useRsvpModal,
@@ -1622,8 +1700,8 @@ export default function EditorPage() {
                 lockMap: form.lockMap,
               }}
               preview
-              invitationIdForActions={String(invitation.id)}
-              slugForActions={form.slug || String(invitation.id)}
+              invitationIdForActions={invitation.id > 0 ? String(invitation.id) : ""}
+              slugForActions={invitation.id > 0 ? form.slug || String(invitation.id) : ""}
             />
           </MobilePreviewFrame>
         </section>
@@ -1633,6 +1711,11 @@ export default function EditorPage() {
             <div className="px-6 py-10 md:px-10 space-y-2">
               <h1 className="serif-font text-3xl text-theme-brand">초대장 편집</h1>
               <p className="text-sm text-theme-secondary opacity-70">청첩장 내용을 항목별로 깔끔하게 관리하세요.</p>
+              <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-900">
+                {!isInvitationSaved
+                  ? "안내: 신규 청첩장은 저장 후에만 이미지 업로드, 미리보기, 발행/삭제를 사용할 수 있습니다."
+                  : "안내: 저장된 청첩장만 이미지 업로드, 미리보기, 발행/삭제 기능을 사용할 수 있습니다."}
+              </div>
             </div>
 
             <div className={`relative border-b border-warm transition-colors ${openSections.theme ? "bg-white" : "bg-[#fdfcfb]"}`}>
@@ -1753,7 +1836,7 @@ export default function EditorPage() {
                           value={form.themeFontFamily}
                           onChange={(e) => updateField("themeFontFamily", e.target.value)}
                         >
-                          {THEME_FONT_OPTIONS.map((option) => (
+                          {EDITOR_FONT_FAMILY_OPTIONS.map((option) => (
                             <option key={option.value} value={option.value}>
                               {option.label}
                             </option>
@@ -1957,7 +2040,8 @@ export default function EditorPage() {
                         <input
                           type="file"
                           accept="image/*"
-                          className="absolute inset-0 cursor-pointer opacity-0"
+                          className="absolute inset-0 cursor-pointer opacity-0 disabled:cursor-not-allowed"
+                          disabled={actionLockedUntilSaved}
                           onChange={(event) => {
                             const file = event.target.files?.[0];
                             if (file) void handleAssetUpload({ mainImageFile: file });
@@ -1991,6 +2075,88 @@ export default function EditorPage() {
                     </div>
                   </div>
 
+                  <div className="rounded-2xl border border-warm bg-[#fdfcfb] p-5 space-y-4">
+                    <p className="text-xs font-bold tracking-wider text-theme-brand">메인 디자인 텍스트 스타일</p>
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                      <label className="space-y-2 block">
+                        <span className="text-xs font-bold text-theme-secondary">메인 문구 폰트</span>
+                        <select className="input-premium text-xs" value={form.themeFontFamily} onChange={(e) => updateField("themeFontFamily", e.target.value)}>
+                          {EDITOR_FONT_FAMILY_OPTIONS.map((option) => (
+                            <option key={`hero-main-font-${option.value}`} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="space-y-2 block">
+                        <span className="text-xs font-bold text-theme-secondary">메인 문구 크기 (px)</span>
+                        <input
+                          className="input-premium"
+                          type="number"
+                          min={MIN_THEME_FONT_SIZE}
+                          max={MAX_THEME_FONT_SIZE}
+                          value={form.themeFontSize}
+                          onChange={(e) =>
+                            updateField(
+                              "themeFontSize",
+                              Math.round(clampHeroEffectValue(Number(e.target.value), MIN_THEME_FONT_SIZE, MAX_THEME_FONT_SIZE)),
+                            )
+                          }
+                        />
+                      </label>
+                      <label className="space-y-2 block">
+                        <span className="text-xs font-bold text-theme-secondary">메인 문구 색상</span>
+                        <div className="flex gap-3">
+                          <input
+                            className="h-10 w-14 cursor-pointer rounded border border-warm overflow-hidden"
+                            type="color"
+                            value={form.themeTextColor}
+                            onChange={(e) => updateField("themeTextColor", e.target.value)}
+                          />
+                          <input className="input-premium flex-1" value={form.themeTextColor} onChange={(e) => updateField("themeTextColor", e.target.value)} />
+                        </div>
+                      </label>
+                      <label className="space-y-2 block">
+                        <span className="text-xs font-bold text-theme-secondary">강조 문구 색상</span>
+                        <div className="flex gap-3">
+                          <input
+                            className="h-10 w-14 cursor-pointer rounded border border-warm overflow-hidden"
+                            type="color"
+                            value={form.themeAccentColor}
+                            onChange={(e) => updateField("themeAccentColor", e.target.value)}
+                          />
+                          <input className="input-premium flex-1" value={form.themeAccentColor} onChange={(e) => updateField("themeAccentColor", e.target.value)} />
+                        </div>
+                      </label>
+                      <label className="space-y-2 block">
+                        <span className="text-xs font-bold text-theme-secondary">보조 문구 폰트</span>
+                        <select className="input-premium text-xs" value={form.fontFamily} onChange={(e) => updateField("fontFamily", e.target.value)}>
+                          {EDITOR_FONT_FAMILY_OPTIONS.map((option) => (
+                            <option key={`hero-sub-font-${option.value}`} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="space-y-2 block">
+                        <span className="text-xs font-bold text-theme-secondary">보조 문구 크기 (px)</span>
+                        <input className="input-premium" type="number" min={10} max={30} value={form.fontSize} onChange={(e) => updateField("fontSize", e.target.value)} />
+                      </label>
+                    </div>
+                    <label className="space-y-2 block">
+                      <span className="text-xs font-bold text-theme-secondary">보조 문구 색상</span>
+                      <div className="flex gap-3">
+                        <input
+                          className="h-10 w-14 cursor-pointer rounded border border-warm overflow-hidden"
+                          type="color"
+                          value={form.fontColor}
+                          onChange={(e) => updateField("fontColor", e.target.value)}
+                        />
+                        <input className="input-premium flex-1" value={form.fontColor} onChange={(e) => updateField("fontColor", e.target.value)} />
+                      </div>
+                    </label>
+                  </div>
+
                   <div className="space-y-2">
                     <span className="text-xs font-bold text-theme-secondary">초대 메시지</span>
                     <div className="space-y-3">
@@ -2000,9 +2166,11 @@ export default function EditorPage() {
                         value={form.messageFontFamily}
                         onChange={(e) => updateField("messageFontFamily", e.target.value)}
                       >
-                        <option value="'Noto Sans KR', sans-serif">기본 폰트</option>
-                        <option value="'serif-kr', serif">명조체 (Serif)</option>
-                        <option value="'Pretendard', sans-serif">Pretendard</option>
+                        {EDITOR_FONT_FAMILY_OPTIONS.map((option) => (
+                          <option key={`message-font-${option.value}`} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
                       </select>
                       <RichTextEditor
                         value={form.message}
@@ -2123,8 +2291,11 @@ export default function EditorPage() {
                       value={form.transportFontFamily} 
                       onChange={(e) => updateField("transportFontFamily", e.target.value)}
                     >
-                      <option value="'Noto Sans KR', sans-serif">기본 폰트</option>
-                      <option value="'serif-kr', serif">명조체 (Serif)</option>
+                      {EDITOR_FONT_FAMILY_OPTIONS.map((option) => (
+                        <option key={`transport-font-${option.value}`} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
                     </select>
                     <label className="space-y-2 block">
                       <span className="text-xs font-bold text-theme-secondary">지하철 안내</span>
@@ -2144,7 +2315,8 @@ export default function EditorPage() {
                     <input
                       type="file"
                       accept="image/*"
-                      className="text-xs text-theme-secondary file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-theme file:text-theme-brand hover:file:bg-theme-divider"
+                      className="text-xs text-theme-secondary file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-theme file:text-theme-brand hover:file:bg-theme-divider disabled:cursor-not-allowed disabled:opacity-50"
+                      disabled={actionLockedUntilSaved}
                       onChange={(event) => {
                         const file = event.target.files?.[0];
                         if (file) {
@@ -2251,8 +2423,11 @@ export default function EditorPage() {
                           value={form.rsvpFontFamily} 
                           onChange={(e) => updateField("rsvpFontFamily", e.target.value)}
                         >
-                          <option value="'Noto Sans KR', sans-serif">기본 폰트</option>
-                          <option value="'serif-kr', serif">명조체 (Serif)</option>
+                          {EDITOR_FONT_FAMILY_OPTIONS.map((option) => (
+                            <option key={`rsvp-font-${option.value}`} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
                         </select>
                       </label>
                     </div>
@@ -2316,7 +2491,8 @@ export default function EditorPage() {
                           <input
                             type="file"
                             accept="audio/*"
-                            className="absolute inset-0 opacity-0 cursor-pointer"
+                            className="absolute inset-0 opacity-0 cursor-pointer disabled:cursor-not-allowed"
+                            disabled={actionLockedUntilSaved}
                             onChange={(event) => {
                               const file = event.target.files?.[0];
                               if (file) void handleAssetUpload({ backgroundMusicFile: file });
@@ -2353,7 +2529,12 @@ export default function EditorPage() {
                       <span className="text-xs font-bold text-theme-secondary">공유 URL slug</span>
                       <div className="flex gap-2">
                         <input className="input-premium flex-1" placeholder="예: gunho-sebin-wedding" value={form.slug} onChange={(e) => updateField("slug", e.target.value)} />
-                        <button className="rounded-xl bg-theme-brand px-4 py-2 text-xs font-bold text-white hover:opacity-90 transition-opacity" type="button" onClick={handleSlugCheck}>
+                        <button
+                          className="rounded-xl bg-theme-brand px-4 py-2 text-xs font-bold text-white hover:opacity-90 transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
+                          type="button"
+                          onClick={handleSlugCheck}
+                          disabled={actionLockedUntilSaved}
+                        >
                           중복확인
                         </button>
                       </div>
@@ -2450,8 +2631,11 @@ export default function EditorPage() {
                     <label className="space-y-2 md:col-span-2">
                       <span className="text-xs font-bold text-theme-secondary">폰트 종류</span>
                       <select className="input-premium" value={form.fontFamily} onChange={(e) => updateField("fontFamily", e.target.value)}>
-                        <option value="'Noto Sans KR', sans-serif">Noto Sans KR</option>
-                        <option value="'Pretendard', 'Noto Sans KR', sans-serif">Pretendard</option>
+                        {EDITOR_FONT_FAMILY_OPTIONS.map((option) => (
+                          <option key={`main-font-${option.value}`} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
                       </select>
                     </label>
                     <label className="space-y-2">
@@ -2473,7 +2657,8 @@ export default function EditorPage() {
                     <input
                       type="file"
                       accept="image/*"
-                      className="text-xs text-theme-secondary file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-theme file:text-theme-brand hover:file:bg-theme-divider"
+                      className="text-xs text-theme-secondary file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-theme file:text-theme-brand hover:file:bg-theme-divider disabled:cursor-not-allowed disabled:opacity-50"
+                      disabled={actionLockedUntilSaved}
                       onChange={(event) => {
                         const file = event.target.files?.[0];
                         if (file) {
@@ -2518,7 +2703,8 @@ export default function EditorPage() {
                     <input
                       type="file"
                       accept="image/*"
-                      className="text-xs text-theme-secondary file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-theme file:text-theme-brand hover:file:bg-theme-divider"
+                      className="text-xs text-theme-secondary file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-theme file:text-theme-brand hover:file:bg-theme-divider disabled:cursor-not-allowed disabled:opacity-50"
+                      disabled={actionLockedUntilSaved}
                       onChange={(event) => {
                         const files = event.target.files;
                         if (files && files.length > 1) {
@@ -2703,6 +2889,55 @@ export default function EditorPage() {
                         <div className="absolute inset-0 bg-[#4f5568]/20" />
                         
                         {/* 디자인 오버레이 미리보기 */}
+                        {design.id === "happy-wedding-day" && (
+                          <div className="absolute inset-0 p-3 pointer-events-none">
+                            <div className="flex items-center gap-1 text-[6px] text-white/90">
+                              <span>{weddingTitle}</span>
+                              <span className="h-px flex-1 bg-white/70" />
+                              <span>결혼합니다</span>
+                            </div>
+                            <p className="absolute left-5 top-[22%] text-[20px] leading-[0.88] text-pink-300 font-semibold">Happy<br/>Wedding<br/>Day</p>
+                            <div className="absolute inset-x-0 bottom-3 text-center text-[6px] text-white/90">
+                              <p>{form.date ? formatWeddingDate(form.date) : "2030년 8월 10일 오후 1시 정각"}</p>
+                            </div>
+                          </div>
+                        )}
+                        {design.id === "happily-ever-after" && (
+                          <div className="absolute inset-0 pointer-events-none bg-black/30">
+                            <div className="absolute inset-x-0 top-2 text-center text-[5px] text-white/90">{weddingTitle}</div>
+                            <p className="absolute left-2 top-[16%] text-[16px] leading-none text-amber-300 font-semibold">Happily</p>
+                            <p className="absolute left-1 bottom-[18%] text-[15px] leading-[0.9] text-amber-300 font-semibold">Ever<br/>After</p>
+                          </div>
+                        )}
+                        {design.id === "blush-circle" && (
+                          <div className="absolute inset-0 pointer-events-none bg-[#e8d4d8]">
+                            <div className="absolute inset-x-0 top-4 text-center text-[7px] text-[#3f3338]">
+                              <p className="font-semibold">결혼합니다</p>
+                              <p className="mt-1">{weddingTitle}</p>
+                            </div>
+                            <div className="absolute left-1/2 top-[52%] h-[70px] w-[70px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/70 bg-sky-200/60" />
+                            <div className="absolute inset-x-0 bottom-3 text-center text-[6px] text-[#3f3338]">2030.08.17</div>
+                          </div>
+                        )}
+                        {design.id === "two-become-one" && (
+                          <div className="absolute inset-0 pointer-events-none bg-[#baa596]/90">
+                            <p className="absolute inset-x-0 top-3 text-center text-[9px] leading-[0.95] text-white/95 font-semibold">
+                              TWO<br/>BECOME<br/>ONE
+                            </p>
+                            <div className="absolute inset-x-3 top-[42%] h-[42%] bg-white/30" />
+                          </div>
+                        )}
+                        {design.id === "sky-invitation" && (
+                          <div className="absolute inset-0 pointer-events-none">
+                            <div className="absolute inset-x-0 top-4 text-center text-[7px] text-[#2d3d4d]">
+                              <p className="font-semibold">결혼합니다</p>
+                              <p className="text-[6px] text-cyan-100 mt-0.5">Wedding Invitation</p>
+                            </div>
+                            <div className="absolute inset-x-0 bottom-0 h-[28%] bg-white/90 text-center text-[5px] text-[#444] flex flex-col items-center justify-center">
+                              <p>2030년 3월 30일 오후 12시 정각</p>
+                            </div>
+                          </div>
+                        )}
                         {design.id === "simply-meant" && (
                           <div className="absolute inset-0 p-3 flex flex-col justify-between text-[6px] text-white/80 pointer-events-none scale-[0.6]">
                             <div className="flex justify-between font-bold"><span>SIMPLY</span><span>MEANT</span></div>

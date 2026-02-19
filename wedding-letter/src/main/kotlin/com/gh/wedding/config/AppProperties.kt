@@ -62,6 +62,7 @@ data class UploadPolicyProperties(
 data class S3StorageProperties(
     var bucket: String = "",
     var region: String = "ap-northeast-2",
+    var endpoint: String = "",
     var prefix: String = "",
     var publicBaseUrl: String = "",
 )

@@ -11,7 +11,8 @@ import org.springframework.util.StringUtils
 import org.springframework.web.multipart.MultipartFile
 import java.io.ByteArrayOutputStream
 import java.io.InputStream
-import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 import java.util.UUID
 
 data class StoredFileResult(
@@ -126,27 +127,28 @@ class FileService(
     }
 
     private fun buildRelativePath(userId: String?, invitationId: String?, category: String, extension: String): String {
-        val pathPrefix = sanitizeSegment(storageProperties.pathPrefix, "wedding")
+        val pathPrefix = sanitizeOptionalSegment(storageProperties.pathPrefix)
         val safeUserId = sanitizeSegment(userId, "anonymous")
         val safeInvitationId = sanitizeSegment(invitationId, "common")
         val safeCategory = sanitizePath(category)
-        val now = LocalDate.now()
-        val year = now.year.toString()
-        val month = now.monthValue.toString().padStart(2, '0')
-        val day = now.dayOfMonth.toString().padStart(2, '0')
+        val timestampFolder = LocalDateTime.now().format(PATH_TIMESTAMP_FORMATTER)
 
-        return listOf(
-            pathPrefix,
-            "users",
-            safeUserId,
-            "invitations",
-            safeInvitationId,
-            safeCategory,
-            year,
-            month,
-            day,
-            "${UUID.randomUUID()}.$extension",
-        ).joinToString("/")
+        val segments = mutableListOf<String>()
+        if (!pathPrefix.isNullOrBlank()) {
+            segments.add(pathPrefix)
+        }
+        segments.addAll(
+            listOf(
+                "users",
+                safeUserId,
+                "invitations",
+                safeInvitationId,
+                safeCategory,
+                timestampFolder,
+                "${UUID.randomUUID()}.$extension",
+            ),
+        )
+        return segments.joinToString("/")
     }
 
     private fun sanitizePath(rawPath: String): String {
@@ -169,6 +171,17 @@ class FileService(
             ?.take(64)
 
         return if (normalized.isNullOrBlank()) fallback else normalized
+    }
+
+    private fun sanitizeOptionalSegment(raw: String?): String? {
+        val normalized = raw
+            ?.trim()
+            ?.lowercase()
+            ?.replace(Regex("[^a-z0-9._-]"), "-")
+            ?.replace(Regex("-+"), "-")
+            ?.trim('-')
+            ?.take(64)
+        return normalized?.takeIf { it.isNotBlank() }
     }
 
     private fun resolveExtension(originalFilename: String?, contentType: String?): String {
@@ -223,5 +236,10 @@ class FileService(
                 "$label 파일 크기가 제한을 초과했습니다. 최대 %.1fMB".format(maxMb),
             )
         }
+    }
+
+    companion object {
+        private val PATH_TIMESTAMP_FORMATTER: DateTimeFormatter =
+            DateTimeFormatter.ofPattern("yyyy_MM_dd_HH_mm_ss")
     }
 }

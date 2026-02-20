@@ -136,6 +136,17 @@ type EditorInvitation = {
   locationContact?: string | null;
   showMap?: boolean;
   lockMap?: boolean;
+  openingEnabled?: boolean | null;
+  openingAnimationType?: string | null;
+  openingBackgroundType?: string | null;
+  openingBackgroundColor?: string | null;
+  openingImageUrl?: string | null;
+  openingTitle?: string | null;
+  openingMessage?: string | null;
+  openingFontFamily?: string | null;
+  openingFontColor?: string | null;
+  openingTitleFontSize?: number | null;
+  openingMessageFontSize?: number | null;
 };
 
 type PublishResponse = {
@@ -224,6 +235,17 @@ type FormState = {
   locationContact: string;
   showMap: boolean;
   lockMap: boolean;
+  openingEnabled: boolean;
+  openingAnimationType: string;
+  openingBackgroundType: string;
+  openingBackgroundColor: string;
+  openingImageUrl: string;
+  openingTitle: string;
+  openingMessage: string;
+  openingFontFamily: string;
+  openingFontColor: string;
+  openingTitleFontSize: number;
+  openingMessageFontSize: number;
 };
 
 const defaultFormState: FormState = {
@@ -298,6 +320,17 @@ const defaultFormState: FormState = {
   locationContact: "",
   showMap: true,
   lockMap: false,
+  openingEnabled: false,
+  openingAnimationType: "typewriter",
+  openingBackgroundType: "color",
+  openingBackgroundColor: "#e6d8ca",
+  openingImageUrl: "",
+  openingTitle: "신랑 신부",
+  openingMessage: "우리 결혼합니다.",
+  openingFontFamily: DEFAULT_FONT_FAMILY,
+  openingFontColor: "#3d2a22",
+  openingTitleFontSize: 34,
+  openingMessageFontSize: 19,
 };
 
 
@@ -318,6 +351,11 @@ const HERO_EFFECTS = [
   { id: "wave", name: "물결", description: "이미지 상단과 하단에 물결 흐름을 추가합니다." },
   { id: "snow", name: "눈", description: "메인 이미지 위로 눈이 내리는 효과를 적용합니다." },
   { id: "star", name: "별", description: "메인 이미지 전체로 별이 흐르는 효과를 적용합니다." },
+];
+
+const OPENING_ANIMATION_OPTIONS = [
+  { id: "typewriter", name: "1번: 한 글자씩 입력" },
+  { id: "soft-fade", name: "2번: 흐림에서 서서히 등장" },
 ];
 
 type HeroEffectOptions = {
@@ -453,6 +491,10 @@ const MAX_CONTACT_LENGTH = 14;
 const MAX_ACCOUNT_LENGTH = 14;
 const MIN_THEME_FONT_SIZE = 12;
 const MAX_THEME_FONT_SIZE = 28;
+const MIN_OPENING_TITLE_FONT_SIZE = 12;
+const MAX_OPENING_TITLE_FONT_SIZE = 72;
+const MIN_OPENING_MESSAGE_FONT_SIZE = 10;
+const MAX_OPENING_MESSAGE_FONT_SIZE = 52;
 const INVALID_ASSET_URL_TOKENS = new Set(["null", "undefined", "nan"]);
 const MIN_PREVIEW_SPLIT_PERCENT = 36;
 const MAX_PREVIEW_SPLIT_PERCENT = 64;
@@ -513,6 +555,12 @@ function combineBankAndAccount(bank: string, account: string): string {
 
 function formatBytesToMb(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
+}
+
+function buildDefaultOpeningTitle(groomName?: string | null, brideName?: string | null): string {
+  const groom = (groomName ?? "").trim() || "신랑";
+  const bride = (brideName ?? "").trim() || "신부";
+  return `${groom} ${bride}`;
 }
 
 function toDateTimeLocalValue(rawDate?: string | null): string {
@@ -677,6 +725,38 @@ function buildFormStateFromInvitation(data: EditorInvitation): FormState {
     locationContact: sanitizeContactValue(typedData.locationContact ?? defaultFormState.locationContact),
     showMap: typedData.showMap ?? defaultFormState.showMap,
     lockMap: typedData.lockMap ?? defaultFormState.lockMap,
+    openingEnabled: typedData.openingEnabled ?? defaultFormState.openingEnabled,
+    openingAnimationType:
+      typedData.openingAnimationType === "soft-fade" || typedData.openingAnimationType === "typewriter"
+        ? typedData.openingAnimationType
+        : defaultFormState.openingAnimationType,
+    openingBackgroundType: typedData.openingBackgroundType === "image" ? "image" : "color",
+    openingBackgroundColor: sanitizeColorValue(
+      typedData.openingBackgroundColor ?? defaultFormState.openingBackgroundColor,
+      defaultFormState.openingBackgroundColor,
+    ),
+    openingImageUrl: sanitizeAssetUrl(typedData.openingImageUrl ?? defaultFormState.openingImageUrl),
+    openingTitle: (typedData.openingTitle ?? "").trim() || buildDefaultOpeningTitle(data.groomName, data.brideName),
+    openingMessage: typedData.openingMessage ?? defaultFormState.openingMessage,
+    openingFontFamily: normalizeFontFamilyValue(typedData.openingFontFamily, defaultFormState.openingFontFamily),
+    openingFontColor: sanitizeColorValue(
+      typedData.openingFontColor ?? defaultFormState.openingFontColor,
+      defaultFormState.openingFontColor,
+    ),
+    openingTitleFontSize: Math.round(
+      clampHeroEffectValue(
+        Number(typedData.openingTitleFontSize ?? defaultFormState.openingTitleFontSize),
+        MIN_OPENING_TITLE_FONT_SIZE,
+        MAX_OPENING_TITLE_FONT_SIZE,
+      ),
+    ),
+    openingMessageFontSize: Math.round(
+      clampHeroEffectValue(
+        Number(typedData.openingMessageFontSize ?? defaultFormState.openingMessageFontSize),
+        MIN_OPENING_MESSAGE_FONT_SIZE,
+        MAX_OPENING_MESSAGE_FONT_SIZE,
+      ),
+    ),
   };
 }
 
@@ -707,6 +787,17 @@ function createUnsavedInvitation(): EditorInvitation {
     locationContact: defaultFormState.locationContact,
     showMap: defaultFormState.showMap,
     lockMap: defaultFormState.lockMap,
+    openingEnabled: defaultFormState.openingEnabled,
+    openingAnimationType: defaultFormState.openingAnimationType,
+    openingBackgroundType: defaultFormState.openingBackgroundType,
+    openingBackgroundColor: defaultFormState.openingBackgroundColor,
+    openingImageUrl: defaultFormState.openingImageUrl,
+    openingTitle: defaultFormState.openingTitle,
+    openingMessage: defaultFormState.openingMessage,
+    openingFontFamily: defaultFormState.openingFontFamily,
+    openingFontColor: defaultFormState.openingFontColor,
+    openingTitleFontSize: defaultFormState.openingTitleFontSize,
+    openingMessageFontSize: defaultFormState.openingMessageFontSize,
     themeBackgroundColor: defaultFormState.themeBackgroundColor,
     themeTextColor: defaultFormState.themeTextColor,
     themeAccentColor: defaultFormState.themeAccentColor,
@@ -1402,6 +1493,7 @@ export default function EditorPage() {
       paperInvitationFile?: File;
       seoImageFile?: File;
       backgroundMusicFile?: File;
+      openingImageFile?: File;
       galleryFile?: File;
     },
   ) => {
@@ -1449,6 +1541,7 @@ export default function EditorPage() {
     if (payload.paperInvitationFile) formData.append("paperInvitationFile", payload.paperInvitationFile);
     if (payload.seoImageFile) formData.append("seoImageFile", payload.seoImageFile);
     if (payload.backgroundMusicFile) formData.append("backgroundMusicFile", payload.backgroundMusicFile);
+    if (payload.openingImageFile) formData.append("openingImageFile", payload.openingImageFile);
 
     if ([...formData.keys()].length === 0) return;
 
@@ -1543,6 +1636,21 @@ export default function EditorPage() {
       locationContact: sanitizeContactValue(form.locationContact),
       showMap: form.showMap,
       lockMap: form.lockMap,
+      openingEnabled: form.openingEnabled,
+      openingAnimationType: form.openingAnimationType,
+      openingBackgroundType: form.openingBackgroundType,
+      openingBackgroundColor: sanitizeColorValue(form.openingBackgroundColor, defaultFormState.openingBackgroundColor),
+      openingImageUrl: sanitizeAssetUrl(form.openingImageUrl),
+      openingTitle: form.openingTitle.trim() || buildDefaultOpeningTitle(form.groomName, form.brideName),
+      openingMessage: form.openingMessage.trim() || defaultFormState.openingMessage,
+      openingFontFamily: form.openingFontFamily,
+      openingFontColor: sanitizeColorValue(form.openingFontColor, defaultFormState.openingFontColor),
+      openingTitleFontSize: Math.round(
+        clampHeroEffectValue(form.openingTitleFontSize, MIN_OPENING_TITLE_FONT_SIZE, MAX_OPENING_TITLE_FONT_SIZE),
+      ),
+      openingMessageFontSize: Math.round(
+        clampHeroEffectValue(form.openingMessageFontSize, MIN_OPENING_MESSAGE_FONT_SIZE, MAX_OPENING_MESSAGE_FONT_SIZE),
+      ),
     };
   };
 
@@ -1931,6 +2039,21 @@ export default function EditorPage() {
                 locationContact: form.locationContact,
                 showMap: form.showMap,
                 lockMap: form.lockMap,
+                openingEnabled: form.openingEnabled,
+                openingAnimationType: form.openingAnimationType,
+                openingBackgroundType: form.openingBackgroundType,
+                openingBackgroundColor: sanitizeColorValue(form.openingBackgroundColor, defaultFormState.openingBackgroundColor),
+                openingImageUrl: sanitizeAssetUrl(form.openingImageUrl),
+                openingTitle: form.openingTitle.trim() || buildDefaultOpeningTitle(form.groomName, form.brideName),
+                openingMessage: form.openingMessage.trim() || defaultFormState.openingMessage,
+                openingFontFamily: form.openingFontFamily,
+                openingFontColor: sanitizeColorValue(form.openingFontColor, defaultFormState.openingFontColor),
+                openingTitleFontSize: Math.round(
+                  clampHeroEffectValue(form.openingTitleFontSize, MIN_OPENING_TITLE_FONT_SIZE, MAX_OPENING_TITLE_FONT_SIZE),
+                ),
+                openingMessageFontSize: Math.round(
+                  clampHeroEffectValue(form.openingMessageFontSize, MIN_OPENING_MESSAGE_FONT_SIZE, MAX_OPENING_MESSAGE_FONT_SIZE),
+                ),
               }}
                 preview
                 invitationIdForActions={invitation.id > 0 ? String(invitation.id) : ""}
@@ -2443,6 +2566,230 @@ export default function EditorPage() {
                       </label>
                     </div>
                     <p className="text-[11px] text-theme-secondary">메인 화면 폰트/색상은 메인 이미지(히어로)에만 적용됩니다.</p>
+                  </div>
+
+                  <div className="rounded-2xl border border-warm bg-[#fdfcfb] p-5 space-y-4">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <p className="text-xs font-bold tracking-wider text-theme-brand">오프닝 애니메이션</p>
+                        <p className="mt-1 text-[11px] text-theme-secondary">
+                          모바일 청첩장 본문 진입 전에 전체 레이어로 재생됩니다.
+                        </p>
+                      </div>
+                      <label className="flex items-center gap-2 text-xs font-bold text-theme-secondary">
+                        <input
+                          type="checkbox"
+                          checked={form.openingEnabled}
+                          onChange={(e) => updateField("openingEnabled", e.target.checked)}
+                        />
+                        사용
+                      </label>
+                    </div>
+
+                    {form.openingEnabled ? (
+                      <div className="space-y-4">
+                        <label className="space-y-2 block">
+                          <span className="text-xs font-bold text-theme-secondary">오프닝 형태</span>
+                          <select
+                            className="input-premium text-xs"
+                            value={form.openingAnimationType}
+                            onChange={(e) => updateField("openingAnimationType", e.target.value)}
+                          >
+                            {OPENING_ANIMATION_OPTIONS.map((option) => (
+                              <option key={`opening-animation-${option.id}`} value={option.id}>
+                                {option.name}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+
+                        <label className="space-y-2 block">
+                          <span className="text-xs font-bold text-theme-secondary">상단 문구 (이름 영역)</span>
+                          <input
+                            className="input-premium"
+                            value={form.openingTitle}
+                            maxLength={40}
+                            onChange={(e) => updateField("openingTitle", e.target.value)}
+                            placeholder="예: 신랑 신부"
+                          />
+                        </label>
+
+                        <label className="space-y-2 block">
+                          <span className="text-xs font-bold text-theme-secondary">하단 문구</span>
+                          <input
+                            className="input-premium"
+                            value={form.openingMessage}
+                            maxLength={60}
+                            onChange={(e) => updateField("openingMessage", e.target.value)}
+                            placeholder="기본값: 우리 결혼합니다."
+                          />
+                        </label>
+
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                          <label className="space-y-2 block">
+                            <span className="text-xs font-bold text-theme-secondary">오프닝 폰트</span>
+                            <select
+                              className="input-premium text-xs"
+                              value={form.openingFontFamily}
+                              onChange={(e) => updateField("openingFontFamily", e.target.value)}
+                            >
+                              {EDITOR_FONT_FAMILY_OPTIONS.map((option) => (
+                                <option key={`opening-font-${option.value}`} value={option.value}>
+                                  {option.label}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                          <label className="space-y-2 block">
+                            <span className="text-xs font-bold text-theme-secondary">폰트 색상</span>
+                            <div className="flex gap-3">
+                              <input
+                                className="h-10 w-14 cursor-pointer rounded border border-warm overflow-hidden"
+                                type="color"
+                                value={form.openingFontColor}
+                                onChange={(e) => updateField("openingFontColor", e.target.value)}
+                              />
+                              <input
+                                className="input-premium flex-1"
+                                value={form.openingFontColor}
+                                onChange={(e) => updateField("openingFontColor", e.target.value)}
+                              />
+                            </div>
+                          </label>
+                          <label className="space-y-2 block">
+                            <span className="text-xs font-bold text-theme-secondary">상단 문구 크기 (px)</span>
+                            <input
+                              className="input-premium"
+                              type="number"
+                              min={MIN_OPENING_TITLE_FONT_SIZE}
+                              max={MAX_OPENING_TITLE_FONT_SIZE}
+                              value={form.openingTitleFontSize}
+                              onChange={(e) =>
+                                updateField(
+                                  "openingTitleFontSize",
+                                  Math.round(
+                                    clampHeroEffectValue(
+                                      Number(e.target.value) || defaultFormState.openingTitleFontSize,
+                                      MIN_OPENING_TITLE_FONT_SIZE,
+                                      MAX_OPENING_TITLE_FONT_SIZE,
+                                    ),
+                                  ),
+                                )
+                              }
+                            />
+                          </label>
+                          <label className="space-y-2 block">
+                            <span className="text-xs font-bold text-theme-secondary">하단 문구 크기 (px)</span>
+                            <input
+                              className="input-premium"
+                              type="number"
+                              min={MIN_OPENING_MESSAGE_FONT_SIZE}
+                              max={MAX_OPENING_MESSAGE_FONT_SIZE}
+                              value={form.openingMessageFontSize}
+                              onChange={(e) =>
+                                updateField(
+                                  "openingMessageFontSize",
+                                  Math.round(
+                                    clampHeroEffectValue(
+                                      Number(e.target.value) || defaultFormState.openingMessageFontSize,
+                                      MIN_OPENING_MESSAGE_FONT_SIZE,
+                                      MAX_OPENING_MESSAGE_FONT_SIZE,
+                                    ),
+                                  ),
+                                )
+                              }
+                            />
+                          </label>
+                        </div>
+
+                        <div className="space-y-2">
+                          <span className="text-xs font-bold text-theme-secondary">배경 방식</span>
+                          <div className="grid grid-cols-2 gap-2">
+                            <button
+                              className={`rounded-xl border px-3 py-2 text-xs font-bold transition-colors ${
+                                form.openingBackgroundType === "color"
+                                  ? "border-theme-brand bg-theme text-theme-brand"
+                                  : "border-warm bg-white text-theme-secondary hover:bg-theme/20"
+                              }`}
+                              type="button"
+                              onClick={() => updateField("openingBackgroundType", "color")}
+                            >
+                              컬러
+                            </button>
+                            <button
+                              className={`rounded-xl border px-3 py-2 text-xs font-bold transition-colors ${
+                                form.openingBackgroundType === "image"
+                                  ? "border-theme-brand bg-theme text-theme-brand"
+                                  : "border-warm bg-white text-theme-secondary hover:bg-theme/20"
+                              }`}
+                              type="button"
+                              onClick={() => updateField("openingBackgroundType", "image")}
+                            >
+                              사진
+                            </button>
+                          </div>
+                        </div>
+
+                        {form.openingBackgroundType === "color" ? (
+                          <label className="space-y-2 block">
+                            <span className="text-xs font-bold text-theme-secondary">오프닝 배경 컬러</span>
+                            <div className="flex gap-3">
+                              <input
+                                className="h-10 w-14 cursor-pointer rounded border border-warm overflow-hidden"
+                                type="color"
+                                value={form.openingBackgroundColor}
+                                onChange={(e) => updateField("openingBackgroundColor", e.target.value)}
+                              />
+                              <input
+                                className="input-premium flex-1"
+                                value={form.openingBackgroundColor}
+                                onChange={(e) => updateField("openingBackgroundColor", e.target.value)}
+                              />
+                            </div>
+                          </label>
+                        ) : (
+                          <div className="space-y-2">
+                            <span className="text-xs font-bold text-theme-secondary">오프닝 배경 사진</span>
+                            <div className="relative mx-auto aspect-[3/4] w-[44%] min-w-[130px] max-w-[190px] overflow-hidden rounded-xl border border-dashed border-gray-300 bg-white flex items-center justify-center group">
+                              {form.openingImageUrl ? (
+                                <>
+                                  <img className="h-full w-full object-cover" src={resolveAssetUrl(form.openingImageUrl)} alt="Opening Preview" />
+                                  <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                    <span className="text-white text-xs font-bold">이미지 변경</span>
+                                  </div>
+                                </>
+                              ) : (
+                                <span className="text-gray-400 text-xs text-center px-2">오프닝용 사진을 업로드해 주세요</span>
+                              )}
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="absolute inset-0 cursor-pointer opacity-0 disabled:cursor-not-allowed"
+                                disabled={actionLockedUntilSaved}
+                                onChange={(event) => {
+                                  const file = event.target.files?.[0];
+                                  if (!file) return;
+                                  updateField("openingBackgroundType", "image");
+                                  void handleAssetUpload({ openingImageFile: file });
+                                  event.currentTarget.value = "";
+                                }}
+                              />
+                            </div>
+                            {form.openingImageUrl ? (
+                              <button
+                                className="rounded-lg border border-warm bg-white px-3 py-1.5 text-[11px] font-bold text-theme-secondary hover:bg-theme/20"
+                                type="button"
+                                onClick={() => updateField("openingImageUrl", "")}
+                              >
+                                오프닝 사진 제거
+                              </button>
+                            ) : null}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-[11px] text-theme-secondary">사용 시 초대장 본문 이전에 오프닝 레이어가 자동 재생됩니다.</p>
+                    )}
                   </div>
 
                   <div className="space-y-2">

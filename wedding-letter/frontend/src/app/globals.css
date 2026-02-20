@@ -396,6 +396,193 @@ input:disabled {
   }
 }
 
+.invite-music-toggle {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.96);
+  border: 0.5px solid rgba(0, 0, 0, 0.46);
+  border-radius: 9999px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+  color: #232323;
+  display: inline-flex;
+  height: 42px;
+  justify-content: center;
+  position: relative;
+  transition: background-color 0.2s ease;
+  width: 42px;
+}
+
+.invite-music-toggle:hover {
+  background: #ffffff;
+}
+
+.invite-music-bars {
+  align-items: flex-end;
+  display: inline-flex;
+  gap: 2px;
+  height: 16px;
+}
+
+.invite-music-bar {
+  background: rgba(0, 0, 0, 0.78);
+  border-radius: 9999px;
+  display: inline-block;
+  height: 12px;
+  transform: scaleY(0.28);
+  transform-origin: bottom;
+  transition: transform 0.2s ease;
+  width: 2.5px;
+}
+
+.invite-music-toggle .invite-music-bar:nth-child(1) {
+  animation-delay: 0s;
+}
+
+.invite-music-toggle .invite-music-bar:nth-child(2) {
+  animation-delay: 0.16s;
+}
+
+.invite-music-toggle .invite-music-bar:nth-child(3) {
+  animation-delay: 0.1s;
+}
+
+.invite-music-toggle .invite-music-bar:nth-child(4) {
+  animation-delay: 0.22s;
+}
+
+.invite-music-toggle.is-playing .invite-music-bar {
+  animation: invite-music-eq 0.95s ease-in-out infinite;
+}
+
+.invite-music-indicator {
+  bottom: 3px;
+  font-size: 11px;
+  left: 50%;
+  position: absolute;
+  transform: translateX(-50%);
+}
+
+.invite-music-toggle.is-playing .invite-music-indicator {
+  font-size: 9px;
+}
+
+@keyframes invite-music-eq {
+  0% {
+    transform: scaleY(0.2);
+  }
+  24% {
+    transform: scaleY(0.95);
+  }
+  56% {
+    transform: scaleY(0.34);
+  }
+  78% {
+    transform: scaleY(0.74);
+  }
+  100% {
+    transform: scaleY(0.28);
+  }
+}
+
+.invite-opening-layer {
+  align-items: center;
+  color: #ffffff;
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  opacity: 1;
+  padding: 32px;
+  pointer-events: auto;
+  position: absolute;
+  text-align: center;
+  transition: opacity 0.68s ease;
+  z-index: 58;
+}
+
+.invite-opening-layer.is-closing {
+  opacity: 0;
+}
+
+.invite-opening-content {
+  max-width: 360px;
+  width: 100%;
+}
+
+.invite-opening-title {
+  font-size: clamp(26px, 8.2vw, 38px);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1.2;
+  margin: 0;
+  text-shadow: 0 6px 24px rgba(0, 0, 0, 0.28);
+}
+
+.invite-opening-message {
+  font-size: clamp(16px, 4.9vw, 21px);
+  letter-spacing: 0.08em;
+  line-height: 1.45;
+  margin: 18px 0 0;
+  text-shadow: 0 6px 16px rgba(0, 0, 0, 0.24);
+}
+
+.invite-opening-content.is-soft-fade {
+  animation: invite-opening-soft-focus 2.7s ease both;
+}
+
+.invite-opening-content.is-soft-fade .invite-opening-message {
+  opacity: 0;
+  transform: translate3d(0, 10px, 0);
+  animation: invite-opening-soft-message 1.9s ease 0.55s forwards;
+}
+
+.invite-opening-caret::after,
+.invite-opening-caret-delay::after {
+  animation: invite-opening-caret-blink 0.9s steps(1, end) infinite;
+  content: "|";
+  display: inline-block;
+  margin-left: 3px;
+  opacity: 0.88;
+}
+
+@keyframes invite-opening-soft-focus {
+  0% {
+    filter: blur(14px);
+    opacity: 0.24;
+    transform: scale(1.04);
+  }
+  55% {
+    filter: blur(5px);
+    opacity: 0.88;
+    transform: scale(1.01);
+  }
+  100% {
+    filter: blur(0);
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes invite-opening-soft-message {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 14px, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes invite-opening-caret-blink {
+  0%,
+  48% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
 .invitation-theme-scope {
   isolation: isolate;
   min-height: 100%;

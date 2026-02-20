@@ -81,6 +81,7 @@ class InvitationOwnerController(
         @RequestPart(required = false) mainImageFile: MultipartFile?,
         @RequestPart(required = false) paperInvitationFile: MultipartFile?,
         @RequestPart(required = false) seoImageFile: MultipartFile?,
+        @RequestPart(required = false) openingImageFile: MultipartFile?,
         @RequestPart(required = false) backgroundMusicFile: MultipartFile?,
         @RequestPart(required = false) galleryFiles: List<MultipartFile>?,
     ): InvitationEditorResponse {
@@ -91,6 +92,7 @@ class InvitationOwnerController(
             mainImageFile = mainImageFile,
             paperInvitationFile = paperInvitationFile,
             seoImageFile = seoImageFile,
+            openingImageFile = openingImageFile,
             backgroundMusicFile = backgroundMusicFile,
             galleryFiles = galleryFiles,
         )

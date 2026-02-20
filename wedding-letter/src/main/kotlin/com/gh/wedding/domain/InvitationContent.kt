@@ -81,6 +81,17 @@ data class InvitationContent(
     var locationContact: String? = null,
     var showMap: Boolean = true,
     var lockMap: Boolean = false,
+    var openingEnabled: Boolean = false,
+    var openingAnimationType: String? = null,
+    var openingBackgroundType: String? = null,
+    var openingBackgroundColor: String? = null,
+    var openingImageUrl: String? = null,
+    var openingTitle: String? = null,
+    var openingMessage: String? = null,
+    var openingFontFamily: String? = null,
+    var openingFontColor: String? = null,
+    var openingTitleFontSize: Int? = null,
+    var openingMessageFontSize: Int? = null,
 ) : Serializable {
     private fun parseDateTime(rawDate: String): LocalDateTime? {
         val normalized = rawDate.trim()

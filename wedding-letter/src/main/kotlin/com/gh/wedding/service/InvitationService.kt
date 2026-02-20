@@ -54,7 +54,7 @@ class InvitationService(
     private val fileAssetService: FileAssetService,
     private val planPolicyService: PlanPolicyService,
     private val watermarkPolicyProperties: WatermarkPolicyProperties,
-    @Value("\${app.frontend.origin:http://localhost:3000}")
+    @Value("\${app.frontend.origin:https://vowory.com}")
     private val frontendOrigin: String,
 ) {
     private val slugRegex = Regex("^[a-z0-9]+(?:-[a-z0-9]+)*$")
@@ -166,6 +166,7 @@ class InvitationService(
         request.heroEffectParticleCount?.let { content.heroEffectParticleCount = it.coerceIn(6, 120) }
         request.heroEffectSpeed?.let { content.heroEffectSpeed = it.coerceIn(40, 220) }
         request.heroEffectOpacity?.let { content.heroEffectOpacity = it.coerceIn(15, 100) }
+        request.heroAccentFontFamily?.let { content.heroAccentFontFamily = it }
         request.messageFontFamily?.let { content.messageFontFamily = it }
         request.transportFontFamily?.let { content.transportFontFamily = it }
         request.rsvpTitle?.let { content.rsvpTitle = it }
@@ -180,6 +181,7 @@ class InvitationService(
         request.lockMap?.let { content.lockMap = it }
 
         invitation.content = content
+        syncPublishedVersionContent(invitation)
 
         planPolicyService.incrementEditCount(userId)
         return toEditorResponse(invitation)
@@ -282,6 +284,7 @@ class InvitationService(
         }
 
         invitation.content = content
+        syncPublishedVersionContent(invitation)
         return toEditorResponse(invitation)
     }
 
@@ -320,7 +323,7 @@ class InvitationService(
 
         val publication = InvitationPublication(
             invitation = invitation,
-            content = invitation.content,
+            content = copyInvitationContent(invitation.content),
             version = (publicationRepository.findTopByInvitationOrderByVersionDesc(invitation)?.version ?: 0) + 1,
             watermarkEnabled = activePlan.watermarkEnabled,
             watermarkText = if (activePlan.watermarkEnabled) watermarkPolicyProperties.text else null,
@@ -654,6 +657,7 @@ class InvitationService(
             heroEffectParticleCount = content.heroEffectParticleCount,
             heroEffectSpeed = content.heroEffectSpeed,
             heroEffectOpacity = content.heroEffectOpacity,
+            heroAccentFontFamily = content.heroAccentFontFamily,
             message = content.message,
             messageFontFamily = content.messageFontFamily,
             transportFontFamily = content.transportFontFamily,
@@ -672,6 +676,9 @@ class InvitationService(
             car = content.car,
             useGuestbook = content.useGuestbook,
             useRsvpModal = content.useRsvpModal,
+            fontFamily = content.fontFamily,
+            fontColor = content.fontColor,
+            fontSize = content.fontSize,
             accountNumber = content.accountNumber,
             useSeparateAccounts = content.useSeparateAccounts,
             groomAccountNumber = content.groomAccountNumber,
@@ -830,6 +837,7 @@ class InvitationService(
             heroEffectParticleCount = content.heroEffectParticleCount,
             heroEffectSpeed = content.heroEffectSpeed,
             heroEffectOpacity = content.heroEffectOpacity,
+            heroAccentFontFamily = content.heroAccentFontFamily,
             messageFontFamily = content.messageFontFamily,
             transportFontFamily = content.transportFontFamily,
             rsvpTitle = content.rsvpTitle,
@@ -941,6 +949,17 @@ class InvitationService(
 
     private fun isDeleted(invitation: Invitation): Boolean {
         return invitation.content.status == InvitationStatus.DELETED
+    }
+
+    private fun syncPublishedVersionContent(invitation: Invitation) {
+        val publication = invitation.publishedVersion ?: return
+        publication.content = copyInvitationContent(invitation.content)
+    }
+
+    private fun copyInvitationContent(content: InvitationContent): InvitationContent {
+        return content.copy(
+            imageUrls = content.imageUrls.toMutableList(),
+        )
     }
 
     private fun findPublishedInvitation(slugOrId: String): Invitation {

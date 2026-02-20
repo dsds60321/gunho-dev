@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import { resolveAssetUrl } from "@/lib/assets";
+import { getSiteOrigin } from "@/lib/site-url";
 import ThankyouMobileView, { type ThankyouMobileViewData } from "./ThankyouMobileView";
 
 type ThankyouRouteParams = {
@@ -14,6 +15,7 @@ type ThankyouPageProps = {
 };
 
 const DEFAULT_API_BASE_URL = "http://localhost:8080";
+const INVALID_ASSET_URL_TOKENS = new Set(["null", "undefined", "nan"]);
 
 function getApiBaseUrl(): string {
   return process.env.NEXT_PUBLIC_API_BASE_URL ?? process.env.WEDDING_API_BASE_URL ?? DEFAULT_API_BASE_URL;
@@ -25,6 +27,14 @@ function parsePreviewFlag(value: string | string[] | undefined): boolean {
   }
   if (!value) return false;
   return value === "1" || value.toLowerCase() === "true";
+}
+
+function toNonEmptyString(value: string | null | undefined): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  if (INVALID_ASSET_URL_TOKENS.has(trimmed.toLowerCase())) return undefined;
+  return trimmed;
 }
 
 function normalizeLegacyHeadingPrefixSize(value: number | null | undefined): number {
@@ -162,25 +172,31 @@ async function getThankyouData(thankyouId?: string, options?: { preview?: boolea
 }
 
 function buildMetadata(thankyou: ThankyouMobileViewData, thankyouId: string): Metadata {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
-  const apiBaseUrl = getApiBaseUrl();
+  const siteUrl = getSiteOrigin();
   const canonicalSlug = thankyou.share.slug ?? thankyouId;
   const canonical = `${siteUrl}/thankyou/${encodeURIComponent(canonicalSlug)}`;
 
-  const title = thankyou.share.ogTitle ?? thankyou.basicInfo.title ?? "감사장";
-  const description = thankyou.share.ogDescription ?? buildSenderDescription(thankyou);
-  const image = thankyou.share.ogImageUrl ?? thankyou.main.imageUrl ?? thankyou.detail.ending.imageUrl ?? "";
-  const imageUrl = resolveAssetUrl(image, apiBaseUrl);
+  const title = toNonEmptyString(thankyou.share.ogTitle) ?? thankyou.basicInfo.title ?? "감사장";
+  const description = toNonEmptyString(thankyou.share.ogDescription) ?? buildSenderDescription(thankyou);
+  const imageCandidate =
+    toNonEmptyString(thankyou.share.ogImageUrl) ??
+    toNonEmptyString(thankyou.main.imageUrl) ??
+    toNonEmptyString(thankyou.detail.ending.imageUrl) ??
+    "";
+  const imageUrl = imageCandidate ? resolveAssetUrl(imageCandidate, siteUrl) : "";
 
   return {
     title,
     description,
+    keywords: ["결혼", "웨딩", "감사장", "모바일 감사장"],
     alternates: { canonical },
     openGraph: {
       title,
       description,
       url: canonical,
       type: "website",
+      locale: "ko_KR",
+      siteName: "Wedding Letter",
       images: imageUrl ? [{ url: imageUrl, alt: `${title} 대표 이미지` }] : undefined,
     },
     twitter: {
@@ -206,7 +222,15 @@ export async function generateMetadata({ params, searchParams }: ThankyouPagePro
     };
   }
 
-  return buildMetadata(thankyou, thankyou.id);
+  const metadata = buildMetadata(thankyou, thankyou.id);
+  if (isPreview) {
+    return {
+      ...metadata,
+      robots: { index: false, follow: false },
+    };
+  }
+
+  return metadata;
 }
 
 export default async function ThankyouPage({ params, searchParams }: ThankyouPageProps) {

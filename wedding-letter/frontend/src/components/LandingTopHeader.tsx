@@ -84,15 +84,15 @@ export default function LandingTopHeader() {
               <button className="transition-colors hover:text-[var(--theme-brand)]" type="button" onClick={goToEditorWithGuard}>
                 모바일 청첩장
               </button>
-              <a className="transition-colors hover:text-[var(--theme-brand)]" href="#">
-                고객후기
-              </a>
+              {/*<a className="transition-colors hover:text-[var(--theme-brand)]" href="#">*/}
+              {/*  고객후기*/}
+              {/*</a>*/}
               <a className="transition-colors hover:text-[var(--theme-brand)]" href="/notices">
                 공지사항
               </a>
-              <a className="flex items-center gap-1 text-theme-accent" href="#">
-                이벤트 <span className="material-symbols-outlined text-xs">forest</span>
-              </a>
+              {/*<a className="flex items-center gap-1 text-theme-accent" href="#">*/}
+              {/*  이벤트 <span className="material-symbols-outlined text-xs">forest</span>*/}
+              {/*</a>*/}
             </nav>
           </div>
 

@@ -70,6 +70,7 @@ export type InvitationMobileViewData = {
   heroEffectParticleCount?: number;
   heroEffectSpeed?: number;
   heroEffectOpacity?: number;
+  heroAccentFontFamily?: string;
   messageFontFamily?: string;
   transportFontFamily?: string;
   rsvpTitle?: string;
@@ -77,6 +78,7 @@ export type InvitationMobileViewData = {
   rsvpButtonText?: string;
   rsvpFontFamily?: string;
   detailContent?: string;
+  seoImageUrl?: string;
   locationTitle?: string;
   locationFloorHall?: string;
   locationContact?: string;
@@ -99,11 +101,14 @@ type InvitationMobileViewProps = {
   embedded?: boolean;
 };
 
+const INVALID_ASSET_URL_TOKENS = new Set(["null", "undefined", "nan"]);
+
 const HERO_EFFECT_DEFAULTS: HeroEffectOptions = {
   particleCount: 30,
   speed: 100,
   opacity: 72,
 };
+const HERO_ACCENT_FONT_FAMILY = "'Playfair Display', serif";
 
 function clampHeroEffectValue(value: number, min: number, max: number): number {
   if (!Number.isFinite(value)) return min;
@@ -168,6 +173,19 @@ function createSmsHref(phone?: string) {
   if (!phone) return "";
   const digits = phone.replace(/[^0-9+]/g, "");
   return digits ? `sms:${digits}` : "";
+}
+
+function sanitizeAssetUrl(value?: string | null): string {
+  if (typeof value !== "string") return "";
+  const normalized = value.trim();
+  if (!normalized) return "";
+  if (INVALID_ASSET_URL_TOKENS.has(normalized.toLowerCase())) return "";
+  return normalized;
+}
+
+function sanitizeAssetUrlList(values?: string[] | null): string[] {
+  if (!Array.isArray(values)) return [];
+  return values.map((value) => sanitizeAssetUrl(value)).filter(Boolean);
 }
 
 const SEOUL_TIME_ZONE = "Asia/Seoul";
@@ -465,7 +483,19 @@ export default function InvitationMobileView({
 
     targets.forEach((target) => observer.observe(target));
     return () => observer.disconnect();
-  }, [embedded, revealEnabled, invitation.id]);
+  }, [
+    embedded,
+    revealEnabled,
+    invitation.id,
+    invitation.heroDesignId,
+    invitation.heroEffectType,
+    invitation.heroEffectParticleCount,
+    invitation.heroEffectSpeed,
+    invitation.heroEffectOpacity,
+    invitation.mainImageUrl,
+    invitation.coverImageUrl,
+    invitation.imageUrls.length,
+  ]);
 
   const accountRows = invitation.useSeparateAccounts
     ? [
@@ -475,8 +505,18 @@ export default function InvitationMobileView({
     : [{ label: "계좌", value: invitation.accountNumber }].filter((row): row is { label: string; value: string } => Boolean(row.value));
 
   const weddingTitle = `${invitation.groomName || "신랑"} & ${invitation.brideName || "신부"}`;
+  const normalizedImageUrls = useMemo(() => sanitizeAssetUrlList(invitation.imageUrls), [invitation.imageUrls]);
+  const heroImageCandidate = useMemo(
+    () =>
+      sanitizeAssetUrl(invitation.mainImageUrl) ||
+      sanitizeAssetUrl(invitation.coverImageUrl) ||
+      sanitizeAssetUrl(invitation.seoImageUrl) ||
+      normalizedImageUrls[0] ||
+      "",
+    [invitation.mainImageUrl, invitation.coverImageUrl, invitation.seoImageUrl, normalizedImageUrls],
+  );
   const heroImageUrl = resolveAssetUrl(
-    invitation.mainImageUrl || invitation.coverImageUrl || invitation.imageUrls?.[0] || "",
+    heroImageCandidate,
     apiBaseUrl,
   );
   const contactGroups = useMemo(
@@ -533,6 +573,7 @@ export default function InvitationMobileView({
   const designId = invitation.heroDesignId ?? "simply-meant";
   const heroTitleFontFamily = themeFontFamily;
   const heroBodyFontFamily = normalizeFontFamilyValue(invitation.fontFamily, themeFontFamily);
+  const heroAccentFontFamily = normalizeFontFamilyValue(invitation.heroAccentFontFamily, HERO_ACCENT_FONT_FAMILY);
   const heroTitleSize = clampHeroEffectValue(themeFontSize, 12, 36);
   const heroBodySize = clampHeroEffectValue(
     Number.isFinite(invitation.fontSize) ? (invitation.fontSize as number) : themeFontSize,
@@ -600,13 +641,13 @@ export default function InvitationMobileView({
           <div className="absolute inset-0 bg-[#4f5568]/30" />
           <div className="pointer-events-none absolute inset-0 z-10">
             <div className="flex justify-between px-5 pt-6 text-[28px]">
-              <span className="serif-font text-sm tracking-[0.08em] font-semibold" style={{ color: toRgba(heroBodyColor, 0.86) }}>SIMPLY</span>
-              <span className="serif-font text-sm tracking-[0.08em] font-semibold" style={{ color: toRgba(heroBodyColor, 0.86) }}>MEANT</span>
+              <span className="text-sm tracking-[0.08em] font-semibold" style={{ fontFamily: heroAccentFontFamily, color: toRgba(heroBodyColor, 0.86) }}>SIMPLY</span>
+              <span className="text-sm tracking-[0.08em] font-semibold" style={{ fontFamily: heroAccentFontFamily, color: toRgba(heroBodyColor, 0.86) }}>MEANT</span>
             </div>
             <div className="absolute inset-x-0 top-1/2 -translate-y-1/2">
               <p
-                className="serif-font leading-[0.82] font-bold"
-                style={{ fontSize: `${heroTitleSize * 6.6}px`, color: toRgba(heroPrimaryColor, 0.96) }}
+                className="leading-[0.82] font-bold"
+                style={{ fontFamily: heroAccentFontFamily, fontSize: `${heroTitleSize * 6.6}px`, color: toRgba(heroPrimaryColor, 0.96) }}
               >
                 {dateInfo.yearShort}
                 <br />
@@ -616,8 +657,8 @@ export default function InvitationMobileView({
               </p>
             </div>
             <div className="absolute inset-x-0 bottom-6 flex justify-between px-5">
-              <span className="serif-font font-semibold tracking-[0.05em]" style={{ fontSize: `${heroTitleSize * 1.8}px`, color: toRgba(heroPrimaryColor, 0.92) }}>TO BE</span>
-              <span className="serif-font font-semibold tracking-[0.05em]" style={{ fontSize: `${heroTitleSize * 1.8}px`, color: toRgba(heroPrimaryColor, 0.92) }}>TOGETHER</span>
+              <span className="font-semibold tracking-[0.05em]" style={{ fontFamily: heroAccentFontFamily, fontSize: `${heroTitleSize * 1.8}px`, color: toRgba(heroPrimaryColor, 0.92) }}>TO BE</span>
+              <span className="font-semibold tracking-[0.05em]" style={{ fontFamily: heroAccentFontFamily, fontSize: `${heroTitleSize * 1.8}px`, color: toRgba(heroPrimaryColor, 0.92) }}>TOGETHER</span>
             </div>
           </div>
         </>
@@ -641,7 +682,7 @@ export default function InvitationMobileView({
       return (
         <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center p-8">
           <div className="p-8 w-full h-full flex flex-col items-center justify-center" style={{ border: `1px solid ${toRgba(heroPrimaryColor, 0.4)}` }}>
-            <p className="serif-font mb-6" style={{ fontSize: `${heroTitleSize * 2.8}px`, color: toRgba(heroPrimaryColor, 0.96) }}>
+            <p className="mb-6" style={{ fontFamily: heroAccentFontFamily, fontSize: `${heroTitleSize * 2.8}px`, color: toRgba(heroPrimaryColor, 0.96) }}>
               {dateInfo.month}.{dateInfo.day}
             </p>
             <p className="tracking-[0.3em] font-medium uppercase" style={{ fontFamily: heroBodyFontFamily, fontSize: `${heroBodySize}px`, color: toRgba(heroBodyColor, 0.96) }}>{weddingTitle}</p>
@@ -1000,10 +1041,10 @@ export default function InvitationMobileView({
           </section>
         ) : null}
 
-        {invitation.imageUrls.length > 0 ? (
+        {normalizedImageUrls.length > 0 ? (
           <section className="space-y-3" data-invite-reveal>
             <p className="text-center text-sm font-semibold">{invitation.galleryTitle || "웨딩 갤러리"}</p>
-            <WeddingGallery images={invitation.imageUrls.map((url) => resolveAssetUrl(url, apiBaseUrl)).filter(Boolean)} mode={invitation.galleryType} />
+            <WeddingGallery images={normalizedImageUrls.map((url) => resolveAssetUrl(url, apiBaseUrl)).filter(Boolean)} mode={invitation.galleryType} />
           </section>
         ) : null}
 

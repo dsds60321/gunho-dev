@@ -1,5 +1,16 @@
 const DEFAULT_API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080";
 
+function normalizeBaseOrigin(baseUrl: string): string {
+  const trimmedBase = baseUrl.trim();
+  if (!trimmedBase) return "";
+
+  try {
+    return new URL(trimmedBase).origin;
+  } catch {
+    return trimmedBase.replace(/\/+$/, "");
+  }
+}
+
 export function resolveAssetUrl(url?: string | null, baseUrl?: string): string {
   if (!url) return "";
 
@@ -10,7 +21,7 @@ export function resolveAssetUrl(url?: string | null, baseUrl?: string): string {
     return trimmed;
   }
 
-  const resolvedBase = (baseUrl ?? DEFAULT_API_BASE_URL).trim().replace(/\/+$/, "");
+  const resolvedBase = normalizeBaseOrigin(baseUrl ?? DEFAULT_API_BASE_URL);
   const normalizedPath = trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
   return `${resolvedBase}${normalizedPath}`;
 }

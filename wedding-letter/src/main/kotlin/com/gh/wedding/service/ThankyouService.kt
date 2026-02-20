@@ -33,7 +33,7 @@ class ThankyouService(
     private val thankyouCardRepository: ThankyouCardRepository,
     private val fileService: FileService,
     private val fileAssetService: FileAssetService,
-    @Value("\${app.frontend.origin:http://localhost:3000}")
+    @Value("\${app.frontend.origin:https://vowory.com}")
     private val frontendOrigin: String,
 ) {
     private val slugRegex = Regex("^[a-z0-9]+(?:-[a-z0-9]+)*$")

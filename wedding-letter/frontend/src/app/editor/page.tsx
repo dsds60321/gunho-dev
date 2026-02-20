@@ -122,6 +122,7 @@ type EditorInvitation = {
   heroEffectParticleCount?: number | null;
   heroEffectSpeed?: number | null;
   heroEffectOpacity?: number | null;
+  heroAccentFontFamily?: string | null;
   messageFontFamily?: string | null;
   transportFontFamily?: string | null;
   rsvpTitle?: string | null;
@@ -207,6 +208,7 @@ type FormState = {
   heroEffectParticleCount: number;
   heroEffectSpeed: number;
   heroEffectOpacity: number;
+  heroAccentFontFamily: string;
   messageFontFamily: string;
   transportFontFamily: string;
   rsvpTitle: string;
@@ -280,6 +282,7 @@ const defaultFormState: FormState = {
   heroEffectParticleCount: 30,
   heroEffectSpeed: 100,
   heroEffectOpacity: 72,
+  heroAccentFontFamily: "'Playfair Display', serif",
   messageFontFamily: DEFAULT_FONT_FAMILY,
   transportFontFamily: DEFAULT_FONT_FAMILY,
   rsvpTitle: "참석 의사 전달",
@@ -423,6 +426,7 @@ const MAX_CONTACT_LENGTH = 14;
 const MAX_ACCOUNT_LENGTH = 14;
 const MIN_THEME_FONT_SIZE = 12;
 const MAX_THEME_FONT_SIZE = 28;
+const INVALID_ASSET_URL_TOKENS = new Set(["null", "undefined", "nan"]);
 
 function sanitizeContactValue(value: string): string {
   return value.replace(/[^0-9-]/g, "").slice(0, MAX_CONTACT_LENGTH);
@@ -435,6 +439,19 @@ function sanitizeAccountValue(value: string): string {
 function sanitizeColorValue(value: string, fallback: string): string {
   const normalized = value.trim();
   return /^#[0-9a-fA-F]{6}$/.test(normalized) ? normalized : fallback;
+}
+
+function sanitizeAssetUrl(value?: string | null): string {
+  if (typeof value !== "string") return "";
+  const normalized = value.trim();
+  if (!normalized) return "";
+  if (INVALID_ASSET_URL_TOKENS.has(normalized.toLowerCase())) return "";
+  return normalized;
+}
+
+function sanitizeAssetUrlList(values?: string[] | null): string[] {
+  if (!Array.isArray(values)) return [];
+  return values.map((value) => sanitizeAssetUrl(value)).filter(Boolean);
 }
 
 function parseBankAndAccount(raw?: string | null): { bank: string; number: string } {
@@ -533,9 +550,9 @@ function buildFormStateFromInvitation(data: EditorInvitation): FormState {
     address: data.address ?? "",
     message: data.message ?? "",
     slug: data.slug ?? "",
-    mainImageUrl: data.mainImageUrl ?? "",
-    imageUrls: data.imageUrls ?? [],
-    paperInvitationUrl: data.paperInvitationUrl ?? "",
+    mainImageUrl: sanitizeAssetUrl(data.mainImageUrl),
+    imageUrls: sanitizeAssetUrlList(data.imageUrls),
+    paperInvitationUrl: sanitizeAssetUrl(data.paperInvitationUrl),
     groomContact: sanitizeContactValue(data.groomContact ?? ""),
     brideContact: sanitizeContactValue(data.brideContact ?? ""),
     accountNumber: sanitizeAccountValue(mainAccount.number),
@@ -560,13 +577,13 @@ function buildFormStateFromInvitation(data: EditorInvitation): FormState {
     fontSize: String(data.fontSize ?? 16),
     useGuestbook: data.useGuestbook ?? true,
     useRsvpModal: data.useRsvpModal ?? true,
-    backgroundMusicUrl: data.backgroundMusicUrl ?? "",
+    backgroundMusicUrl: sanitizeAssetUrl(data.backgroundMusicUrl),
     accountBank: mainAccount.bank,
     groomAccountBank: groomAccount.bank,
     brideAccountBank: brideAccount.bank,
     seoTitle: data.seoTitle ?? "",
     seoDescription: data.seoDescription ?? "",
-    seoImageUrl: data.seoImageUrl ?? "",
+    seoImageUrl: sanitizeAssetUrl(data.seoImageUrl),
     galleryTitle: typedData.galleryTitle ?? defaultFormState.galleryTitle,
     galleryType: typedData.galleryType ?? defaultFormState.galleryType,
     themeBackgroundColor: sanitizeColorValue(
@@ -609,6 +626,7 @@ function buildFormStateFromInvitation(data: EditorInvitation): FormState {
       15,
       100,
     ),
+    heroAccentFontFamily: normalizeFontFamilyValue(typedData.heroAccentFontFamily, defaultFormState.heroAccentFontFamily),
     messageFontFamily: normalizeFontFamilyValue(typedData.messageFontFamily, defaultFormState.messageFontFamily),
     transportFontFamily: normalizeFontFamilyValue(
       typedData.transportFontFamily,
@@ -640,6 +658,7 @@ function createUnsavedInvitation(): EditorInvitation {
     heroEffectParticleCount: defaultFormState.heroEffectParticleCount,
     heroEffectSpeed: defaultFormState.heroEffectSpeed,
     heroEffectOpacity: defaultFormState.heroEffectOpacity,
+    heroAccentFontFamily: defaultFormState.heroAccentFontFamily,
     messageFontFamily: defaultFormState.messageFontFamily,
     transportFontFamily: defaultFormState.transportFontFamily,
     rsvpTitle: defaultFormState.rsvpTitle,
@@ -1303,16 +1322,10 @@ export default function EditorPage() {
     }
   };
 
-  const handleSave = async (event?: FormEvent) => {
-    event?.preventDefault();
-    if (!invitation) return;
-
-    setSaving(true);
-    setSlugStatus("");
-
+  const buildSavePayload = () => {
     const parsedFontSize = Number(form.fontSize);
 
-    const savePayload = {
+    return {
       groomName: form.groomName,
       brideName: form.brideName,
       date: form.date,
@@ -1320,9 +1333,9 @@ export default function EditorPage() {
       address: form.address,
       message: form.message,
       slug: form.slug,
-      mainImageUrl: form.mainImageUrl,
-      imageUrls: form.imageUrls,
-      paperInvitationUrl: form.paperInvitationUrl,
+      mainImageUrl: sanitizeAssetUrl(form.mainImageUrl),
+      imageUrls: sanitizeAssetUrlList(form.imageUrls),
+      paperInvitationUrl: sanitizeAssetUrl(form.paperInvitationUrl),
       groomContact: sanitizeContactValue(form.groomContact),
       brideContact: sanitizeContactValue(form.brideContact),
       accountNumber: combineBankAndAccount(form.accountBank, sanitizeAccountValue(form.accountNumber)),
@@ -1347,10 +1360,10 @@ export default function EditorPage() {
       fontSize: Number.isFinite(parsedFontSize) && parsedFontSize > 0 ? parsedFontSize : null,
       useGuestbook: form.useGuestbook,
       useRsvpModal: form.useRsvpModal,
-      backgroundMusicUrl: form.backgroundMusicUrl,
+      backgroundMusicUrl: sanitizeAssetUrl(form.backgroundMusicUrl),
       seoTitle: form.seoTitle,
       seoDescription: form.seoDescription,
-      seoImageUrl: form.seoImageUrl,
+      seoImageUrl: sanitizeAssetUrl(form.seoImageUrl),
       galleryTitle: form.galleryTitle,
       galleryType: form.galleryType,
       themeBackgroundColor: sanitizeColorValue(form.themeBackgroundColor, defaultFormState.themeBackgroundColor),
@@ -1366,6 +1379,7 @@ export default function EditorPage() {
       heroEffectParticleCount: form.heroEffectParticleCount,
       heroEffectSpeed: form.heroEffectSpeed,
       heroEffectOpacity: form.heroEffectOpacity,
+      heroAccentFontFamily: form.heroAccentFontFamily,
       messageFontFamily: form.messageFontFamily,
       transportFontFamily: form.transportFontFamily,
       rsvpTitle: form.rsvpTitle,
@@ -1379,6 +1393,16 @@ export default function EditorPage() {
       showMap: form.showMap,
       lockMap: form.lockMap,
     };
+  };
+
+  const handleSave = async (event?: FormEvent) => {
+    event?.preventDefault();
+    if (!invitation) return;
+
+    setSaving(true);
+    setSlugStatus("");
+
+    const savePayload = buildSavePayload();
 
     try {
       let targetInvitation = invitation;
@@ -1442,11 +1466,19 @@ export default function EditorPage() {
       return;
     }
     setPublishing(true);
+    setSlugStatus("");
 
     try {
+      const savedDraft = await apiFetch<EditorInvitation>(`/api/invitations/${invitation.id}`, {
+        method: "PUT",
+        body: JSON.stringify(buildSavePayload()),
+      });
+      applyEditorData(savedDraft);
+
+      const slugForPublish = savedDraft.slug?.trim() || form.slug.trim() || null;
       const result = await apiFetch<PublishResponse>(`/api/invitations/${invitation.id}/publish`, {
         method: "POST",
-        body: JSON.stringify({ slug: form.slug || null }),
+        body: JSON.stringify({ slug: slugForPublish }),
       });
 
       setShareUrl(result.shareUrl);
@@ -1587,14 +1619,6 @@ export default function EditorPage() {
               URL 복사
             </button>
           ) : null}
-          <button
-            className="rounded-full bg-theme-brand px-5 py-2 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
-            type="button"
-            onClick={handlePublish}
-            disabled={actionLockedUntilSaved || publishing || unpublishing || uploading || deleting}
-          >
-            {publishing ? "발행중..." : "발행하기"}
-          </button>
           {invitation.published ? (
             <button
               className="rounded-full border border-warm px-4 py-2 text-xs font-bold text-theme-secondary disabled:cursor-not-allowed disabled:opacity-50"
@@ -1605,14 +1629,24 @@ export default function EditorPage() {
               {unpublishing ? "해제중..." : "발행해제"}
             </button>
           ) : (
-            <button
-              className="rounded-full border border-red-200 bg-red-50 px-4 py-2 text-xs font-bold text-red-500 disabled:cursor-not-allowed disabled:opacity-50"
-              type="button"
-              onClick={handleDelete}
-              disabled={actionLockedUntilSaved || saving || publishing || uploading || deleting}
-            >
-              {deleting ? "삭제중..." : "삭제하기"}
-            </button>
+            <>
+              <button
+                className="rounded-full bg-theme-brand px-5 py-2 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                type="button"
+                onClick={handlePublish}
+                disabled={actionLockedUntilSaved || publishing || unpublishing || uploading || deleting}
+              >
+                {publishing ? "발행중..." : "발행하기"}
+              </button>
+              <button
+                className="rounded-full border border-red-200 bg-red-50 px-4 py-2 text-xs font-bold text-red-500 disabled:cursor-not-allowed disabled:opacity-50"
+                type="button"
+                onClick={handleDelete}
+                disabled={actionLockedUntilSaved || saving || publishing || uploading || deleting}
+              >
+                {deleting ? "삭제중..." : "삭제하기"}
+              </button>
+            </>
           )}
           <button
             className="rounded-full border border-warm px-4 py-2 text-xs font-bold text-theme-secondary"
@@ -1640,9 +1674,10 @@ export default function EditorPage() {
                 weddingDateTime: form.date,
                 venueName: form.locationName || "예식장 정보 미입력",
                 venueAddress: form.address || "주소 정보 미입력",
-                coverImageUrl: form.mainImageUrl,
-                mainImageUrl: form.mainImageUrl,
-                imageUrls: form.imageUrls,
+                coverImageUrl: sanitizeAssetUrl(form.mainImageUrl),
+                mainImageUrl: sanitizeAssetUrl(form.mainImageUrl),
+                seoImageUrl: sanitizeAssetUrl(form.seoImageUrl),
+                imageUrls: sanitizeAssetUrlList(form.imageUrls),
                 messageLines: form.message
                   .replace(/<[^>]+>/g, " ")
                   .split("\n")
@@ -1686,6 +1721,7 @@ export default function EditorPage() {
                 heroEffectParticleCount: form.heroEffectParticleCount,
                 heroEffectSpeed: form.heroEffectSpeed,
                 heroEffectOpacity: form.heroEffectOpacity,
+                heroAccentFontFamily: form.heroAccentFontFamily,
                 messageFontFamily: form.messageFontFamily,
                 transportFontFamily: form.transportFontFamily,
                 rsvpTitle: form.rsvpTitle,
@@ -2052,7 +2088,10 @@ export default function EditorPage() {
                       <button 
                         className="w-full rounded-xl bg-white border border-warm py-3 text-sm font-bold text-theme-brand shadow-sm hover:bg-theme transition-colors"
                         type="button"
-                        onClick={() => setIsDesignModalOpen(true)}
+                        onClick={() => {
+                          setSelectedHeroDesign(form.heroDesignId);
+                          setIsDesignModalOpen(true);
+                        }}
                       >
                         디자인 선택
                       </button>
@@ -2133,6 +2172,16 @@ export default function EditorPage() {
                         <select className="input-premium text-xs" value={form.fontFamily} onChange={(e) => updateField("fontFamily", e.target.value)}>
                           {EDITOR_FONT_FAMILY_OPTIONS.map((option) => (
                             <option key={`hero-sub-font-${option.value}`} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="space-y-2 block">
+                        <span className="text-xs font-bold text-theme-secondary">장식 문구 폰트</span>
+                        <select className="input-premium text-xs" value={form.heroAccentFontFamily} onChange={(e) => updateField("heroAccentFontFamily", e.target.value)}>
+                          {EDITOR_FONT_FAMILY_OPTIONS.map((option) => (
+                            <option key={`hero-accent-font-${option.value}`} value={option.value}>
                               {option.label}
                             </option>
                           ))}

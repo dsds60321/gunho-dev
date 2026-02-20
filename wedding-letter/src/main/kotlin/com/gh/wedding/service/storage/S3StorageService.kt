@@ -22,8 +22,7 @@ class S3StorageService(
         }
 
         val normalized = normalize(relativePath)
-        val prefix = storageProperties.s3.prefix.trim().trim('/').takeIf { it.isNotBlank() }
-        val key = if (prefix == null) normalized else "$prefix/$normalized"
+        val key = resolveObjectKey(normalized)
 
         val request = PutObjectRequest.builder()
             .bucket(bucket)
@@ -33,12 +32,7 @@ class S3StorageService(
 
         s3Client.putObject(request, RequestBody.fromBytes(bytes))
 
-        val publicBaseUrl = storageProperties.s3.publicBaseUrl.trim().trimEnd('/')
-        return if (publicBaseUrl.isNotBlank()) {
-            "$publicBaseUrl/$key"
-        } else {
-            "https://$bucket.s3.${storageProperties.s3.region}.amazonaws.com/$key"
-        }
+        return resolvePublicUrl(bucket, key)
     }
 
     override fun delete(relativePath: String) {
@@ -48,8 +42,7 @@ class S3StorageService(
         }
 
         val normalized = normalize(relativePath)
-        val prefix = storageProperties.s3.prefix.trim().trim('/').takeIf { it.isNotBlank() }
-        val key = if (prefix == null) normalized else "$prefix/$normalized"
+        val key = resolveObjectKey(normalized)
 
         val request = DeleteObjectRequest.builder()
             .bucket(bucket)
@@ -64,5 +57,24 @@ class S3StorageService(
             .split("/")
             .filter { it.isNotBlank() }
             .joinToString("/")
+    }
+
+    private fun resolveObjectKey(relativePath: String): String {
+        val prefix = storageProperties.s3.prefix.trim().trim('/').takeIf { it.isNotBlank() } ?: return relativePath
+        return if (relativePath == prefix || relativePath.startsWith("$prefix/")) relativePath else "$prefix/$relativePath"
+    }
+
+    private fun resolvePublicUrl(bucket: String, key: String): String {
+        val publicBaseUrl = storageProperties.s3.publicBaseUrl.trim().trimEnd('/')
+        if (publicBaseUrl.isNotBlank()) {
+            return "$publicBaseUrl/$key"
+        }
+
+        val endpoint = storageProperties.s3.endpoint.trim().trimEnd('/')
+        if (endpoint.isNotBlank()) {
+            return "$endpoint/$bucket/$key"
+        }
+
+        return "https://$bucket.s3.${storageProperties.s3.region}.amazonaws.com/$key"
     }
 }

@@ -66,6 +66,7 @@ data class InvitationContent(
     var heroEffectParticleCount: Int? = 30,
     var heroEffectSpeed: Int? = 100,
     var heroEffectOpacity: Int? = 72,
+    var heroAccentFontFamily: String? = "'Playfair Display', serif",
     var messageFontFamily: String? = null,
     var transportFontFamily: String? = null,
     var rsvpTitle: String? = null,

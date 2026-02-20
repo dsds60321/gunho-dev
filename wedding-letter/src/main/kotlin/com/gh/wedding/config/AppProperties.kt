@@ -11,12 +11,12 @@ data class JwtProperties(
 
 @ConfigurationProperties(prefix = "app.oauth2")
 data class OAuth2Properties(
-    var successRedirectUri: String = "http://localhost:3000/",
+    var successRedirectUri: String = "https://vowory.com/",
 )
 
 @ConfigurationProperties(prefix = "app.frontend")
 data class FrontendProperties(
-    var origin: String = "http://localhost:3000",
+    var origin: String = "https://vowory.com",
 )
 
 @ConfigurationProperties(prefix = "app.admin")
@@ -62,6 +62,10 @@ data class UploadPolicyProperties(
 data class S3StorageProperties(
     var bucket: String = "",
     var region: String = "ap-northeast-2",
+    var endpoint: String = "",
     var prefix: String = "",
     var publicBaseUrl: String = "",
+    var accessKeyId: String = "",
+    var secretAccessKey: String = "",
+    var sessionToken: String = "",
 )

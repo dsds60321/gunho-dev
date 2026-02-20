@@ -27,7 +27,7 @@ export default function LandingPage() {
           <div className="mb-20 space-y-6 px-6 text-center">
             <p className="serif-font text-lg tracking-[0.2em] text-theme-accent italic">The Most Beautiful Beginning</p>
             <h1 className="serif-font text-5xl leading-[1.2] font-light text-theme-brand md:text-6xl">
-              5만 신부가 선택한 이유,
+              신부들이 선택한 이유,
               <br />
               완성도가 다르니까.
             </h1>
@@ -95,6 +95,14 @@ export default function LandingPage() {
               모바일 청첩장
             </button>
           </div>
+
+          <section className="mx-auto mt-12 max-w-4xl px-6 text-center text-theme-secondary">
+            <h2 className="text-xl font-semibold text-theme-brand">모바일 청첩장, 결혼식 초대장, 웨딩 감사장 제작</h2>
+            <p className="mt-4 leading-7">
+              Wedding Letter는 결혼 준비를 위한 모바일 청첩장 제작 서비스입니다. 예식 정보, 갤러리, 지도, 방명록,
+              RSVP까지 한 번에 구성하고 URL 공유만으로 손쉽게 전달할 수 있습니다.
+            </p>
+          </section>
         </section>
       </main>
     </div>

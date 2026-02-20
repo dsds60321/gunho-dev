@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import { resolveAssetUrl } from "@/lib/assets";
+import { getSiteOrigin } from "@/lib/site-url";
 import InvitationMobileView, { type InvitationMobileViewData } from "./InvitationMobileView";
 
 type InvitationData = InvitationMobileViewData & {
@@ -21,15 +22,37 @@ type InvitationPageProps = {
 };
 
 const DEFAULT_API_BASE_URL = "http://localhost:8080";
+const INVALID_ASSET_URL_TOKENS = new Set(["null", "undefined", "nan"]);
 
 function getApiBaseUrl(): string {
   return process.env.NEXT_PUBLIC_API_BASE_URL ?? process.env.WEDDING_API_BASE_URL ?? DEFAULT_API_BASE_URL;
+}
+
+function toNonEmptyString(value: string | null | undefined): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  if (INVALID_ASSET_URL_TOKENS.has(trimmed.toLowerCase())) return undefined;
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
+function pickFirstNonEmpty(values: Array<string | null | undefined>): string | undefined {
+  for (const value of values) {
+    const normalized = toNonEmptyString(value);
+    if (normalized) return normalized;
+  }
+  return undefined;
 }
 
 function normalizeInvitation(data: Partial<InvitationData>, invitationId: string): InvitationData {
   const imageUrls = Array.isArray(data.imageUrls)
     ? data.imageUrls.filter((url): url is string => typeof url === "string" && url.trim().length > 0)
     : [];
+  const normalizedSlug = pickFirstNonEmpty([data.slug ? String(data.slug) : undefined, invitationId]) ?? invitationId;
+  const normalizedCoverImage = pickFirstNonEmpty([data.coverImageUrl, data.mainImageUrl, imageUrls[0]]) ?? "";
+  const normalizedMainImage = pickFirstNonEmpty([data.mainImageUrl, data.coverImageUrl, imageUrls[0]]) ?? "";
+  const normalizedThemeFontFamily = data.themeFontFamily ?? "'Noto Sans KR', sans-serif";
+  const normalizedThemeTextColor = data.themeTextColor ?? "#4a2c2a";
+  const normalizedThemeFontSize = data.themeFontSize ?? 16;
 
   const messageLines =
     data.messageLines && data.messageLines.length > 0
@@ -43,15 +66,15 @@ function normalizeInvitation(data: Partial<InvitationData>, invitationId: string
 
   return {
     id: String(data.id ?? invitationId),
-    slug: data.slug ? String(data.slug) : invitationId,
+    slug: normalizedSlug,
     groomName: data.groomName ?? "신랑",
     brideName: data.brideName ?? "신부",
     weddingDateTime: data.weddingDateTime ?? (data as { date?: string }).date ?? "",
     venueName: data.venueName ?? (data as { locationName?: string }).locationName ?? "예식장 정보 미입력",
     venueAddress: data.venueAddress ?? (data as { address?: string }).address ?? "주소 정보 미입력",
-    coverImageUrl: data.coverImageUrl ?? "",
-    mainImageUrl: data.mainImageUrl ?? data.coverImageUrl ?? imageUrls[0] ?? "",
-    mapImageUrl: data.mapImageUrl ?? "",
+    coverImageUrl: normalizedCoverImage,
+    mainImageUrl: normalizedMainImage,
+    mapImageUrl: pickFirstNonEmpty([data.mapImageUrl]) ?? "",
     imageUrls,
     messageLines,
     message: data.message,
@@ -71,15 +94,15 @@ function normalizeInvitation(data: Partial<InvitationData>, invitationId: string
     useSeparateAccounts: data.useSeparateAccounts ?? false,
     useGuestbook: data.useGuestbook ?? true,
     useRsvpModal: data.useRsvpModal ?? true,
-    fontFamily: data.fontFamily,
-    fontColor: data.fontColor,
-    fontSize: data.fontSize,
+    fontFamily: data.fontFamily ?? normalizedThemeFontFamily,
+    fontColor: data.fontColor ?? normalizedThemeTextColor,
+    fontSize: data.fontSize ?? normalizedThemeFontSize,
     accountNumber: data.accountNumber,
     groomAccountNumber: data.groomAccountNumber,
     brideAccountNumber: data.brideAccountNumber,
-    seoTitle: data.seoTitle,
-    seoDescription: data.seoDescription,
-    seoImageUrl: data.seoImageUrl,
+    seoTitle: toNonEmptyString(data.seoTitle),
+    seoDescription: toNonEmptyString(data.seoDescription),
+    seoImageUrl: toNonEmptyString(data.seoImageUrl),
     galleryTitle: data.galleryTitle ?? "웨딩 갤러리",
     galleryType: data.galleryType ?? "swipe",
     themeBackgroundColor: data.themeBackgroundColor ?? "#fdf8f5",
@@ -87,14 +110,15 @@ function normalizeInvitation(data: Partial<InvitationData>, invitationId: string
     themeAccentColor: data.themeAccentColor ?? "#803b2a",
     themePattern: data.themePattern ?? "none",
     themeEffectType: data.themeEffectType ?? "none",
-    themeFontFamily: data.themeFontFamily ?? "'Noto Sans KR', sans-serif",
-    themeFontSize: data.themeFontSize ?? 16,
+    themeFontFamily: normalizedThemeFontFamily,
+    themeFontSize: normalizedThemeFontSize,
     themeScrollReveal: data.themeScrollReveal ?? false,
     heroDesignId: data.heroDesignId ?? "simply-meant",
     heroEffectType: data.heroEffectType === "shadow" ? "none" : (data.heroEffectType ?? "none"),
     heroEffectParticleCount: data.heroEffectParticleCount ?? 30,
     heroEffectSpeed: data.heroEffectSpeed ?? 100,
     heroEffectOpacity: data.heroEffectOpacity ?? 72,
+    heroAccentFontFamily: data.heroAccentFontFamily ?? "'Playfair Display', serif",
     messageFontFamily: data.messageFontFamily ?? "'Noto Sans KR', sans-serif",
     transportFontFamily: data.transportFontFamily ?? "'Noto Sans KR', sans-serif",
     rsvpTitle: data.rsvpTitle ?? "참석 의사 전달",
@@ -116,7 +140,7 @@ async function fetchInvitationFromBackend(invitationId: string): Promise<Invitat
   try {
     const response = await fetch(`${apiBaseUrl}/api/public/invitations/${encodeURIComponent(invitationId)}`, {
       method: "GET",
-      next: { revalidate: 60 },
+      cache: "no-store",
     });
 
     if (!response.ok) return null;
@@ -192,25 +216,34 @@ function formatInvitationDate(dateTime: string) {
 }
 
 function buildMetadata(invitation: InvitationData, invitationId: string): Metadata {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
-  const apiBaseUrl = getApiBaseUrl();
-  const canonicalSlug = invitation.slug ?? invitationId;
+  const siteUrl = getSiteOrigin();
+  const canonicalSlug = pickFirstNonEmpty([invitation.slug, invitationId]) ?? invitationId;
   const canonical = `${siteUrl}/invitation/${encodeURIComponent(canonicalSlug)}`;
 
-  const title = invitation.seoTitle ?? `${invitation.groomName} & ${invitation.brideName} 결혼식에 초대합니다`;
-  const description = invitation.seoDescription ?? `${formatInvitationDate(invitation.weddingDateTime).infoDate}, ${invitation.venueName}`;
-  const metadataImage = invitation.seoImageUrl ?? invitation.mainImageUrl ?? invitation.coverImageUrl ?? invitation.imageUrls[0] ?? "";
-  const imageUrl = resolveAssetUrl(metadataImage, apiBaseUrl);
+  const fallbackTitle = `${invitation.groomName} & ${invitation.brideName} 결혼식에 초대합니다`;
+  const fallbackDescription = `${formatInvitationDate(invitation.weddingDateTime).infoDate}, ${invitation.venueName}`;
+  const title = pickFirstNonEmpty([invitation.seoTitle, fallbackTitle]) ?? fallbackTitle;
+  const description = pickFirstNonEmpty([invitation.seoDescription, fallbackDescription]) ?? fallbackDescription;
+  const metadataImage = pickFirstNonEmpty([
+    invitation.seoImageUrl,
+    invitation.mainImageUrl,
+    invitation.coverImageUrl,
+    invitation.imageUrls[0],
+  ]);
+  const imageUrl = metadataImage ? resolveAssetUrl(metadataImage, siteUrl) : "";
 
   return {
     title,
     description,
+    keywords: ["모바일청첩장", "모바일 청첩장", "결혼", "웨딩", "결혼식 초대장"],
     alternates: { canonical },
     openGraph: {
       title,
       description,
       url: canonical,
       type: "website",
+      locale: "ko_KR",
+      siteName: "Wedding Letter",
       images: imageUrl
         ? [
             {
@@ -243,7 +276,15 @@ export async function generateMetadata({ params, searchParams }: InvitationPageP
     };
   }
 
-  return buildMetadata(invitation, invitation.id);
+  const metadata = buildMetadata(invitation, invitation.id);
+  if (isPreview) {
+    return {
+      ...metadata,
+      robots: { index: false, follow: false },
+    };
+  }
+
+  return metadata;
 }
 
 export default async function InvitationPage({ params, searchParams }: InvitationPageProps) {

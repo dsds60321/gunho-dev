@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { CSSProperties, FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { fetchAuthMe, logout } from "@/lib/auth";
 import { apiFetch, getApiErrorMessage, isApiError } from "@/lib/api";
@@ -420,6 +420,31 @@ const THEME_EFFECT_OPTIONS = [
   { id: "forsythia", name: "개나리" },
 ];
 
+const EDITOR_SECTION_ORDER = ["theme", "basic", "hero", "location", "transport", "guestbook", "rsvp", "music", "detail"] as const;
+type EditorSectionKey = (typeof EDITOR_SECTION_ORDER)[number];
+
+const EDITOR_SECTION_META: Record<EditorSectionKey, { title: string; hint: string }> = {
+  theme: { title: "테마 설정", hint: "전체 분위기" },
+  basic: { title: "기본 정보", hint: "신랑/신부/혼주" },
+  hero: { title: "메인 화면", hint: "이미지/디자인" },
+  location: { title: "예식 장소", hint: "주소/지도" },
+  transport: { title: "교통 안내", hint: "지하철/버스/자가용" },
+  guestbook: { title: "방명록", hint: "사용 여부/등록" },
+  rsvp: { title: "RSVP", hint: "참석 의사 팝업" },
+  music: { title: "배경 음악", hint: "BGM 설정" },
+  detail: { title: "추가 정보", hint: "SEO/갤러리/링크" },
+};
+
+function buildOpenSections(sectionKey: EditorSectionKey): Record<EditorSectionKey, boolean> {
+  return EDITOR_SECTION_ORDER.reduce(
+    (acc, key) => {
+      acc[key] = key === sectionKey;
+      return acc;
+    },
+    {} as Record<EditorSectionKey, boolean>,
+  );
+}
+
 const MAX_IMAGE_UPLOAD_BYTES = 10 * 1024 * 1024;
 const KAKAO_MAPS_SCRIPT_SELECTOR = "script[data-kakao-maps-sdk='true']";
 const MAX_CONTACT_LENGTH = 14;
@@ -427,6 +452,13 @@ const MAX_ACCOUNT_LENGTH = 14;
 const MIN_THEME_FONT_SIZE = 12;
 const MAX_THEME_FONT_SIZE = 28;
 const INVALID_ASSET_URL_TOKENS = new Set(["null", "undefined", "nan"]);
+const MIN_PREVIEW_SPLIT_PERCENT = 36;
+const MAX_PREVIEW_SPLIT_PERCENT = 64;
+const DEFAULT_PREVIEW_SPLIT_PERCENT = 50;
+
+function clampPreviewSplitPercent(value: number): number {
+  return Math.min(MAX_PREVIEW_SPLIT_PERCENT, Math.max(MIN_PREVIEW_SPLIT_PERCENT, Math.round(value)));
+}
 
 function sanitizeContactValue(value: string): string {
   return value.replace(/[^0-9-]/g, "").slice(0, MAX_CONTACT_LENGTH);
@@ -684,6 +716,7 @@ function createUnsavedInvitation(): EditorInvitation {
 
 export default function EditorPage() {
   const router = useRouter();
+  const editorMainRef = useRef<HTMLElement>(null);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const kakaoMapRef = useRef<KakaoMap | null>(null);
   const kakaoMarkerRef = useRef<KakaoMarker | null>(null);
@@ -717,17 +750,76 @@ export default function EditorPage() {
   const [guestbookForm, setGuestbookForm] = useState({ name: "", password: "", content: "" });
   const [mapMessage, setMapMessage] = useState("주소를 검색하거나 입력하면 미리보기에 지도가 반영됩니다.");
   const { toast, showToast } = useEditorToast();
-  const [openSections, setOpenSections] = useState<Record<string, boolean>>({
-    basic: true,
-    hero: true,
-    theme: false,
-    location: true,
-    transport: false,
-    guestbook: false,
-    rsvp: false,
-    music: false,
-    detail: false,
-  });
+  const [openSections, setOpenSections] = useState<Record<EditorSectionKey, boolean>>(() => buildOpenSections("theme"));
+  const [previewSplitPercent, setPreviewSplitPercent] = useState(DEFAULT_PREVIEW_SPLIT_PERCENT);
+  const [isResizingPanels, setIsResizingPanels] = useState(false);
+
+  const activeSection = useMemo<EditorSectionKey>(
+    () => EDITOR_SECTION_ORDER.find((key) => openSections[key]) ?? EDITOR_SECTION_ORDER[0],
+    [openSections],
+  );
+  const activeStepIndex = useMemo(() => EDITOR_SECTION_ORDER.indexOf(activeSection), [activeSection]);
+  const editorMainStyle = useMemo<CSSProperties>(
+    () =>
+      ({
+        "--editor-preview-width": `${previewSplitPercent}%`,
+      }) as CSSProperties,
+    [previewSplitPercent],
+  );
+
+  const updatePreviewSplitByClientX = useCallback((clientX: number) => {
+    const mainRect = editorMainRef.current?.getBoundingClientRect();
+    if (!mainRect || mainRect.width <= 0) return;
+
+    const nextPercent = ((clientX - mainRect.left) / mainRect.width) * 100;
+    setPreviewSplitPercent(clampPreviewSplitPercent(nextPercent));
+  }, []);
+
+  const startPreviewResize = useCallback(
+    (clientX: number) => {
+      setIsResizingPanels(true);
+      updatePreviewSplitByClientX(clientX);
+    },
+    [updatePreviewSplitByClientX],
+  );
+
+  useEffect(() => {
+    if (!isResizingPanels) return;
+
+    const handleMouseMove = (event: MouseEvent) => {
+      updatePreviewSplitByClientX(event.clientX);
+    };
+    const handleMouseUp = () => {
+      setIsResizingPanels(false);
+    };
+    const handleTouchMove = (event: TouchEvent) => {
+      const touch = event.touches[0];
+      if (!touch) return;
+      updatePreviewSplitByClientX(touch.clientX);
+    };
+    const handleTouchEnd = () => {
+      setIsResizingPanels(false);
+    };
+
+    const previousCursor = document.body.style.cursor;
+    const previousUserSelect = document.body.style.userSelect;
+
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+    window.addEventListener("touchmove", handleTouchMove, { passive: true });
+    window.addEventListener("touchend", handleTouchEnd);
+
+    return () => {
+      document.body.style.cursor = previousCursor;
+      document.body.style.userSelect = previousUserSelect;
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+      window.removeEventListener("touchmove", handleTouchMove);
+      window.removeEventListener("touchend", handleTouchEnd);
+    };
+  }, [isResizingPanels, updatePreviewSplitByClientX]);
 
   const weddingTitle = useMemo(() => {
     const groom = form.groomName.trim();
@@ -1077,8 +1169,21 @@ export default function EditorPage() {
     updateField(key, sanitizeAccountValue(value));
   };
 
-  const toggleSection = (sectionKey: string) => {
-    setOpenSections((prev) => ({ ...prev, [sectionKey]: !prev[sectionKey] }));
+  const openSection = useCallback((sectionKey: EditorSectionKey) => {
+    setOpenSections(buildOpenSections(sectionKey));
+    window.requestAnimationFrame(() => {
+      document.getElementById(`editor-step-${sectionKey}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }, []);
+
+  const toggleSection = (sectionKey: EditorSectionKey) => {
+    openSection(sectionKey);
+  };
+
+  const moveStep = (direction: -1 | 1) => {
+    const nextIndex = activeStepIndex + direction;
+    if (nextIndex < 0 || nextIndex >= EDITOR_SECTION_ORDER.length) return;
+    openSection(EDITOR_SECTION_ORDER[nextIndex]);
   };
 
   const applyEditorData = (data: EditorInvitation) => {
@@ -1570,6 +1675,28 @@ export default function EditorPage() {
 
   const isInvitationSaved = Boolean(invitation && invitation.id > 0);
   const actionLockedUntilSaved = !isInvitationSaved;
+  const sectionCompletion = useMemo<Record<EditorSectionKey, boolean>>(
+    () => ({
+      theme: Boolean(form.themeFontFamily && form.themeBackgroundColor && form.themeTextColor && form.themeAccentColor),
+      basic: Boolean(form.groomName.trim() && form.brideName.trim()),
+      hero: Boolean(form.date && sanitizeAssetUrl(form.mainImageUrl)),
+      location: Boolean(form.locationName.trim() && form.address.trim()),
+      transport: Boolean(form.subway.trim() || form.bus.trim() || form.car.trim() || sanitizeAssetUrl(form.paperInvitationUrl)),
+      guestbook: true,
+      rsvp: !form.useRsvpModal || Boolean(form.rsvpTitle.trim() && form.rsvpMessage.trim() && form.rsvpButtonText.trim()),
+      music: true,
+      detail: Boolean(form.seoTitle.trim() || sanitizeAssetUrl(form.seoImageUrl) || form.detailContent.trim()),
+    }),
+    [form],
+  );
+  const completedStepCount = useMemo(
+    () => EDITOR_SECTION_ORDER.filter((key) => sectionCompletion[key]).length,
+    [sectionCompletion],
+  );
+  const completionPercent = useMemo(
+    () => Math.round((completedStepCount / EDITOR_SECTION_ORDER.length) * 100),
+    [completedStepCount],
+  );
 
   if (!ready || !invitation) {
     return <div className="flex min-h-screen items-center justify-center text-sm text-theme-secondary">{loadingText}</div>;
@@ -1661,10 +1788,32 @@ export default function EditorPage() {
         </div>
       </header>
 
-      <main className="grid flex-1 grid-cols-1 md:grid-cols-2">
-        <section className="sticky top-0 h-[calc(100vh-64px)] border-b border-warm bg-theme p-6 md:border-r md:border-b-0 md:p-8 flex items-center justify-center">
-          <MobilePreviewFrame>
-            <InvitationMobileView
+      <main
+        ref={editorMainRef}
+        className="grid flex-1 grid-cols-1 md:[grid-template-columns:var(--editor-preview-width)_14px_minmax(0,1fr)]"
+        style={editorMainStyle}
+      >
+        <section className="border-b border-warm bg-theme p-4 md:sticky md:top-0 md:h-[calc(100vh-64px)] md:border-b-0 md:p-5">
+          <div className="flex h-full flex-col gap-4">
+            <div className="rounded-2xl border border-warm bg-white/90 p-4">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-bold tracking-[0.12em] text-theme-secondary">작성률</p>
+                <p className="text-xl font-bold text-theme-brand">{completionPercent}%</p>
+              </div>
+              <div className="mt-3 h-2 overflow-hidden rounded-full bg-theme">
+                <div
+                  className="h-full rounded-full bg-theme-brand transition-all duration-300"
+                  style={{ width: `${completionPercent}%` }}
+                />
+              </div>
+              <p className="mt-2 text-[11px] text-theme-secondary">
+                총 {EDITOR_SECTION_ORDER.length}단계 중 {completedStepCount}단계 완료
+              </p>
+            </div>
+
+            <div className="flex-1 flex items-center justify-center">
+              <MobilePreviewFrame className="h-[620px] sm:h-[680px] md:h-[min(760px,calc(100vh-250px))] md:max-h-full">
+                <InvitationMobileView
               embedded
               invitation={{
                 id: String(invitation.id),
@@ -1735,15 +1884,40 @@ export default function EditorPage() {
                 showMap: form.showMap,
                 lockMap: form.lockMap,
               }}
-              preview
-              invitationIdForActions={invitation.id > 0 ? String(invitation.id) : ""}
-              slugForActions={invitation.id > 0 ? form.slug || String(invitation.id) : ""}
-            />
-          </MobilePreviewFrame>
+                preview
+                invitationIdForActions={invitation.id > 0 ? String(invitation.id) : ""}
+                slugForActions={invitation.id > 0 ? form.slug || String(invitation.id) : ""}
+              />
+              </MobilePreviewFrame>
+            </div>
+          </div>
         </section>
 
+        <button
+          className={`group hidden touch-none cursor-col-resize items-stretch justify-center border-x border-warm transition-colors md:flex ${
+            isResizingPanels ? "bg-theme/80" : "bg-white/70 hover:bg-theme/60"
+          }`}
+          type="button"
+          aria-label="미리보기와 등록패널 너비 조절"
+          onMouseDown={(event) => {
+            event.preventDefault();
+            startPreviewResize(event.clientX);
+          }}
+          onTouchStart={(event) => {
+            const touch = event.touches[0];
+            if (!touch) return;
+            startPreviewResize(touch.clientX);
+          }}
+        >
+          <span
+            className={`my-auto h-24 w-[3px] rounded-full transition-colors ${
+              isResizingPanels ? "bg-theme-brand" : "bg-theme-secondary/30 group-hover:bg-theme-brand/70"
+            }`}
+          />
+        </button>
+
         <section className="custom-scrollbar overflow-y-auto bg-theme">
-          <form className="mx-auto max-w-4xl px-0 py-0 md:px-0" onSubmit={handleSave}>
+          <form className="mx-auto max-w-none px-0 py-0 md:px-0" onSubmit={handleSave}>
             <div className="px-6 py-10 md:px-10 space-y-2">
               <h1 className="serif-font text-3xl text-theme-brand">초대장 편집</h1>
               <p className="text-sm text-theme-secondary opacity-70">청첩장 내용을 항목별로 깔끔하게 관리하세요.</p>
@@ -1754,7 +1928,66 @@ export default function EditorPage() {
               </div>
             </div>
 
-            <div className={`relative border-b border-warm transition-colors ${openSections.theme ? "bg-white" : "bg-[#fdfcfb]"}`}>
+            <div className="px-6 pb-10 md:px-10">
+              <div className="grid grid-cols-1 gap-6 xl:grid-cols-[240px_minmax(0,1fr)]">
+                <aside className="h-fit rounded-2xl border border-warm bg-white p-4 shadow-sm xl:sticky xl:top-6">
+                  <div className="mb-4">
+                    <p className="text-xs font-bold tracking-[0.12em] text-theme-secondary">등록 패널</p>
+                    <p className="mt-1 text-sm font-semibold text-theme-brand">
+                      {activeStepIndex + 1}. {EDITOR_SECTION_META[activeSection].title}
+                    </p>
+                    <p className="mt-1 text-[11px] text-theme-secondary">{EDITOR_SECTION_META[activeSection].hint}</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    {EDITOR_SECTION_ORDER.map((sectionKey, index) => {
+                      const isActive = sectionKey === activeSection;
+                      const isCompleted = sectionCompletion[sectionKey];
+                      return (
+                        <button
+                          key={sectionKey}
+                          className={`w-full rounded-xl border px-3 py-2 text-left text-xs font-bold transition-colors ${
+                            isActive
+                              ? "border-theme-brand bg-theme-brand text-white"
+                              : isCompleted
+                                ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                                : "border-warm bg-white text-theme-secondary hover:bg-theme"
+                          }`}
+                          type="button"
+                          onClick={() => openSection(sectionKey)}
+                        >
+                          {index + 1}. {EDITOR_SECTION_META[sectionKey].title}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div className="mt-4 flex items-center justify-between gap-2 border-t border-warm pt-4">
+                    <button
+                      className="rounded-xl border border-warm bg-white px-3 py-2 text-xs font-bold text-theme-secondary disabled:cursor-not-allowed disabled:opacity-40"
+                      type="button"
+                      onClick={() => moveStep(-1)}
+                      disabled={activeStepIndex === 0}
+                    >
+                      이전 단계
+                    </button>
+                    <span className="text-xs font-medium text-theme-secondary">
+                      {activeStepIndex + 1} / {EDITOR_SECTION_ORDER.length}
+                    </span>
+                    <button
+                      className="rounded-xl bg-theme-brand px-3 py-2 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-40"
+                      type="button"
+                      onClick={() => moveStep(1)}
+                      disabled={activeStepIndex === EDITOR_SECTION_ORDER.length - 1}
+                    >
+                      다음 단계
+                    </button>
+                  </div>
+                </aside>
+
+                <div className="space-y-4">
+
+            <div id="editor-step-theme" className={`${openSections.theme ? "block" : "hidden"} relative overflow-hidden rounded-2xl border border-warm bg-white`}>
               {openSections.theme && <div className="absolute left-0 top-0 bottom-0 w-1 bg-theme-accent" />}
               <button
                 className="flex w-full items-center justify-between px-6 py-5 text-left md:px-10"
@@ -1909,7 +2142,7 @@ export default function EditorPage() {
                 </div>
               ) : null}
             </div>
-            <div className={`relative border-b border-warm transition-colors ${openSections.basic ? "bg-white" : "bg-[#fdfcfb]"}`}>
+            <div id="editor-step-basic" className={`${openSections.basic ? "block" : "hidden"} relative overflow-hidden rounded-2xl border border-warm bg-white`}>
               {openSections.basic && <div className="absolute left-0 top-0 bottom-0 w-1 bg-theme-accent" />}
               <button
                 className="flex w-full items-center justify-between px-6 py-5 text-left md:px-10"
@@ -2037,7 +2270,7 @@ export default function EditorPage() {
                 </div>
               ) : null}
             </div>
-            <div className={`relative border-b border-warm transition-colors ${openSections.hero ? "bg-white" : "bg-[#fdfcfb]"}`}>
+            <div id="editor-step-hero" className={`${openSections.hero ? "block" : "hidden"} relative overflow-hidden rounded-2xl border border-warm bg-white`}>
               {openSections.hero && <div className="absolute left-0 top-0 bottom-0 w-1 bg-theme-accent" />}
               <button
                 className="flex w-full items-center justify-between px-6 py-5 text-left md:px-10"
@@ -2240,7 +2473,7 @@ export default function EditorPage() {
                 </div>
               ) : null}
             </div>
-            <div className={`relative border-b border-warm transition-colors ${openSections.location ? "bg-white" : "bg-[#fdfcfb]"}`}>
+            <div id="editor-step-location" className={`${openSections.location ? "block" : "hidden"} relative overflow-hidden rounded-2xl border border-warm bg-white`}>
               {openSections.location && <div className="absolute left-0 top-0 bottom-0 w-1 bg-theme-accent" />}
               <button
                 className="flex w-full items-center justify-between px-6 py-5 text-left md:px-10"
@@ -2289,7 +2522,13 @@ export default function EditorPage() {
                   <div className="space-y-2">
                     <span className="text-xs font-bold text-theme-secondary">주소</span>
                     <div className="flex gap-2">
-                      <input className="input-premium flex-1 bg-gray-50" value={form.address} readOnly placeholder="주소 검색 버튼을 눌러주세요." />
+                      <input
+                        className="input-premium flex-1 cursor-pointer bg-gray-50"
+                        value={form.address}
+                        readOnly
+                        placeholder="주소 검색 버튼을 눌러주세요."
+                        onClick={() => setIsPostcodeOpen(true)}
+                      />
                       <button className="rounded-xl bg-theme-brand px-6 py-2 text-xs font-bold text-white hover:opacity-90 transition-opacity" type="button" onClick={() => setIsPostcodeOpen(true)}>
                         주소 검색
                       </button>
@@ -2317,7 +2556,7 @@ export default function EditorPage() {
               ) : null}
             </div>
 
-            <div className={`relative border-b border-warm transition-colors ${openSections.transport ? "bg-white" : "bg-[#fdfcfb]"}`}>
+            <div id="editor-step-transport" className={`${openSections.transport ? "block" : "hidden"} relative overflow-hidden rounded-2xl border border-warm bg-white`}>
               {openSections.transport && <div className="absolute left-0 top-0 bottom-0 w-1 bg-theme-accent" />}
               <button
                 className="flex w-full items-center justify-between px-6 py-5 text-left md:px-10"
@@ -2379,7 +2618,7 @@ export default function EditorPage() {
               ) : null}
             </div>
 
-            <div className={`relative border-b border-warm transition-colors ${openSections.guestbook ? "bg-white" : "bg-[#fdfcfb]"}`}>
+            <div id="editor-step-guestbook" className={`${openSections.guestbook ? "block" : "hidden"} relative overflow-hidden rounded-2xl border border-warm bg-white`}>
               {openSections.guestbook && <div className="absolute left-0 top-0 bottom-0 w-1 bg-theme-accent" />}
               <button
                 className="flex w-full items-center justify-between px-6 py-5 text-left md:px-10"
@@ -2430,7 +2669,7 @@ export default function EditorPage() {
               ) : null}
             </div>
 
-            <div className={`relative border-b border-warm transition-colors ${openSections.rsvp ? "bg-white" : "bg-[#fdfcfb]"}`}>
+            <div id="editor-step-rsvp" className={`${openSections.rsvp ? "block" : "hidden"} relative overflow-hidden rounded-2xl border border-warm bg-white`}>
               {openSections.rsvp && <div className="absolute left-0 top-0 bottom-0 w-1 bg-theme-accent" />}
               <button
                 className="flex w-full items-center justify-between px-6 py-5 text-left md:px-10"
@@ -2485,7 +2724,7 @@ export default function EditorPage() {
               ) : null}
             </div>
 
-            <div className={`relative border-b border-warm transition-colors ${openSections.music ? "bg-white" : "bg-[#fdfcfb]"}`}>
+            <div id="editor-step-music" className={`${openSections.music ? "block" : "hidden"} relative overflow-hidden rounded-2xl border border-warm bg-white`}>
               {openSections.music && <div className="absolute left-0 top-0 bottom-0 w-1 bg-theme-accent" />}
               <button
                 className="flex w-full items-center justify-between px-6 py-5 text-left md:px-10"
@@ -2556,7 +2795,7 @@ export default function EditorPage() {
               ) : null}
             </div>
 
-            <div className={`relative border-b border-warm transition-colors ${openSections.detail ? "bg-white" : "bg-[#fdfcfb]"}`}>
+            <div id="editor-step-detail" className={`${openSections.detail ? "block" : "hidden"} relative overflow-hidden rounded-2xl border border-warm bg-white`}>
               {openSections.detail && <div className="absolute left-0 top-0 bottom-0 w-1 bg-theme-accent" />}
               <button
                 className="flex w-full items-center justify-between px-6 py-5 text-left md:px-10"
@@ -2801,6 +3040,9 @@ export default function EditorPage() {
                   ) : null}
                 </div>
               ) : null}
+            </div>
+                </div>
+              </div>
             </div>
 
             <div className="h-6" />

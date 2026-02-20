@@ -11,10 +11,15 @@ export const metadata: Metadata = {
     default: "Wedding Letter | 모바일 청첩장 제작",
     template: "%s | Wedding Letter",
   },
-  description: "모바일 청첩장, 결혼식 초대장, 웨딩 감사장을 쉽고 예쁘게 제작하고 공유하세요.",
+  description: "무료 모바일청첩장, 결혼식 초대장, 웨딩 감사장을 쉽고 예쁘게 제작하고 공유하세요.",
   applicationName: "Wedding Letter",
+  other: {
+    "google-adsense-account": "ca-pub-8833422495639297",
+  },
   keywords: [
     "모바일청첩장",
+    "무료 모바일청첩장",
+    "무료 모바일 청첩장",
     "모바일 청첩장",
     "청첩장",
     "결혼",
@@ -43,7 +48,7 @@ export const metadata: Metadata = {
     siteName: "Wedding Letter",
     url: siteOrigin,
     title: "Wedding Letter | 모바일 청첩장 제작",
-    description: "모바일 청첩장, 결혼식 초대장, 웨딩 감사장을 쉽고 예쁘게 제작하고 공유하세요.",
+    description: "무료 모바일청첩장, 결혼식 초대장, 웨딩 감사장을 쉽고 예쁘게 제작하고 공유하세요.",
     images: [
       {
         url: joinSiteUrl("/favicon.ico"),
@@ -54,7 +59,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "Wedding Letter | 모바일 청첩장 제작",
-    description: "모바일 청첩장, 결혼식 초대장, 웨딩 감사장을 쉽고 예쁘게 제작하고 공유하세요.",
+    description: "무료 모바일청첩장, 결혼식 초대장, 웨딩 감사장을 쉽고 예쁘게 제작하고 공유하세요.",
     images: [joinSiteUrl("/favicon.ico")],
   },
   verification: {
@@ -103,6 +108,11 @@ export default function RootLayout({
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteStructuredData) }}
+        />
+        <script
+          async
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8833422495639297"
+          crossOrigin="anonymous"
         />
       </head>
       <body className="antialiased">

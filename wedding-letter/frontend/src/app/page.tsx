@@ -97,9 +97,9 @@ export default function LandingPage() {
           </div>
 
           <section className="mx-auto mt-12 max-w-4xl px-6 text-center text-theme-secondary">
-            <h2 className="text-xl font-semibold text-theme-brand">모바일 청첩장, 결혼식 초대장, 웨딩 감사장 제작</h2>
+            <h2 className="text-xl font-semibold text-theme-brand">무료 모바일 청첩장, 결혼식 초대장, 웨딩 감사장 제작</h2>
             <p className="mt-4 leading-7">
-              Wedding Letter는 결혼 준비를 위한 모바일 청첩장 제작 서비스입니다. 예식 정보, 갤러리, 지도, 방명록,
+              Wedding Letter는 결혼 준비를 위한 무료 모바일 청첩장 제작 서비스입니다. 예식 정보, 갤러리, 지도, 방명록,
               RSVP까지 한 번에 구성하고 URL 공유만으로 손쉽게 전달할 수 있습니다.
             </p>
           </section>

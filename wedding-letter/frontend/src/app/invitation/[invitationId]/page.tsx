@@ -23,9 +23,50 @@ type InvitationPageProps = {
 
 const DEFAULT_API_BASE_URL = "http://localhost:8080";
 const INVALID_ASSET_URL_TOKENS = new Set(["null", "undefined", "nan"]);
+const METADATA_PLACEHOLDER_TOKENS = new Set(["예식 일시 정보 미입력", "예식장 정보 미입력", "주소 정보 미입력"]);
 
 function getApiBaseUrl(): string {
   return process.env.NEXT_PUBLIC_API_BASE_URL ?? process.env.WEDDING_API_BASE_URL ?? DEFAULT_API_BASE_URL;
+}
+
+function toOriginOrUndefined(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+
+  try {
+    return new URL(trimmed).origin;
+  } catch {
+    return undefined;
+  }
+}
+
+function isLocalOrigin(origin: string): boolean {
+  try {
+    const { hostname } = new URL(origin);
+    return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "0.0.0.0";
+  } catch {
+    return false;
+  }
+}
+
+function getMetadataAssetBaseUrl(siteUrl: string): string {
+  const candidates = [
+    process.env.NEXT_PUBLIC_ASSET_BASE_URL,
+    process.env.WEDDING_ASSET_BASE_URL,
+    process.env.NEXT_PUBLIC_API_BASE_URL,
+    process.env.WEDDING_API_BASE_URL,
+    siteUrl,
+  ];
+
+  for (const candidate of candidates) {
+    const origin = toOriginOrUndefined(candidate);
+    if (!origin) continue;
+    if (isLocalOrigin(origin)) continue;
+    return origin;
+  }
+
+  return siteUrl;
 }
 
 function toNonEmptyString(value: string | null | undefined): string | undefined {
@@ -41,6 +82,12 @@ function pickFirstNonEmpty(values: Array<string | null | undefined>): string | u
     if (normalized) return normalized;
   }
   return undefined;
+}
+
+function toMetadataValue(value: string | null | undefined): string | undefined {
+  const normalized = toNonEmptyString(value);
+  if (!normalized) return undefined;
+  return METADATA_PLACEHOLDER_TOKENS.has(normalized) ? undefined : normalized;
 }
 
 function normalizeInvitation(data: Partial<InvitationData>, invitationId: string): InvitationData {
@@ -197,10 +244,11 @@ async function getInvitationData(invitationId?: string, options?: { preview?: bo
   return fetchInvitationFromBackend(resolvedId);
 }
 
-function formatInvitationDate(dateTime: string) {
+function formatInvitationDate(dateTime: string | null | undefined): string | undefined {
+  if (!dateTime?.trim()) return undefined;
   const parsed = new Date(dateTime);
   if (Number.isNaN(parsed.getTime())) {
-    return { infoDate: "예식 일시 정보 미입력" };
+    return undefined;
   }
 
   const weekdayKo = ["일", "월", "화", "수", "목", "금", "토"][parsed.getDay()];
@@ -212,7 +260,21 @@ function formatInvitationDate(dateTime: string) {
   const ampmText = hour < 12 ? "오전" : "오후";
   const hour12 = hour % 12 === 0 ? 12 : hour % 12;
 
-  return { infoDate: `${year}년 ${Number(month)}월 ${Number(day)}일 ${weekdayKo}요일 ${ampmText} ${hour12}시 ${minute}분` };
+  return `${year}년 ${Number(month)}월 ${Number(day)}일 ${weekdayKo}요일 ${ampmText} ${hour12}시 ${minute}분`;
+}
+
+function buildFallbackDescription(invitation: InvitationData): string {
+  const dateText = formatInvitationDate(invitation.weddingDateTime);
+  const venueText = toMetadataValue(invitation.venueName);
+  const groomName = toMetadataValue(invitation.groomName) ?? "신랑";
+  const brideName = toMetadataValue(invitation.brideName) ?? "신부";
+  const pieces = [dateText, venueText].filter((value): value is string => Boolean(value));
+
+  if (pieces.length > 0) {
+    return pieces.join(" · ");
+  }
+
+  return `${groomName} & ${brideName} 결혼식에 초대합니다`;
 }
 
 function buildMetadata(invitation: InvitationData, invitationId: string): Metadata {
@@ -220,22 +282,25 @@ function buildMetadata(invitation: InvitationData, invitationId: string): Metada
   const canonicalSlug = pickFirstNonEmpty([invitation.slug, invitationId]) ?? invitationId;
   const canonical = `${siteUrl}/invitation/${encodeURIComponent(canonicalSlug)}`;
 
-  const fallbackTitle = `${invitation.groomName} & ${invitation.brideName} 결혼식에 초대합니다`;
-  const fallbackDescription = `${formatInvitationDate(invitation.weddingDateTime).infoDate}, ${invitation.venueName}`;
-  const title = pickFirstNonEmpty([invitation.seoTitle, fallbackTitle]) ?? fallbackTitle;
-  const description = pickFirstNonEmpty([invitation.seoDescription, fallbackDescription]) ?? fallbackDescription;
+  const groomName = toMetadataValue(invitation.groomName) ?? "신랑";
+  const brideName = toMetadataValue(invitation.brideName) ?? "신부";
+  const fallbackTitle = `${groomName} & ${brideName} 결혼식에 초대합니다`;
+  const fallbackDescription = buildFallbackDescription(invitation);
+  const title = toMetadataValue(invitation.seoTitle) ?? fallbackTitle;
+  const description = toMetadataValue(invitation.seoDescription) ?? fallbackDescription;
   const metadataImage = pickFirstNonEmpty([
     invitation.seoImageUrl,
     invitation.mainImageUrl,
     invitation.coverImageUrl,
     invitation.imageUrls[0],
   ]);
-  const imageUrl = metadataImage ? resolveAssetUrl(metadataImage, siteUrl) : "";
+  const assetBaseUrl = getMetadataAssetBaseUrl(siteUrl);
+  const imageUrl = metadataImage ? resolveAssetUrl(metadataImage, assetBaseUrl) : "";
 
   return {
     title,
     description,
-    keywords: ["모바일청첩장", "모바일 청첩장", "결혼", "웨딩", "결혼식 초대장"],
+    keywords: ["모바일청첩장", "무료 모바일청첩장", "모바일 청첩장", "결혼", "웨딩", "결혼식 초대장"],
     alternates: { canonical },
     openGraph: {
       title,
@@ -249,6 +314,8 @@ function buildMetadata(invitation: InvitationData, invitationId: string): Metada
             {
               url: imageUrl,
               alt: `${invitation.groomName} ${invitation.brideName} 청첩장 대표 이미지`,
+              width: 1200,
+              height: 630,
             },
           ]
         : undefined,
@@ -276,7 +343,7 @@ export async function generateMetadata({ params, searchParams }: InvitationPageP
     };
   }
 
-  const metadata = buildMetadata(invitation, invitation.id);
+  const metadata = buildMetadata(invitation, invitationId);
   if (isPreview) {
     return {
       ...metadata,

@@ -331,7 +331,7 @@ export default function RsvpEntryModal({
               <label className="mr-3 inline-flex items-center gap-1.5">
                 <input
                   type="radio"
-                  className="h-4 w-4"
+                  className="h-4 w-4 accent-[#d987a5]"
                   checked={form.side === "groom"}
                   onChange={() => setForm((prev) => ({ ...prev, side: "groom" }))}
                 />
@@ -340,7 +340,7 @@ export default function RsvpEntryModal({
               <label className="inline-flex items-center gap-1.5">
                 <input
                   type="radio"
-                  className="h-4 w-4"
+                  className="h-4 w-4 accent-[#d987a5]"
                   checked={form.side === "bride"}
                   onChange={() => setForm((prev) => ({ ...prev, side: "bride" }))}
                 />
@@ -402,7 +402,7 @@ export default function RsvpEntryModal({
               <label className="inline-flex items-center gap-2 text-[16px] font-semibold text-[#3d4046]">
                 <input
                   type="checkbox"
-                  className="h-5 w-5"
+                  className="h-5 w-5 accent-[#d987a5]"
                   checked={form.consent}
                   onChange={(event) => setForm((prev) => ({ ...prev, consent: event.target.checked }))}
                 />
@@ -450,13 +450,17 @@ export default function RsvpEntryModal({
                     <div className="min-w-0 space-y-1">
                       <p className="text-sm font-semibold text-theme-brand">{entry.name}</p>
                       <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
-                        <span className={`rounded-full px-2 py-0.5 ${entry.attending ? "bg-green-100 text-green-700" : "bg-rose-100 text-rose-700"}`}>
+                        <span
+                          className={`rounded-full border px-2 py-0.5 ${
+                            entry.attending ? "border-[#f3c4d4] bg-[#ffeef4] text-[#b85f7e]" : "border-[#f0d4dc] bg-white text-[#b87792]"
+                          }`}
+                        >
                           {entry.attending ? "참석" : "미참석"}
                         </span>
-                        <span className="rounded-full bg-blue-100 px-2 py-0.5 text-blue-700">{sideLabel(entry.side)}</span>
-                        <span className="rounded-full bg-gray-100 px-2 py-0.5 text-gray-600">인원 {entry.partyCount ?? "-"}</span>
-                        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-amber-700">식사 {boolLabel(entry.meal, "예정", "안함")}</span>
-                        <span className="rounded-full bg-stone-100 px-2 py-0.5 text-stone-700">버스 {boolLabel(entry.bus, "이용", "미이용")}</span>
+                        <span className="rounded-full border border-[#f3c7d5] bg-[#fff4f7] px-2 py-0.5 text-[#b86888]">{sideLabel(entry.side)}</span>
+                        <span className="rounded-full border border-[#f4d9e1] bg-white px-2 py-0.5 text-[#b88a98]">인원 {entry.partyCount ?? "-"}</span>
+                        <span className="rounded-full border border-[#f2ccda] bg-[#fff3f7] px-2 py-0.5 text-[#b86d89]">식사 {boolLabel(entry.meal, "예정", "안함")}</span>
+                        <span className="rounded-full border border-[#efd4dd] bg-white px-2 py-0.5 text-[#b57c90]">버스 {boolLabel(entry.bus, "이용", "미이용")}</span>
                       </div>
                       {entry.note?.trim() ? <p className="line-clamp-2 text-xs text-theme-secondary">{entry.note}</p> : null}
                       <p className="text-[11px] text-theme-secondary/80">{formatDateText(entry.createdAt)}</p>

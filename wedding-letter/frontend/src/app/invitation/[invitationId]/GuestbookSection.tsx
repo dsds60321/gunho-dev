@@ -125,7 +125,7 @@ export default function GuestbookSection({ invitationId, slug, enabled, preview 
 
   return (
     <>
-      <section className="py-12 px-8 bg-theme border-t border-warm">
+      <section className="py-12 px-8 bg-theme border-t border-warm" data-invite-reveal>
         <div className="text-center mb-8">
           <p className="serif-font text-xs tracking-widest text-theme-accent italic uppercase">Guestbook</p>
           <h3 className="mt-2 serif-kr text-lg font-semibold text-theme-brand">축하의 한마디</h3>

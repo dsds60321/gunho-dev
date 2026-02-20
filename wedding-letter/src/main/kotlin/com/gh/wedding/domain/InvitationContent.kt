@@ -74,6 +74,7 @@ data class InvitationContent(
     var rsvpButtonText: String? = null,
     var rsvpFontFamily: String? = null,
     var detailContent: String? = null,
+    var detailFontFamily: String? = null,
     // 추가된 필드들
     var locationTitle: String? = null,
     var locationFloorHall: String? = null,

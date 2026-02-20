@@ -8,6 +8,12 @@ import org.springframework.data.jpa.repository.JpaRepository
 import java.time.LocalDateTime
 
 interface FileAssetRepository : JpaRepository<FileAsset, Long> {
+    fun existsByUserIdAndPublicUrlAndStatus(
+        userId: String,
+        publicUrl: String,
+        status: FileAssetStatus,
+    ): Boolean
+
     fun findByOwnerTypeAndOwnerIdAndStatusIn(
         ownerType: FileAssetOwnerType,
         ownerId: Long,

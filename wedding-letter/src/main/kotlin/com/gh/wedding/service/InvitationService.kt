@@ -52,20 +52,33 @@ class InvitationService(
     private val invitationVisitDailyRepository: InvitationVisitDailyRepository,
     private val fileService: FileService,
     private val fileAssetService: FileAssetService,
+    private val companyProfileService: CompanyProfileService,
     private val planPolicyService: PlanPolicyService,
     private val watermarkPolicyProperties: WatermarkPolicyProperties,
     @Value("\${app.frontend.origin:https://vowory.com}")
     private val frontendOrigin: String,
 ) {
     private val slugRegex = Regex("^[a-z0-9]+(?:-[a-z0-9]+)*$")
+    private val defaultBackgroundMusicUrls = setOf(
+        "https://cdn.vowory.com/mp3/No_Sleep.mp3",
+        "https://cdn.vowory.com/mp3/kornevmusic-epic.mp3",
+        "https://cdn.vowory.com/mp3/purple-piano.mp3",
+        // 기존 데이터 호환
+        "/mp3/romantic.mp3",
+        "/mp3/love-story.mp3",
+        "/mp3/sweet.mp3",
+        "/mp3/beyond.mp3",
+    )
 
     fun createInvitation(userId: String): InvitationEditorResponse {
         planPolicyService.checkCreateLimit(userId)
+        val content = InvitationContent(status = InvitationStatus.ACTIVE)
+        applyCompanyThemeDefaults(content)
 
         val invitation = Invitation(
             ownerToken = "${UUID.randomUUID()}${UUID.randomUUID()}",
             userId = userId,
-            content = InvitationContent(status = InvitationStatus.ACTIVE),
+            content = content,
         )
 
         val saved = invitationRepository.save(invitation)
@@ -145,7 +158,21 @@ class InvitationService(
         request.fontSize?.let { content.fontSize = it }
         request.useGuestbook?.let { content.useGuestbook = it }
         request.useRsvpModal?.let { content.useRsvpModal = it }
-        request.backgroundMusicUrl?.let { content.backgroundMusicUrl = it.trim() }
+        request.backgroundMusicUrl?.let { rawBackgroundMusicUrl ->
+            val normalizedBackgroundMusicUrl = rawBackgroundMusicUrl.trim()
+            if (normalizedBackgroundMusicUrl.isBlank()) {
+                content.backgroundMusicUrl = null
+            } else {
+                if (content.backgroundMusicUrl == normalizedBackgroundMusicUrl) {
+                    return@let
+                }
+                validateBackgroundMusicUrlOwnedByUserOrDefault(
+                    userId = userId,
+                    backgroundMusicUrl = normalizedBackgroundMusicUrl,
+                )
+                content.backgroundMusicUrl = normalizedBackgroundMusicUrl
+            }
+        }
         request.seoTitle?.let { content.seoTitle = it }
         request.seoDescription?.let { content.seoDescription = it }
         request.seoImageUrl?.let { content.seoImageUrl = fileService.processUrl(it) }
@@ -174,6 +201,7 @@ class InvitationService(
         request.rsvpButtonText?.let { content.rsvpButtonText = it }
         request.rsvpFontFamily?.let { content.rsvpFontFamily = it }
         request.detailContent?.let { content.detailContent = it }
+        request.detailFontFamily?.let { content.detailFontFamily = it }
         request.locationTitle?.let { content.locationTitle = it }
         request.locationFloorHall?.let { content.locationFloorHall = it }
         request.locationContact?.let { content.locationContact = it }
@@ -666,6 +694,7 @@ class InvitationService(
             rsvpButtonText = content.rsvpButtonText,
             rsvpFontFamily = content.rsvpFontFamily,
             detailContent = content.detailContent,
+            detailFontFamily = content.detailFontFamily,
             locationTitle = content.locationTitle,
             locationFloorHall = content.locationFloorHall,
             locationContact = content.locationContact,
@@ -676,6 +705,7 @@ class InvitationService(
             car = content.car,
             useGuestbook = content.useGuestbook,
             useRsvpModal = content.useRsvpModal,
+            backgroundMusicUrl = content.backgroundMusicUrl,
             fontFamily = content.fontFamily,
             fontColor = content.fontColor,
             fontSize = content.fontSize,
@@ -845,6 +875,7 @@ class InvitationService(
             rsvpButtonText = content.rsvpButtonText,
             rsvpFontFamily = content.rsvpFontFamily,
             detailContent = content.detailContent,
+            detailFontFamily = content.detailFontFamily,
             locationTitle = content.locationTitle,
             locationFloorHall = content.locationFloorHall,
             locationContact = content.locationContact,
@@ -888,6 +919,18 @@ class InvitationService(
         }
         if (provided != expected) {
             throw WeddingException(WeddingErrorCode.INVALID_INPUT, "$label 비밀번호가 일치하지 않습니다.")
+        }
+    }
+
+    private fun validateBackgroundMusicUrlOwnedByUserOrDefault(userId: String, backgroundMusicUrl: String) {
+        if (defaultBackgroundMusicUrls.contains(backgroundMusicUrl)) return
+
+        val ownedByUser = fileAssetService.isOwnedActiveAssetUrl(
+            userId = userId,
+            publicUrl = backgroundMusicUrl,
+        )
+        if (!ownedByUser) {
+            throw WeddingException(WeddingErrorCode.INVALID_INPUT, "배경음악은 기본 제공 음원 또는 본인 업로드 파일만 사용할 수 있습니다.")
         }
     }
 
@@ -954,6 +997,18 @@ class InvitationService(
     private fun syncPublishedVersionContent(invitation: Invitation) {
         val publication = invitation.publishedVersion ?: return
         publication.content = copyInvitationContent(invitation.content)
+    }
+
+    private fun applyCompanyThemeDefaults(content: InvitationContent) {
+        val companyProfile = companyProfileService.getDefaultProfile() ?: return
+        content.themeBackgroundColor = companyProfile.invitationThemeBackgroundColor.trim().ifBlank { content.themeBackgroundColor ?: "#fdf8f5" }
+        content.themeTextColor = companyProfile.invitationThemeTextColor.trim().ifBlank { content.themeTextColor ?: "#4a2c2a" }
+        content.themeAccentColor = companyProfile.invitationThemeAccentColor.trim().ifBlank { content.themeAccentColor ?: "#803b2a" }
+        content.themePattern = companyProfile.invitationThemePattern.trim().ifBlank { content.themePattern ?: "none" }
+        content.themeEffectType = companyProfile.invitationThemeEffectType.trim().ifBlank { content.themeEffectType ?: "none" }
+        content.themeFontFamily = companyProfile.invitationThemeFontFamily.trim().ifBlank { content.themeFontFamily ?: "'Noto Sans KR', sans-serif" }
+        content.themeFontSize = companyProfile.invitationThemeFontSize.coerceIn(12, 28)
+        content.themeScrollReveal = companyProfile.invitationThemeScrollReveal
     }
 
     private fun copyInvitationContent(content: InvitationContent): InvitationContent {

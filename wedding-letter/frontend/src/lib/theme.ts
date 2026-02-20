@@ -1,14 +1,12 @@
-export const AVAILABLE_THEMES = ["classic", "spring", "summer", "autumn", "winter", "rose", 'gh'] as const;
-
-export type ThemeKey = (typeof AVAILABLE_THEMES)[number];
+export type ThemeKey = string;
 
 export const DEFAULT_THEME: ThemeKey = "gh";
 
-export function normalizeTheme(value?: string | null): ThemeKey {
-  if (!value) {
-    return DEFAULT_THEME;
-  }
+const THEME_KEY_REGEX = /^[a-z0-9-]{2,40}$/;
 
-  const found = AVAILABLE_THEMES.find((theme) => theme === value);
-  return found ?? DEFAULT_THEME;
+export function normalizeTheme(value?: string | null): ThemeKey {
+  const normalized = value?.trim().toLowerCase();
+  if (!normalized) return DEFAULT_THEME;
+  if (!THEME_KEY_REGEX.test(normalized)) return DEFAULT_THEME;
+  return normalized;
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { apiFetch } from "@/lib/api";
 import { resolveAssetUrl } from "@/lib/assets";
 import { normalizeFontFamilyValue } from "@/lib/font-family-options";
@@ -52,6 +52,7 @@ export type InvitationMobileViewData = {
   useSeparateAccounts: boolean;
   useGuestbook: boolean;
   useRsvpModal: boolean;
+  backgroundMusicUrl?: string;
   accountNumber?: string;
   groomAccountNumber?: string;
   brideAccountNumber?: string;
@@ -78,6 +79,7 @@ export type InvitationMobileViewData = {
   rsvpButtonText?: string;
   rsvpFontFamily?: string;
   detailContent?: string;
+  detailFontFamily?: string;
   seoImageUrl?: string;
   locationTitle?: string;
   locationFloorHall?: string;
@@ -321,7 +323,10 @@ export default function InvitationMobileView({
   embedded = false,
 }: InvitationMobileViewProps) {
   const rootRef = useRef<HTMLDivElement>(null);
+  const backgroundMusicRef = useRef<HTMLAudioElement>(null);
   const [isContactModalOpen, setIsContactModalOpen] = useState(false);
+  const [isBackgroundMusicPlaying, setIsBackgroundMusicPlaying] = useState(false);
+  const [backgroundMusicError, setBackgroundMusicError] = useState<string | null>(null);
   const dateInfo = useMemo(() => formatInvitationDate(invitation.weddingDateTime), [invitation.weddingDateTime]);
   const calendarInfo = useMemo(() => buildCalendarInfo(invitation.weddingDateTime), [invitation.weddingDateTime]);
   const [countdownInfo, setCountdownInfo] = useState(() => ({ days: "00", hours: "00", mins: "00", secs: "00", diffDaysText: "0" }));
@@ -341,20 +346,9 @@ export default function InvitationMobileView({
     () => normalizeHexColor(invitation.themeBackgroundColor, THEME_DEFAULTS.backgroundColor),
     [invitation.themeBackgroundColor],
   );
-  const legacyTextColor = useMemo(
-    () => normalizeHexColor(invitation.fontColor, THEME_DEFAULTS.textColor),
-    [invitation.fontColor],
-  );
-  const normalizedThemeTextColor = useMemo(
+  const themeTextColor = useMemo(
     () => normalizeHexColor(invitation.themeTextColor, THEME_DEFAULTS.textColor),
     [invitation.themeTextColor],
-  );
-  const themeTextColor = useMemo(
-    () =>
-      invitation.themeTextColor && normalizedThemeTextColor !== THEME_DEFAULTS.textColor
-        ? normalizedThemeTextColor
-        : legacyTextColor,
-    [invitation.themeTextColor, normalizedThemeTextColor, legacyTextColor],
   );
   const themeAccentColor = useMemo(
     () => normalizeHexColor(invitation.themeAccentColor, THEME_DEFAULTS.accentColor),
@@ -362,41 +356,35 @@ export default function InvitationMobileView({
   );
   const themePattern = invitation.themePattern ?? THEME_DEFAULTS.pattern;
   const themeEffectType = invitation.themeEffectType ?? THEME_DEFAULTS.effectType;
-  const legacyFontFamily = useMemo(
-    () => normalizeFontFamilyValue(invitation.fontFamily, THEME_DEFAULTS.fontFamily),
-    [invitation.fontFamily],
-  );
-  const normalizedThemeFontFamily = useMemo(
+  const contentFontFamily = useMemo(
     () => normalizeFontFamilyValue(invitation.themeFontFamily, THEME_DEFAULTS.fontFamily),
     [invitation.themeFontFamily],
   );
-  const themeFontFamily = useMemo(
-    () =>
-      invitation.themeFontFamily && normalizedThemeFontFamily !== THEME_DEFAULTS.fontFamily
-        ? normalizedThemeFontFamily
-        : legacyFontFamily,
-    [invitation.themeFontFamily, normalizedThemeFontFamily, legacyFontFamily],
+  const heroMainFontFamily = useMemo(
+    () => normalizeFontFamilyValue(invitation.fontFamily, contentFontFamily),
+    [invitation.fontFamily, contentFontFamily],
   );
-  const legacyFontSize = useMemo(() => clampThemeFontSize(invitation.fontSize), [invitation.fontSize]);
-  const normalizedThemeFontSize = useMemo(() => clampThemeFontSize(invitation.themeFontSize), [invitation.themeFontSize]);
-  const themeFontSize = useMemo(
-    () =>
-      Number.isFinite(invitation.themeFontSize) && normalizedThemeFontSize !== THEME_DEFAULTS.fontSize
-        ? normalizedThemeFontSize
-        : legacyFontSize,
-    [invitation.themeFontSize, normalizedThemeFontSize, legacyFontSize],
-  );
+  const themeFontSize = useMemo(() => clampThemeFontSize(invitation.themeFontSize), [invitation.themeFontSize]);
   const messageFontFamily = useMemo(
-    () => normalizeFontFamilyValue(invitation.messageFontFamily, themeFontFamily),
-    [invitation.messageFontFamily, themeFontFamily],
+    () => normalizeFontFamilyValue(invitation.messageFontFamily, contentFontFamily),
+    [invitation.messageFontFamily, contentFontFamily],
   );
   const transportFontFamily = useMemo(
-    () => normalizeFontFamilyValue(invitation.transportFontFamily, themeFontFamily),
-    [invitation.transportFontFamily, themeFontFamily],
+    () => normalizeFontFamilyValue(invitation.transportFontFamily, contentFontFamily),
+    [invitation.transportFontFamily, contentFontFamily],
   );
   const rsvpFontFamily = useMemo(
-    () => normalizeFontFamilyValue(invitation.rsvpFontFamily, themeFontFamily),
-    [invitation.rsvpFontFamily, themeFontFamily],
+    () => normalizeFontFamilyValue(invitation.rsvpFontFamily, contentFontFamily),
+    [invitation.rsvpFontFamily, contentFontFamily],
+  );
+  const detailFontFamily = useMemo(
+    () => normalizeFontFamilyValue(invitation.detailFontFamily, contentFontFamily),
+    [invitation.detailFontFamily, contentFontFamily],
+  );
+  const backgroundMusicUrl = useMemo(() => sanitizeAssetUrl(invitation.backgroundMusicUrl), [invitation.backgroundMusicUrl]);
+  const backgroundMusicSrc = useMemo(
+    () => (backgroundMusicUrl ? resolveAssetUrl(backgroundMusicUrl, apiBaseUrl) : ""),
+    [backgroundMusicUrl, apiBaseUrl],
   );
   const revealEnabled = invitation.themeScrollReveal ?? THEME_DEFAULTS.scrollReveal;
   const patternStyle = useMemo(() => buildThemePatternStyle(themePattern, themeAccentColor), [themePattern, themeAccentColor]);
@@ -416,10 +404,10 @@ export default function InvitationMobileView({
         "--invite-surface-soft": toRgba(themeBackgroundColor, 0.72),
         backgroundColor: themeBackgroundColor,
         color: themeTextColor,
-        fontFamily: themeFontFamily,
+        fontFamily: contentFontFamily,
         fontSize: `${themeFontSize}px`,
       }) as CSSProperties,
-    [patternStyle, themeBackgroundColor, themeTextColor, themeAccentColor, themeFontFamily, themeFontSize],
+    [patternStyle, themeBackgroundColor, themeTextColor, themeAccentColor, contentFontFamily, themeFontSize],
   );
 
   useEffect(() => {
@@ -452,6 +440,87 @@ export default function InvitationMobileView({
     const timer = window.setInterval(updateCountdown, 1000);
     return () => window.clearInterval(timer);
   }, [invitation.weddingDateTime]);
+
+  useEffect(() => {
+    const audio = backgroundMusicRef.current;
+    if (!audio) return;
+
+    const handlePlay = () => {
+      setIsBackgroundMusicPlaying(true);
+      setBackgroundMusicError(null);
+    };
+    const handlePause = () => setIsBackgroundMusicPlaying(false);
+    const handleError = () => {
+      setIsBackgroundMusicPlaying(false);
+      setBackgroundMusicError("배경음악을 재생할 수 없습니다.");
+    };
+
+    audio.addEventListener("play", handlePlay);
+    audio.addEventListener("pause", handlePause);
+    audio.addEventListener("ended", handlePause);
+    audio.addEventListener("error", handleError);
+
+    return () => {
+      audio.removeEventListener("play", handlePlay);
+      audio.removeEventListener("pause", handlePause);
+      audio.removeEventListener("ended", handlePause);
+      audio.removeEventListener("error", handleError);
+    };
+  }, [backgroundMusicSrc]);
+
+  useEffect(() => {
+    if (!backgroundMusicSrc) return;
+    const audio = backgroundMusicRef.current;
+    if (!audio) return;
+
+    let cancelled = false;
+    let unlockHandler: (() => void) | null = null;
+
+    const cleanupUnlockListeners = () => {
+      if (!unlockHandler) return;
+      window.removeEventListener("pointerdown", unlockHandler);
+      window.removeEventListener("touchstart", unlockHandler);
+      window.removeEventListener("keydown", unlockHandler);
+      unlockHandler = null;
+    };
+
+    const playByDefault = async (): Promise<boolean> => {
+      audio.volume = 0.72;
+      setBackgroundMusicError(null);
+      try {
+        await audio.play();
+        if (!cancelled) {
+          setIsBackgroundMusicPlaying(true);
+        }
+        return true;
+      } catch {
+        if (!cancelled) {
+          setIsBackgroundMusicPlaying(false);
+        }
+        return false;
+      }
+    };
+
+    void playByDefault().then((isPlayed) => {
+      if (cancelled || isPlayed) return;
+
+      unlockHandler = () => {
+        cleanupUnlockListeners();
+        if (cancelled) return;
+        void playByDefault().catch(() => {
+          // 사용자 액션 이후에도 실패하면 버튼으로 직접 재생하도록 유지
+        });
+      };
+      window.addEventListener("pointerdown", unlockHandler, { once: true });
+      window.addEventListener("touchstart", unlockHandler, { once: true });
+      window.addEventListener("keydown", unlockHandler, { once: true });
+    });
+
+    return () => {
+      cancelled = true;
+      cleanupUnlockListeners();
+    };
+  }, [backgroundMusicSrc]);
 
   useEffect(() => {
     const root = rootRef.current;
@@ -569,20 +638,59 @@ export default function InvitationMobileView({
         .filter((group) => group.rows.length > 0),
     [contactGroups],
   );
+  const toggleBackgroundMusic = useCallback(async () => {
+    if (!backgroundMusicSrc) return;
+    const audio = backgroundMusicRef.current;
+    if (!audio) return;
+
+    if (!audio.paused) {
+      audio.pause();
+      setIsBackgroundMusicPlaying(false);
+      return;
+    }
+
+    audio.volume = 0.72;
+    setBackgroundMusicError(null);
+    try {
+      await audio.play();
+      setIsBackgroundMusicPlaying(true);
+    } catch {
+      setIsBackgroundMusicPlaying(false);
+      setBackgroundMusicError("화면을 터치한 뒤 다시 재생해 주세요.");
+    }
+  }, [backgroundMusicSrc]);
+  const renderBackgroundMusicControl = () => {
+    if (!backgroundMusicSrc) return null;
+
+    return (
+      <div className="absolute right-4 top-4 z-20 flex flex-col items-end gap-1.5">
+        <button
+          className="inline-flex h-10 w-10 items-center justify-center rounded-full border-[0.5px] border-black/45 bg-white/95 text-black shadow-sm transition-colors hover:bg-white"
+          type="button"
+          onClick={() => void toggleBackgroundMusic()}
+          aria-label={isBackgroundMusicPlaying ? "배경음악 일시정지" : "배경음악 재생"}
+          title={isBackgroundMusicPlaying ? "배경음악 일시정지" : "배경음악 재생"}
+        >
+          <span className="material-symbols-outlined text-[18px]">{isBackgroundMusicPlaying ? "volume_up" : "volume_mute"}</span>
+        </button>
+        {backgroundMusicError ? <p className="rounded-lg bg-black/65 px-2 py-1 text-[10px] text-white">{backgroundMusicError}</p> : null}
+      </div>
+    );
+  };
 
   const designId = invitation.heroDesignId ?? "simply-meant";
-  const heroTitleFontFamily = themeFontFamily;
-  const heroBodyFontFamily = normalizeFontFamilyValue(invitation.fontFamily, themeFontFamily);
+  const heroTitleFontFamily = heroMainFontFamily;
+  const heroBodyFontFamily = heroMainFontFamily;
   const heroAccentFontFamily = normalizeFontFamilyValue(invitation.heroAccentFontFamily, HERO_ACCENT_FONT_FAMILY);
-  const heroTitleSize = clampHeroEffectValue(themeFontSize, 12, 36);
+  const heroTitleSize = clampHeroEffectValue(Number.isFinite(invitation.fontSize) ? (invitation.fontSize as number) : 16, 12, 36);
   const heroBodySize = clampHeroEffectValue(
-    Number.isFinite(invitation.fontSize) ? (invitation.fontSize as number) : themeFontSize,
+    Number.isFinite(invitation.fontSize) ? (invitation.fontSize as number) : 16,
     10,
     28,
   );
-  const heroPrimaryColor = themeTextColor;
-  const heroAccentTextColor = themeAccentColor;
-  const heroBodyColor = normalizeHexColor(invitation.fontColor, themeTextColor);
+  const heroPrimaryColor = normalizeHexColor(invitation.fontColor, themeTextColor);
+  const heroAccentTextColor = heroPrimaryColor;
+  const heroBodyColor = heroPrimaryColor;
   const heroDateCompact = `${dateInfo.year}.${dateInfo.month}.${String(dateInfo.day).padStart(2, "0")}`;
   const heroLocationText = invitation.venueName || "예식장 정보 미입력";
 
@@ -707,6 +815,7 @@ export default function InvitationMobileView({
             speed: invitation.heroEffectSpeed,
             opacity: invitation.heroEffectOpacity,
           })}
+          {renderBackgroundMusicControl()}
           <div className="absolute inset-x-0 top-10 text-center">
             <p style={{ fontFamily: heroBodyFontFamily, color: toRgba(heroBodyColor, 0.92), fontSize: `${heroBodySize * 0.84}px` }}>{weddingTitle}</p>
           </div>
@@ -753,6 +862,7 @@ export default function InvitationMobileView({
             speed: invitation.heroEffectSpeed,
             opacity: invitation.heroEffectOpacity,
           })}
+          {renderBackgroundMusicControl()}
           <p className="mt-11" style={{ fontFamily: heroBodyFontFamily, color: toRgba(heroBodyColor, 0.95), fontSize: `${heroBodySize * 1.06}px` }}>{heroDateCompact}</p>
           <div className="absolute inset-x-0 bottom-7 text-center space-y-1">
             <p style={{ fontFamily: heroBodyFontFamily, color: toRgba(heroBodyColor, 0.94), fontSize: `${heroBodySize}px` }}>{dateInfo.infoDate}</p>
@@ -788,6 +898,7 @@ export default function InvitationMobileView({
             speed: invitation.heroEffectSpeed,
             opacity: invitation.heroEffectOpacity,
           })}
+          {renderBackgroundMusicControl()}
           <div className="absolute inset-x-0 bottom-9 text-center space-y-1">
             <p style={{ fontFamily: heroBodyFontFamily, color: toRgba("#ffffff", 0.95), fontSize: `${heroBodySize}px` }}>{dateInfo.infoDate}</p>
             <p style={{ fontFamily: heroBodyFontFamily, color: toRgba("#ffffff", 0.88), fontSize: `${heroBodySize * 0.94}px` }}>{heroLocationText}</p>
@@ -806,6 +917,7 @@ export default function InvitationMobileView({
               speed: invitation.heroEffectSpeed,
               opacity: invitation.heroEffectOpacity,
             })}
+            {renderBackgroundMusicControl()}
             <div className="absolute inset-x-0 top-10 text-center">
               <p style={{ fontFamily: heroTitleFontFamily, color: toRgba(heroPrimaryColor, 0.95), fontSize: `${heroTitleSize * 1.85}px`, fontWeight: 700 }}>결혼합니다</p>
               <p className="mt-1" style={{ fontFamily: heroTitleFontFamily, color: toRgba(heroAccentTextColor, 0.9), fontSize: `${heroTitleSize * 0.98}px` }}>Wedding Invitation</p>
@@ -831,6 +943,7 @@ export default function InvitationMobileView({
           speed: invitation.heroEffectSpeed,
           opacity: invitation.heroEffectOpacity,
         })}
+        {renderBackgroundMusicControl()}
         {renderHeroOverlay()}
       </section>
     );
@@ -918,6 +1031,10 @@ export default function InvitationMobileView({
       className={`invitation-theme-scope relative overflow-hidden ${revealEnabled ? "invite-reveal-enabled" : ""}`}
       style={themeWrapperStyle}
     >
+      {backgroundMusicSrc ? (
+        <audio key={backgroundMusicSrc} ref={backgroundMusicRef} src={backgroundMusicSrc} loop preload="metadata" autoPlay playsInline />
+      ) : null}
+
       {themeParticles.length > 0 ? (
         <div className={`invite-theme-effect-layer invite-theme-effect-${themeEffectType}`}>
           {themeParticles.map((particle, index) => (
@@ -961,7 +1078,7 @@ export default function InvitationMobileView({
         </section>
 
         {invitation.detailContent ? (
-          <section className="px-2" data-invite-reveal>
+          <section className="px-2" data-invite-reveal style={{ fontFamily: detailFontFamily }}>
             <div className="text-sm leading-relaxed text-theme-secondary ql-editor !p-0" dangerouslySetInnerHTML={{ __html: invitation.detailContent }} />
           </section>
         ) : null}
@@ -1137,15 +1254,13 @@ export default function InvitationMobileView({
           rsvpFontFamily={rsvpFontFamily}
         />
 
-        <div data-invite-reveal>
-          <GuestbookSection
-            enabled={invitation.useGuestbook}
-            invitationId={invitationIdForActions}
-            slug={slugForActions}
-            preview={preview}
-            embedded={embedded}
-          />
-        </div>
+        <GuestbookSection
+          enabled={invitation.useGuestbook}
+          invitationId={invitationIdForActions}
+          slug={slugForActions}
+          preview={preview}
+          embedded={embedded}
+        />
       </div>
 
       <InvitationFullscreenModal

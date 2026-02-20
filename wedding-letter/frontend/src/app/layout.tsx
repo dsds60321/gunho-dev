@@ -1,10 +1,31 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { ThemeProvider } from "./theme-provider";
-import { DEFAULT_THEME } from "@/lib/theme";
+import { DEFAULT_THEME, normalizeTheme } from "@/lib/theme";
 import { getSiteOrigin, joinSiteUrl } from "@/lib/site-url";
 
 const siteOrigin = getSiteOrigin();
+const DEFAULT_API_BASE_URL = "http://localhost:8080";
+
+function getApiBaseUrl(): string {
+  return process.env.NEXT_PUBLIC_API_BASE_URL ?? process.env.WEDDING_API_BASE_URL ?? DEFAULT_API_BASE_URL;
+}
+
+async function resolveInitialThemeFromConfig(): Promise<string> {
+  const apiBaseUrl = getApiBaseUrl();
+  try {
+    const response = await fetch(`${apiBaseUrl}/api/public/config`, {
+      method: "GET",
+      cache: "no-store",
+    });
+    if (!response.ok) return DEFAULT_THEME;
+    const payload = (await response.json()) as { appThemeKey?: string | null };
+    return normalizeTheme(payload.appThemeKey);
+  } catch {
+    return DEFAULT_THEME;
+  }
+}
+
 export const metadata: Metadata = {
   metadataBase: new URL(siteOrigin),
   title: {
@@ -72,11 +93,12 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const initialTheme = await resolveInitialThemeFromConfig();
   const websiteStructuredData = {
     "@context": "https://schema.org",
     "@type": "WebSite",
@@ -91,7 +113,7 @@ export default function RootLayout({
   };
 
   return (
-    <html lang="ko" data-theme={DEFAULT_THEME}>
+    <html lang="ko" data-theme={initialTheme}>
       <head>
         <link
           rel="stylesheet"
@@ -108,6 +130,11 @@ export default function RootLayout({
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteStructuredData) }}
+        />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `window.__WEDDING_THEME__ = ${JSON.stringify(initialTheme)};`,
+          }}
         />
         <script
           async

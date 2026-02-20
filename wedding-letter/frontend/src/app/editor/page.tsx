@@ -130,6 +130,7 @@ type EditorInvitation = {
   rsvpButtonText?: string | null;
   rsvpFontFamily?: string | null;
   detailContent?: string | null;
+  detailFontFamily?: string | null;
   locationTitle?: string | null;
   locationFloorHall?: string | null;
   locationContact?: string | null;
@@ -216,6 +217,7 @@ type FormState = {
   rsvpButtonText: string;
   rsvpFontFamily: string;
   detailContent: string;
+  detailFontFamily: string;
   // 추가된 오시는길 관련 필드
   locationTitle: string;
   locationFloorHall: string;
@@ -290,6 +292,7 @@ const defaultFormState: FormState = {
   rsvpButtonText: "참석의사 전달하기",
   rsvpFontFamily: DEFAULT_FONT_FAMILY,
   detailContent: "",
+  detailFontFamily: DEFAULT_FONT_FAMILY,
   locationTitle: "오시는 길",
   locationFloorHall: "",
   locationContact: "",
@@ -383,10 +386,9 @@ function buildStarParticles(options: HeroEffectOptions) {
 }
 
 const MP3_LIBRARY = [
-  { name: "Romantic memories", url: "/mp3/romantic.mp3" },
-  { name: "Love story", url: "/mp3/love-story.mp3" },
-  { name: "Sweet wedding melody", url: "/mp3/sweet.mp3" },
-  { name: "Beyond the time", url: "/mp3/beyond.mp3" },
+  { name: "No Sleep", url: "https://cdn.vowory.com/mp3/No_Sleep.mp3" },
+  { name: "Epic", url: "https://cdn.vowory.com/mp3/kornevmusic-epic.mp3" },
+  { name: "Purple Piano", url: "https://cdn.vowory.com/mp3/purple-piano.mp3" },
 ];
 
 const BANK_OPTIONS = [
@@ -623,7 +625,7 @@ function buildFormStateFromInvitation(data: EditorInvitation): FormState {
       defaultFormState.themeBackgroundColor,
     ),
     themeTextColor: sanitizeColorValue(
-      typedData.themeTextColor ?? data.fontColor ?? defaultFormState.themeTextColor,
+      typedData.themeTextColor ?? defaultFormState.themeTextColor,
       defaultFormState.themeTextColor,
     ),
     themeAccentColor: sanitizeColorValue(
@@ -633,12 +635,12 @@ function buildFormStateFromInvitation(data: EditorInvitation): FormState {
     themePattern: typedData.themePattern ?? defaultFormState.themePattern,
     themeEffectType: typedData.themeEffectType ?? defaultFormState.themeEffectType,
     themeFontFamily: normalizeFontFamilyValue(
-      typedData.themeFontFamily ?? data.fontFamily,
+      typedData.themeFontFamily,
       defaultFormState.themeFontFamily,
     ),
     themeFontSize: Math.round(
       clampHeroEffectValue(
-      Number(typedData.themeFontSize ?? data.fontSize ?? defaultFormState.themeFontSize),
+      Number(typedData.themeFontSize ?? defaultFormState.themeFontSize),
       MIN_THEME_FONT_SIZE,
       MAX_THEME_FONT_SIZE,
       ),
@@ -669,6 +671,7 @@ function buildFormStateFromInvitation(data: EditorInvitation): FormState {
     rsvpButtonText: typedData.rsvpButtonText ?? defaultFormState.rsvpButtonText,
     rsvpFontFamily: normalizeFontFamilyValue(typedData.rsvpFontFamily, defaultFormState.rsvpFontFamily),
     detailContent: typedData.detailContent ?? defaultFormState.detailContent,
+    detailFontFamily: normalizeFontFamilyValue(typedData.detailFontFamily, defaultFormState.detailFontFamily),
     locationTitle: typedData.locationTitle ?? defaultFormState.locationTitle,
     locationFloorHall: typedData.locationFloorHall ?? defaultFormState.locationFloorHall,
     locationContact: sanitizeContactValue(typedData.locationContact ?? defaultFormState.locationContact),
@@ -698,6 +701,7 @@ function createUnsavedInvitation(): EditorInvitation {
     rsvpButtonText: defaultFormState.rsvpButtonText,
     rsvpFontFamily: defaultFormState.rsvpFontFamily,
     detailContent: defaultFormState.detailContent,
+    detailFontFamily: defaultFormState.detailFontFamily,
     locationTitle: defaultFormState.locationTitle,
     locationFloorHall: defaultFormState.locationFloorHall,
     locationContact: defaultFormState.locationContact,
@@ -721,6 +725,8 @@ export default function EditorPage() {
   const kakaoMapRef = useRef<KakaoMap | null>(null);
   const kakaoMarkerRef = useRef<KakaoMarker | null>(null);
   const kakaoLoadPromiseRef = useRef<Promise<KakaoMapsApi> | null>(null);
+  const musicPreviewAudioRef = useRef<HTMLAudioElement | null>(null);
+  const musicPreviewTimeoutRef = useRef<number | null>(null);
 
   const [ready, setReady] = useState(false);
   const [loadingText, setLoadingText] = useState("편집기 초기화 중...");
@@ -766,6 +772,45 @@ export default function EditorPage() {
       }) as CSSProperties,
     [previewSplitPercent],
   );
+
+  const stopMusicPreview = useCallback(() => {
+    if (musicPreviewTimeoutRef.current !== null) {
+      window.clearTimeout(musicPreviewTimeoutRef.current);
+      musicPreviewTimeoutRef.current = null;
+    }
+
+    const previewAudio = musicPreviewAudioRef.current;
+    if (!previewAudio) return;
+    previewAudio.pause();
+    previewAudio.currentTime = 0;
+    musicPreviewAudioRef.current = null;
+  }, []);
+
+  const playMusicPreview = useCallback(
+    async (url: string) => {
+      stopMusicPreview();
+      const previewAudio = new Audio(url);
+      musicPreviewAudioRef.current = previewAudio;
+
+      try {
+        await previewAudio.play();
+      } catch {
+        musicPreviewAudioRef.current = null;
+        return;
+      }
+
+      musicPreviewTimeoutRef.current = window.setTimeout(() => {
+        if (musicPreviewAudioRef.current !== previewAudio) return;
+        previewAudio.pause();
+        previewAudio.currentTime = 0;
+        musicPreviewAudioRef.current = null;
+        musicPreviewTimeoutRef.current = null;
+      }, 5000);
+    },
+    [stopMusicPreview],
+  );
+
+  useEffect(() => () => stopMusicPreview(), [stopMusicPreview]);
 
   const updatePreviewSplitByClientX = useCallback((clientX: number) => {
     const mainRect = editorMainRef.current?.getBoundingClientRect();
@@ -1403,7 +1448,7 @@ export default function EditorPage() {
     if (payload.mainImageFile) formData.append("mainImageFile", payload.mainImageFile);
     if (payload.paperInvitationFile) formData.append("paperInvitationFile", payload.paperInvitationFile);
     if (payload.seoImageFile) formData.append("seoImageFile", payload.seoImageFile);
-    if (payload.backgroundMusicFile) formData.append("backgroundMusicUrl", payload.backgroundMusicFile);
+    if (payload.backgroundMusicFile) formData.append("backgroundMusicFile", payload.backgroundMusicFile);
 
     if ([...formData.keys()].length === 0) return;
 
@@ -1492,6 +1537,7 @@ export default function EditorPage() {
       rsvpButtonText: form.rsvpButtonText,
       rsvpFontFamily: form.rsvpFontFamily,
       detailContent: form.detailContent,
+      detailFontFamily: form.detailFontFamily,
       locationTitle: form.locationTitle,
       locationFloorHall: form.locationFloorHall,
       locationContact: sanitizeContactValue(form.locationContact),
@@ -1878,6 +1924,8 @@ export default function EditorPage() {
                 rsvpButtonText: form.rsvpButtonText,
                 rsvpFontFamily: form.rsvpFontFamily,
                 detailContent: form.detailContent,
+                detailFontFamily: form.detailFontFamily,
+                backgroundMusicUrl: sanitizeAssetUrl(form.backgroundMusicUrl),
                 locationTitle: form.locationTitle,
                 locationFloorHall: form.locationFloorHall,
                 locationContact: form.locationContact,
@@ -1950,7 +1998,7 @@ export default function EditorPage() {
                             isActive
                               ? "border-theme-brand bg-theme-brand text-white"
                               : isCompleted
-                                ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                                ? "border-[#f3c4d4] bg-[#ffeef4] text-[#b85f7e]"
                                 : "border-warm bg-white text-theme-secondary hover:bg-theme"
                           }`}
                           type="button"
@@ -2352,7 +2400,7 @@ export default function EditorPage() {
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                       <label className="space-y-2 block">
                         <span className="text-xs font-bold text-theme-secondary">메인 문구 폰트</span>
-                        <select className="input-premium text-xs" value={form.themeFontFamily} onChange={(e) => updateField("themeFontFamily", e.target.value)}>
+                        <select className="input-premium text-xs" value={form.fontFamily} onChange={(e) => updateField("fontFamily", e.target.value)}>
                           {EDITOR_FONT_FAMILY_OPTIONS.map((option) => (
                             <option key={`hero-main-font-${option.value}`} value={option.value}>
                               {option.label}
@@ -2365,15 +2413,10 @@ export default function EditorPage() {
                         <input
                           className="input-premium"
                           type="number"
-                          min={MIN_THEME_FONT_SIZE}
-                          max={MAX_THEME_FONT_SIZE}
-                          value={form.themeFontSize}
-                          onChange={(e) =>
-                            updateField(
-                              "themeFontSize",
-                              Math.round(clampHeroEffectValue(Number(e.target.value), MIN_THEME_FONT_SIZE, MAX_THEME_FONT_SIZE)),
-                            )
-                          }
+                          min={10}
+                          max={30}
+                          value={form.fontSize}
+                          onChange={(e) => updateField("fontSize", e.target.value)}
                         />
                       </label>
                       <label className="space-y-2 block">
@@ -2382,33 +2425,11 @@ export default function EditorPage() {
                           <input
                             className="h-10 w-14 cursor-pointer rounded border border-warm overflow-hidden"
                             type="color"
-                            value={form.themeTextColor}
-                            onChange={(e) => updateField("themeTextColor", e.target.value)}
+                            value={form.fontColor}
+                            onChange={(e) => updateField("fontColor", e.target.value)}
                           />
-                          <input className="input-premium flex-1" value={form.themeTextColor} onChange={(e) => updateField("themeTextColor", e.target.value)} />
+                          <input className="input-premium flex-1" value={form.fontColor} onChange={(e) => updateField("fontColor", e.target.value)} />
                         </div>
-                      </label>
-                      <label className="space-y-2 block">
-                        <span className="text-xs font-bold text-theme-secondary">강조 문구 색상</span>
-                        <div className="flex gap-3">
-                          <input
-                            className="h-10 w-14 cursor-pointer rounded border border-warm overflow-hidden"
-                            type="color"
-                            value={form.themeAccentColor}
-                            onChange={(e) => updateField("themeAccentColor", e.target.value)}
-                          />
-                          <input className="input-premium flex-1" value={form.themeAccentColor} onChange={(e) => updateField("themeAccentColor", e.target.value)} />
-                        </div>
-                      </label>
-                      <label className="space-y-2 block">
-                        <span className="text-xs font-bold text-theme-secondary">보조 문구 폰트</span>
-                        <select className="input-premium text-xs" value={form.fontFamily} onChange={(e) => updateField("fontFamily", e.target.value)}>
-                          {EDITOR_FONT_FAMILY_OPTIONS.map((option) => (
-                            <option key={`hero-sub-font-${option.value}`} value={option.value}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </select>
                       </label>
                       <label className="space-y-2 block">
                         <span className="text-xs font-bold text-theme-secondary">장식 문구 폰트</span>
@@ -2420,23 +2441,8 @@ export default function EditorPage() {
                           ))}
                         </select>
                       </label>
-                      <label className="space-y-2 block">
-                        <span className="text-xs font-bold text-theme-secondary">보조 문구 크기 (px)</span>
-                        <input className="input-premium" type="number" min={10} max={30} value={form.fontSize} onChange={(e) => updateField("fontSize", e.target.value)} />
-                      </label>
                     </div>
-                    <label className="space-y-2 block">
-                      <span className="text-xs font-bold text-theme-secondary">보조 문구 색상</span>
-                      <div className="flex gap-3">
-                        <input
-                          className="h-10 w-14 cursor-pointer rounded border border-warm overflow-hidden"
-                          type="color"
-                          value={form.fontColor}
-                          onChange={(e) => updateField("fontColor", e.target.value)}
-                        />
-                        <input className="input-premium flex-1" value={form.fontColor} onChange={(e) => updateField("fontColor", e.target.value)} />
-                      </div>
-                    </label>
+                    <p className="text-[11px] text-theme-secondary">메인 화면 폰트/색상은 메인 이미지(히어로)에만 적용됩니다.</p>
                   </div>
 
                   <div className="space-y-2">
@@ -2464,6 +2470,18 @@ export default function EditorPage() {
 
                   <label className="space-y-2 block">
                     <span className="text-xs font-bold text-theme-secondary">상세 내용 (추가 문구)</span>
+                    <select
+                      aria-label="상세 내용 폰트"
+                      className="input-premium text-xs"
+                      value={form.detailFontFamily}
+                      onChange={(e) => updateField("detailFontFamily", e.target.value)}
+                    >
+                      {EDITOR_FONT_FAMILY_OPTIONS.map((option) => (
+                        <option key={`detail-font-${option.value}`} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
                     <RichTextEditor 
                       value={form.detailContent} 
                       onChange={(val) => updateField("detailContent", val)} 
@@ -2763,9 +2781,7 @@ export default function EditorPage() {
                             className="text-theme-secondary hover:text-theme-brand"
                             onClick={(e) => {
                               e.preventDefault();
-                              const audio = new Audio(music.url);
-                              audio.play();
-                              setTimeout(() => audio.pause(), 5000); // 5초 미리듣기
+                              void playMusicPreview(music.url);
                             }}
                           >
                             <span className="material-symbols-outlined text-[20px]">play_circle</span>
@@ -2775,7 +2791,7 @@ export default function EditorPage() {
                       <div className="relative mt-2">
                         <label className="flex items-center gap-2 p-4 rounded-xl border border-warm bg-white hover:bg-theme/10 cursor-pointer">
                           <input type="radio" className="accent-theme-brand" checked={!MP3_LIBRARY.some(m => m.url === form.backgroundMusicUrl) && form.backgroundMusicUrl !== ""} readOnly />
-                          <span className="text-sm font-medium text-theme-secondary">직접 추가</span>
+                          <span className="text-sm font-medium text-theme-secondary">직접 업로드</span>
                           <input
                             type="file"
                             accept="audio/*"
@@ -2788,6 +2804,7 @@ export default function EditorPage() {
                             }}
                           />
                         </label>
+                        <p className="mt-2 text-[11px] text-theme-secondary">업로드한 음악은 본인 계정에서만 사용할 수 있습니다.</p>
                       </div>
                     </div>
                   </div>
@@ -2917,8 +2934,8 @@ export default function EditorPage() {
 
                   <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
                     <label className="space-y-2 md:col-span-2">
-                      <span className="text-xs font-bold text-theme-secondary">폰트 종류</span>
-                      <select className="input-premium" value={form.fontFamily} onChange={(e) => updateField("fontFamily", e.target.value)}>
+                      <span className="text-xs font-bold text-theme-secondary">폰트 종류 (메인 이미지 제외)</span>
+                      <select className="input-premium" value={form.themeFontFamily} onChange={(e) => updateField("themeFontFamily", e.target.value)}>
                         {EDITOR_FONT_FAMILY_OPTIONS.map((option) => (
                           <option key={`main-font-${option.value}`} value={option.value}>
                             {option.label}
@@ -2928,15 +2945,27 @@ export default function EditorPage() {
                     </label>
                     <label className="space-y-2">
                       <span className="text-xs font-bold text-theme-secondary">폰트 크기(px)</span>
-                      <input className="input-premium" type="number" min={10} max={30} value={form.fontSize} onChange={(e) => updateField("fontSize", e.target.value)} />
+                      <input
+                        className="input-premium"
+                        type="number"
+                        min={MIN_THEME_FONT_SIZE}
+                        max={MAX_THEME_FONT_SIZE}
+                        value={form.themeFontSize}
+                        onChange={(e) =>
+                          updateField(
+                            "themeFontSize",
+                            Math.round(clampHeroEffectValue(Number(e.target.value), MIN_THEME_FONT_SIZE, MAX_THEME_FONT_SIZE)),
+                          )
+                        }
+                      />
                     </label>
                   </div>
 
                   <label className="space-y-2 block">
-                    <span className="text-xs font-bold text-theme-secondary">폰트 컬러</span>
+                    <span className="text-xs font-bold text-theme-secondary">기본 텍스트 컬러 (메인 이미지 제외)</span>
                     <div className="flex gap-4">
-                      <input className="h-10 w-14 cursor-pointer rounded border border-warm overflow-hidden" type="color" value={form.fontColor} onChange={(e) => updateField("fontColor", e.target.value)} />
-                      <input className="input-premium flex-1" value={form.fontColor} onChange={(e) => updateField("fontColor", e.target.value)} />
+                      <input className="h-10 w-14 cursor-pointer rounded border border-warm overflow-hidden" type="color" value={form.themeTextColor} onChange={(e) => updateField("themeTextColor", e.target.value)} />
+                      <input className="input-premium flex-1" value={form.themeTextColor} onChange={(e) => updateField("themeTextColor", e.target.value)} />
                     </div>
                   </label>
 

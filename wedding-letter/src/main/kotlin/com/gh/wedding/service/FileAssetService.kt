@@ -40,6 +40,19 @@ class FileAssetService(
         )
     }
 
+    @Transactional(readOnly = true)
+    fun isOwnedActiveAssetUrl(userId: String, publicUrl: String): Boolean {
+        val normalizedUserId = userId.trim()
+        val normalizedPublicUrl = publicUrl.trim()
+        if (normalizedUserId.isBlank() || normalizedPublicUrl.isBlank()) return false
+
+        return fileAssetRepository.existsByUserIdAndPublicUrlAndStatus(
+            userId = normalizedUserId,
+            publicUrl = normalizedPublicUrl,
+            status = FileAssetStatus.ACTIVE,
+        )
+    }
+
     fun scheduleDeletion(ownerType: FileAssetOwnerType, ownerId: Long) {
         val now = LocalDateTime.now()
         val purgeAfter = now.plusDays(FILE_RETENTION_DAYS)

@@ -97,7 +97,9 @@ function normalizeInvitation(data: Partial<InvitationData>, invitationId: string
   const normalizedSlug = pickFirstNonEmpty([data.slug ? String(data.slug) : undefined, invitationId]) ?? invitationId;
   const normalizedCoverImage = pickFirstNonEmpty([data.coverImageUrl, data.mainImageUrl, imageUrls[0]]) ?? "";
   const normalizedMainImage = pickFirstNonEmpty([data.mainImageUrl, data.coverImageUrl, imageUrls[0]]) ?? "";
-  const normalizedThemeFontFamily = data.themeFontFamily ?? "'Noto Sans KR', sans-serif";
+  const normalizedDefaultFontFamily = "'Noto Sans KR', sans-serif";
+  const normalizedThemeFontFamily = data.themeFontFamily ?? normalizedDefaultFontFamily;
+  const normalizedHeroFontFamily = data.fontFamily ?? normalizedThemeFontFamily;
   const normalizedThemeTextColor = data.themeTextColor ?? "#4a2c2a";
   const normalizedThemeFontSize = data.themeFontSize ?? 16;
 
@@ -141,7 +143,8 @@ function normalizeInvitation(data: Partial<InvitationData>, invitationId: string
     useSeparateAccounts: data.useSeparateAccounts ?? false,
     useGuestbook: data.useGuestbook ?? true,
     useRsvpModal: data.useRsvpModal ?? true,
-    fontFamily: data.fontFamily ?? normalizedThemeFontFamily,
+    backgroundMusicUrl: toNonEmptyString(data.backgroundMusicUrl),
+    fontFamily: normalizedHeroFontFamily,
     fontColor: data.fontColor ?? normalizedThemeTextColor,
     fontSize: data.fontSize ?? normalizedThemeFontSize,
     accountNumber: data.accountNumber,
@@ -166,13 +169,14 @@ function normalizeInvitation(data: Partial<InvitationData>, invitationId: string
     heroEffectSpeed: data.heroEffectSpeed ?? 100,
     heroEffectOpacity: data.heroEffectOpacity ?? 72,
     heroAccentFontFamily: data.heroAccentFontFamily ?? "'Playfair Display', serif",
-    messageFontFamily: data.messageFontFamily ?? "'Noto Sans KR', sans-serif",
-    transportFontFamily: data.transportFontFamily ?? "'Noto Sans KR', sans-serif",
+    messageFontFamily: data.messageFontFamily ?? normalizedThemeFontFamily,
+    transportFontFamily: data.transportFontFamily ?? normalizedThemeFontFamily,
     rsvpTitle: data.rsvpTitle ?? "참석 의사 전달",
     rsvpMessage: data.rsvpMessage ?? "특별한 날 축하의 마음으로 참석해주시는 모든 분들을 위해\n참석 여부 전달을 부탁드립니다.",
     rsvpButtonText: data.rsvpButtonText ?? "참석의사 전달하기",
-    rsvpFontFamily: data.rsvpFontFamily ?? "'Noto Sans KR', sans-serif",
+    rsvpFontFamily: data.rsvpFontFamily ?? normalizedThemeFontFamily,
     detailContent: data.detailContent,
+    detailFontFamily: data.detailFontFamily ?? normalizedThemeFontFamily,
     locationTitle: data.locationTitle ?? "오시는 길",
     locationFloorHall: data.locationFloorHall,
     locationContact: data.locationContact,

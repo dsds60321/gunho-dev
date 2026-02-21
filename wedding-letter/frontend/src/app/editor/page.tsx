@@ -1,10 +1,12 @@
 "use client";
 
 import { CSSProperties, FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Script from "next/script";
 import { useRouter } from "next/navigation";
 import { fetchAuthMe, logout } from "@/lib/auth";
 import { apiFetch, getApiErrorMessage, isApiError } from "@/lib/api";
 import { resolveAssetUrl } from "@/lib/assets";
+import { getSiteOrigin } from "@/lib/site-url";
 import {
   DEFAULT_FONT_FAMILY,
   EDITOR_FONT_FAMILY_OPTIONS,
@@ -50,8 +52,38 @@ type KakaoMapsApi = {
   };
 };
 
+type KakaoShareLink = {
+  webUrl: string;
+  mobileWebUrl: string;
+};
+
+type KakaoShareDefaultRequest = {
+  objectType: "feed";
+  content: {
+    title: string;
+    description: string;
+    imageUrl: string;
+    link: KakaoShareLink;
+  };
+  buttons?: Array<{
+    title: string;
+    link: KakaoShareLink;
+  }>;
+};
+
+type KakaoShareApi = {
+  sendDefault: (request: KakaoShareDefaultRequest) => void;
+};
+
+type KakaoSdk = {
+  init: (appKey: string) => void;
+  isInitialized: () => boolean;
+  Share?: KakaoShareApi;
+};
+
 declare global {
   interface Window {
+    Kakao?: KakaoSdk;
     kakao?: {
       maps: KakaoMapsApi;
     };
@@ -129,8 +161,6 @@ type EditorInvitation = {
   rsvpMessage?: string | null;
   rsvpButtonText?: string | null;
   rsvpFontFamily?: string | null;
-  detailContent?: string | null;
-  detailFontFamily?: string | null;
   locationTitle?: string | null;
   locationFloorHall?: string | null;
   locationContact?: string | null;
@@ -227,8 +257,6 @@ type FormState = {
   rsvpMessage: string;
   rsvpButtonText: string;
   rsvpFontFamily: string;
-  detailContent: string;
-  detailFontFamily: string;
   // 추가된 오시는길 관련 필드
   locationTitle: string;
   locationFloorHall: string;
@@ -313,8 +341,6 @@ const defaultFormState: FormState = {
   rsvpMessage: "특별한 날 축하의 마음으로 참석해주시는 모든 분들을 위해\n참석 여부 전달을 부탁드립니다.",
   rsvpButtonText: "참석의사 전달하기",
   rsvpFontFamily: DEFAULT_FONT_FAMILY,
-  detailContent: "",
-  detailFontFamily: DEFAULT_FONT_FAMILY,
   locationTitle: "오시는 길",
   locationFloorHall: "",
   locationContact: "",
@@ -499,6 +525,8 @@ const INVALID_ASSET_URL_TOKENS = new Set(["null", "undefined", "nan"]);
 const MIN_PREVIEW_SPLIT_PERCENT = 36;
 const MAX_PREVIEW_SPLIT_PERCENT = 64;
 const DEFAULT_PREVIEW_SPLIT_PERCENT = 50;
+const KAKAO_SHARE_DEFAULT_IMAGE_URL =
+  "https://images.unsplash.com/photo-1515934751635-c81c6bc9a2d8?auto=format&fit=crop&w=1200&q=80";
 
 function clampPreviewSplitPercent(value: number): number {
   return Math.min(MAX_PREVIEW_SPLIT_PERCENT, Math.max(MIN_PREVIEW_SPLIT_PERCENT, Math.round(value)));
@@ -622,7 +650,7 @@ function buildFormStateFromInvitation(data: EditorInvitation): FormState {
   const brideAccount = parseBankAndAccount(data.brideAccountNumber);
 
   // 백엔드 데이터에 새 필드가 없을 경우를 대비해 기본값 병합
-  const typedData = data as any;
+  const typedData = data as Partial<EditorInvitation>;
 
   return {
     groomName: data.groomName ?? "",
@@ -718,8 +746,6 @@ function buildFormStateFromInvitation(data: EditorInvitation): FormState {
     rsvpMessage: typedData.rsvpMessage ?? defaultFormState.rsvpMessage,
     rsvpButtonText: typedData.rsvpButtonText ?? defaultFormState.rsvpButtonText,
     rsvpFontFamily: normalizeFontFamilyValue(typedData.rsvpFontFamily, defaultFormState.rsvpFontFamily),
-    detailContent: typedData.detailContent ?? defaultFormState.detailContent,
-    detailFontFamily: normalizeFontFamilyValue(typedData.detailFontFamily, defaultFormState.detailFontFamily),
     locationTitle: typedData.locationTitle ?? defaultFormState.locationTitle,
     locationFloorHall: typedData.locationFloorHall ?? defaultFormState.locationFloorHall,
     locationContact: sanitizeContactValue(typedData.locationContact ?? defaultFormState.locationContact),
@@ -780,8 +806,6 @@ function createUnsavedInvitation(): EditorInvitation {
     rsvpMessage: defaultFormState.rsvpMessage,
     rsvpButtonText: defaultFormState.rsvpButtonText,
     rsvpFontFamily: defaultFormState.rsvpFontFamily,
-    detailContent: defaultFormState.detailContent,
-    detailFontFamily: defaultFormState.detailFontFamily,
     locationTitle: defaultFormState.locationTitle,
     locationFloorHall: defaultFormState.locationFloorHall,
     locationContact: defaultFormState.locationContact,
@@ -831,6 +855,7 @@ export default function EditorPage() {
   const [shareUrl, setShareUrl] = useState("");
   const [form, setForm] = useState<FormState>(defaultFormState);
   const [kakaoJsKey, setKakaoJsKey] = useState("0944d526cb1b3611e14d9acb6ce6aa6a");
+  const [kakaoShareSdkLoaded, setKakaoShareSdkLoaded] = useState(false);
   const [mapReady, setMapReady] = useState(false);
   const [isDesignModalOpen, setIsDesignModalOpen] = useState(false);
   const [isEffectModalOpen, setIsEffectModalOpen] = useState(false);
@@ -902,6 +927,13 @@ export default function EditorPage() {
   );
 
   useEffect(() => () => stopMusicPreview(), [stopMusicPreview]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (window.Kakao) {
+      setKakaoShareSdkLoaded(true);
+    }
+  }, []);
 
   const updatePreviewSplitByClientX = useCallback((clientX: number) => {
     const mainRect = editorMainRef.current?.getBoundingClientRect();
@@ -1269,6 +1301,24 @@ export default function EditorPage() {
   }, [ensureKakaoMapsReady, kakaoJsKey]);
 
   useEffect(() => {
+    if (!kakaoShareSdkLoaded) return;
+    if (typeof window === "undefined") return;
+    const normalizedKey = kakaoJsKey.trim();
+    if (!normalizedKey) return;
+
+    const kakaoSdk = window.Kakao;
+    if (!kakaoSdk) return;
+
+    try {
+      if (!kakaoSdk.isInitialized()) {
+        kakaoSdk.init(normalizedKey);
+      }
+    } catch {
+      // 카카오 SDK 초기화 실패 시 버튼 클릭에서 안내
+    }
+  }, [kakaoShareSdkLoaded, kakaoJsKey]);
+
+  useEffect(() => {
     const existing = document.querySelector<HTMLScriptElement>("script[data-daum-postcode='true']");
     if (existing) return;
 
@@ -1461,7 +1511,7 @@ export default function EditorPage() {
     if (!container || !window.daum?.Postcode) return;
 
     new window.daum.Postcode({
-      oncomplete: (data: any) => {
+      oncomplete: (data) => {
         const addr = data.roadAddress || data.jibunAddress;
         const buildingName = data.buildingName;
 
@@ -1629,8 +1679,6 @@ export default function EditorPage() {
       rsvpMessage: form.rsvpMessage,
       rsvpButtonText: form.rsvpButtonText,
       rsvpFontFamily: form.rsvpFontFamily,
-      detailContent: form.detailContent,
-      detailFontFamily: form.detailFontFamily,
       locationTitle: form.locationTitle,
       locationFloorHall: form.locationFloorHall,
       locationContact: sanitizeContactValue(form.locationContact),
@@ -1801,15 +1849,27 @@ export default function EditorPage() {
   };
 
   const resolveInvitationShareUrl = () => {
-    if (shareUrl.trim()) return shareUrl.trim();
+    const siteOrigin = getSiteOrigin();
+    const savedShareUrl = shareUrl.trim();
+
+    if (savedShareUrl) {
+      if (savedShareUrl.startsWith("/")) {
+        return `${siteOrigin}${savedShareUrl}`;
+      }
+
+      try {
+        const parsed = new URL(savedShareUrl);
+        return `${siteOrigin}${parsed.pathname}${parsed.search}${parsed.hash}`;
+      } catch {
+        // 잘못된 URL 형식은 아래 fallback 로직으로 처리
+      }
+    }
+
     if (!invitation || invitation.id <= 0) return "";
 
     const shareId = invitation.slug?.trim() || String(invitation.id);
     const encoded = encodeURIComponent(shareId);
-    if (typeof window === "undefined") {
-      return `/invitation/${encoded}`;
-    }
-    return `${window.location.origin}/invitation/${encoded}`;
+    return `${siteOrigin}/invitation/${encoded}`;
   };
 
   const copyShareUrl = async () => {
@@ -1827,6 +1887,85 @@ export default function EditorPage() {
     }
   };
 
+  const resolveInvitationShareImageUrl = () => {
+    const seoImageUrl = resolveAssetUrl(sanitizeAssetUrl(form.seoImageUrl));
+    if (seoImageUrl) return seoImageUrl;
+
+    const mainImageUrl = resolveAssetUrl(sanitizeAssetUrl(form.mainImageUrl));
+    if (mainImageUrl) return mainImageUrl;
+
+    const galleryImageUrl = resolveAssetUrl(sanitizeAssetUrl(form.imageUrls[0] ?? ""));
+    if (galleryImageUrl) return galleryImageUrl;
+
+    return KAKAO_SHARE_DEFAULT_IMAGE_URL;
+  };
+
+  const shareOnKakao = () => {
+    if (!invitation?.published) {
+      showToast("카카오 공유는 발행 후 사용할 수 있습니다.", "error");
+      return;
+    }
+
+    const target = resolveInvitationShareUrl();
+    if (!target) {
+      showToast("공유 URL이 없습니다.", "error");
+      return;
+    }
+
+    if (typeof window === "undefined") {
+      showToast("브라우저 환경에서만 공유할 수 있습니다.", "error");
+      return;
+    }
+
+    const kakaoSdk = window.Kakao;
+    if (!kakaoSdk || !kakaoSdk.Share) {
+      showToast("카카오 SDK를 불러오는 중입니다. 잠시 후 다시 시도해 주세요.", "error");
+      return;
+    }
+
+    const normalizedKey = kakaoJsKey.trim();
+    if (!normalizedKey) {
+      showToast("카카오 JavaScript 키가 없습니다.", "error");
+      return;
+    }
+
+    try {
+      if (!kakaoSdk.isInitialized()) {
+        kakaoSdk.init(normalizedKey);
+      }
+
+      const groomName = form.groomName.trim() || "신랑";
+      const brideName = form.brideName.trim() || "신부";
+      const shareTitle = `${groomName} ${brideName} 결혼식에 초대합니다`;
+      const shareDescription =
+        [form.date ? formatWeddingDate(form.date) : "", form.locationName.trim()].filter(Boolean).join(" · ") || "소중한 날, 함께해 주세요.";
+      const createKakaoShareLink = (url: string): KakaoShareLink => ({
+        mobileWebUrl: url,
+        webUrl: url,
+      });
+      const contentLink = createKakaoShareLink(target);
+      const buttonLinks = [createKakaoShareLink(target)];
+
+      kakaoSdk.Share.sendDefault({
+        objectType: "feed",
+        content: {
+          title: shareTitle,
+          description: shareDescription,
+          imageUrl: resolveInvitationShareImageUrl(),
+          link: contentLink,
+        },
+        buttons: [
+          {
+            title: "청첩장 보기",
+            link: buttonLinks[0],
+          },
+        ],
+      });
+    } catch {
+      showToast("카카오 공유에 실패했습니다. 앱 키와 도메인 설정을 확인해 주세요.", "error");
+    }
+  };
+
   const isInvitationSaved = Boolean(invitation && invitation.id > 0);
   const actionLockedUntilSaved = !isInvitationSaved;
   const sectionCompletion = useMemo<Record<EditorSectionKey, boolean>>(
@@ -1839,7 +1978,7 @@ export default function EditorPage() {
       guestbook: true,
       rsvp: !form.useRsvpModal || Boolean(form.rsvpTitle.trim() && form.rsvpMessage.trim() && form.rsvpButtonText.trim()),
       music: true,
-      detail: Boolean(form.seoTitle.trim() || sanitizeAssetUrl(form.seoImageUrl) || form.detailContent.trim()),
+      detail: Boolean(form.seoTitle.trim() || sanitizeAssetUrl(form.seoImageUrl)),
     }),
     [form],
   );
@@ -1851,6 +1990,7 @@ export default function EditorPage() {
     () => Math.round((completedStepCount / EDITOR_SECTION_ORDER.length) * 100),
     [completedStepCount],
   );
+  const seoImagePreviewUrl = useMemo(() => resolveAssetUrl(form.seoImageUrl), [form.seoImageUrl]);
 
   if (!ready || !invitation) {
     return <div className="flex min-h-screen items-center justify-center text-sm text-theme-secondary">{loadingText}</div>;
@@ -1858,6 +1998,16 @@ export default function EditorPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-white">
+      <Script
+        id="kakao-share-sdk"
+        src="/kakao.min.js"
+        strategy="afterInteractive"
+        onLoad={() => setKakaoShareSdkLoaded(true)}
+        onError={() => {
+          setKakaoShareSdkLoaded(false);
+          showToast("카카오 SDK를 불러오지 못했습니다.", "error");
+        }}
+      />
       <header className="z-50 flex h-16 shrink-0 items-center justify-between border-b border-warm bg-white px-6 md:px-8">
         <div className="flex items-center gap-4">
           <button className="group flex items-center gap-2 text-gray-400 transition-colors hover:text-gray-900" type="button" onClick={() => router.push("/")}>
@@ -1900,6 +2050,14 @@ export default function EditorPage() {
               URL 복사
             </button>
           ) : null}
+          <button
+            className="rounded-full border border-warm px-4 py-2 text-xs font-bold text-theme-secondary transition-colors hover:bg-theme disabled:cursor-not-allowed disabled:opacity-60"
+            type="button"
+            onClick={shareOnKakao}
+            disabled={!kakaoShareSdkLoaded}
+          >
+            카카오 공유
+          </button>
           {invitation.published ? (
             <button
               className="rounded-full border border-warm px-4 py-2 text-xs font-bold text-theme-secondary disabled:cursor-not-allowed disabled:opacity-50"
@@ -2031,8 +2189,6 @@ export default function EditorPage() {
                 rsvpMessage: form.rsvpMessage,
                 rsvpButtonText: form.rsvpButtonText,
                 rsvpFontFamily: form.rsvpFontFamily,
-                detailContent: form.detailContent,
-                detailFontFamily: form.detailFontFamily,
                 backgroundMusicUrl: sanitizeAssetUrl(form.backgroundMusicUrl),
                 locationTitle: form.locationTitle,
                 locationFloorHall: form.locationFloorHall,
@@ -2815,26 +2971,6 @@ export default function EditorPage() {
                     </div>
                   </div>
 
-                  <label className="space-y-2 block">
-                    <span className="text-xs font-bold text-theme-secondary">상세 내용 (추가 문구)</span>
-                    <select
-                      aria-label="상세 내용 폰트"
-                      className="input-premium text-xs"
-                      value={form.detailFontFamily}
-                      onChange={(e) => updateField("detailFontFamily", e.target.value)}
-                    >
-                      {EDITOR_FONT_FAMILY_OPTIONS.map((option) => (
-                        <option key={`detail-font-${option.value}`} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                    <RichTextEditor 
-                      value={form.detailContent} 
-                      onChange={(val) => updateField("detailContent", val)} 
-                      placeholder="청첩장 중간에 들어갈 상세 내용을 자유롭게 작성하세요."
-                    />
-                  </label>
                 </div>
               ) : null}
             </div>
@@ -3316,22 +3452,38 @@ export default function EditorPage() {
                     </div>
                   </label>
 
-                  <label className="block space-y-2 text-sm">
+                  <div className="space-y-3 rounded-2xl border border-warm bg-white p-4">
                     <span className="text-xs font-bold text-theme-secondary">SEO 대표 이미지 업로드</span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="text-xs text-theme-secondary file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-theme file:text-theme-brand hover:file:bg-theme-divider disabled:cursor-not-allowed disabled:opacity-50"
-                      disabled={actionLockedUntilSaved}
-                      onChange={(event) => {
-                        const file = event.target.files?.[0];
-                        if (file) {
-                          void handleAssetUpload({ seoImageFile: file });
-                        }
-                        event.currentTarget.value = "";
-                      }}
-                    />
-                  </label>
+                    <div className="flex flex-col gap-3">
+                      <div className="relative aspect-[4/3] w-full max-w-[200px] overflow-hidden rounded-xl border border-dashed border-gray-300 bg-white group">
+                        {seoImagePreviewUrl ? (
+                          <>
+                            <img className="h-full w-full object-cover" src={seoImagePreviewUrl} alt="SEO Preview" />
+                            <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 transition-opacity group-hover:opacity-100">
+                              <span className="text-xs font-bold text-white">이미지 변경</span>
+                            </div>
+                          </>
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center px-3 text-center text-[11px] text-gray-400">
+                            SEO 대표 이미지를 업로드해 주세요
+                          </div>
+                        )}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="absolute inset-0 cursor-pointer opacity-0 disabled:cursor-not-allowed"
+                          disabled={actionLockedUntilSaved}
+                          onChange={(event) => {
+                            const file = event.target.files?.[0];
+                            if (file) {
+                              void handleAssetUpload({ seoImageFile: file });
+                            }
+                            event.currentTarget.value = "";
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
 
                   <label className="space-y-2 block">
                     <span className="text-xs font-bold text-theme-secondary">갤러리 제목</span>

@@ -53,6 +53,7 @@ class InvitationService(
     private val fileService: FileService,
     private val fileAssetService: FileAssetService,
     private val companyProfileService: CompanyProfileService,
+    private val adminAuthorizationService: AdminAuthorizationService,
     private val planPolicyService: PlanPolicyService,
     private val watermarkPolicyProperties: WatermarkPolicyProperties,
     @Value("\${app.frontend.origin:https://vowory.com}")
@@ -88,7 +89,7 @@ class InvitationService(
 
     @Transactional(readOnly = true)
     fun getInvitationForOwner(id: Long, userId: String): Invitation {
-        val invitation = invitationRepository.findByIdAndUserId(id, userId)
+        val invitation = findInvitationForEditorAccess(id, userId)
             ?: throw WeddingException(WeddingErrorCode.RESOURCE_NOT_FOUND, "초대장을 찾을 수 없습니다.")
         if (isDeleted(invitation)) {
             throw WeddingException(WeddingErrorCode.RESOURCE_NOT_FOUND, "삭제된 초대장입니다.")
@@ -207,6 +208,17 @@ class InvitationService(
         request.locationContact?.let { content.locationContact = it }
         request.showMap?.let { content.showMap = it }
         request.lockMap?.let { content.lockMap = it }
+        request.openingEnabled?.let { content.openingEnabled = it }
+        request.openingAnimationType?.let { content.openingAnimationType = it.trim().ifBlank { null } }
+        request.openingBackgroundType?.let { content.openingBackgroundType = it.trim().ifBlank { null } }
+        request.openingBackgroundColor?.let { content.openingBackgroundColor = it.trim().ifBlank { null } }
+        request.openingImageUrl?.let { content.openingImageUrl = fileService.processUrl(it) }
+        request.openingTitle?.let { content.openingTitle = it }
+        request.openingMessage?.let { content.openingMessage = it }
+        request.openingFontFamily?.let { content.openingFontFamily = it }
+        request.openingFontColor?.let { content.openingFontColor = it.trim().ifBlank { null } }
+        request.openingTitleFontSize?.let { content.openingTitleFontSize = it.coerceIn(12, 72) }
+        request.openingMessageFontSize?.let { content.openingMessageFontSize = it.coerceIn(10, 52) }
 
         invitation.content = content
         syncPublishedVersionContent(invitation)
@@ -221,6 +233,7 @@ class InvitationService(
         mainImageFile: MultipartFile?,
         paperInvitationFile: MultipartFile?,
         seoImageFile: MultipartFile?,
+        openingImageFile: MultipartFile?,
         backgroundMusicFile: MultipartFile?,
         galleryFiles: List<MultipartFile>?,
     ): InvitationEditorResponse {
@@ -262,6 +275,20 @@ class InvitationService(
             val uploaded = fileService.uploadImageResult(seoImageFile, userId, invitationId, "seo")
             if (uploaded != null) {
                 content.seoImageUrl = uploaded.publicUrl
+                fileAssetService.registerUploadedFile(
+                    ownerType = FileAssetOwnerType.INVITATION,
+                    ownerId = ownerId,
+                    userId = userId,
+                    storagePath = uploaded.storagePath,
+                    publicUrl = uploaded.publicUrl,
+                )
+            }
+        }
+
+        if (openingImageFile != null && !openingImageFile.isEmpty) {
+            val uploaded = fileService.uploadImageResult(openingImageFile, userId, invitationId, "opening")
+            if (uploaded != null) {
+                content.openingImageUrl = uploaded.publicUrl
                 fileAssetService.registerUploadedFile(
                     ownerType = FileAssetOwnerType.INVITATION,
                     ownerId = ownerId,
@@ -376,7 +403,7 @@ class InvitationService(
     }
 
     fun softDeleteInvitation(id: Long, userId: String) {
-        val invitation = invitationRepository.findByIdAndUserId(id, userId)
+        val invitation = findInvitationForEditorAccess(id, userId)
             ?: throw WeddingException(WeddingErrorCode.RESOURCE_NOT_FOUND, "초대장을 찾을 수 없습니다.")
 
         if (isDeleted(invitation)) {
@@ -394,6 +421,13 @@ class InvitationService(
         content.status = InvitationStatus.DELETED
         invitation.content = content
         fileAssetService.scheduleDeletion(FileAssetOwnerType.INVITATION, id)
+    }
+
+    private fun findInvitationForEditorAccess(id: Long, userId: String): Invitation? {
+        if (adminAuthorizationService.isAdmin(userId)) {
+            return invitationRepository.findById(id).orElse(null)
+        }
+        return invitationRepository.findByIdAndUserId(id, userId)
     }
 
     @Transactional(readOnly = true)
@@ -700,6 +734,17 @@ class InvitationService(
             locationContact = content.locationContact,
             showMap = content.showMap,
             lockMap = content.lockMap,
+            openingEnabled = content.openingEnabled,
+            openingAnimationType = content.openingAnimationType,
+            openingBackgroundType = content.openingBackgroundType,
+            openingBackgroundColor = content.openingBackgroundColor,
+            openingImageUrl = content.openingImageUrl,
+            openingTitle = content.openingTitle,
+            openingMessage = content.openingMessage,
+            openingFontFamily = content.openingFontFamily,
+            openingFontColor = content.openingFontColor,
+            openingTitleFontSize = content.openingTitleFontSize,
+            openingMessageFontSize = content.openingMessageFontSize,
             subway = content.subway,
             bus = content.bus,
             car = content.car,
@@ -881,6 +926,17 @@ class InvitationService(
             locationContact = content.locationContact,
             showMap = content.showMap,
             lockMap = content.lockMap,
+            openingEnabled = content.openingEnabled,
+            openingAnimationType = content.openingAnimationType,
+            openingBackgroundType = content.openingBackgroundType,
+            openingBackgroundColor = content.openingBackgroundColor,
+            openingImageUrl = content.openingImageUrl,
+            openingTitle = content.openingTitle,
+            openingMessage = content.openingMessage,
+            openingFontFamily = content.openingFontFamily,
+            openingFontColor = content.openingFontColor,
+            openingTitleFontSize = content.openingTitleFontSize,
+            openingMessageFontSize = content.openingMessageFontSize,
         )
     }
 
@@ -924,6 +980,7 @@ class InvitationService(
 
     private fun validateBackgroundMusicUrlOwnedByUserOrDefault(userId: String, backgroundMusicUrl: String) {
         if (defaultBackgroundMusicUrls.contains(backgroundMusicUrl)) return
+        if (adminAuthorizationService.isAdmin(userId)) return
 
         val ownedByUser = fileAssetService.isOwnedActiveAssetUrl(
             userId = userId,

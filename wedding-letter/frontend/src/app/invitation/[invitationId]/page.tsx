@@ -182,6 +182,20 @@ function normalizeInvitation(data: Partial<InvitationData>, invitationId: string
     locationContact: data.locationContact,
     showMap: data.showMap ?? true,
     lockMap: data.lockMap ?? false,
+    openingEnabled: data.openingEnabled ?? false,
+    openingAnimationType:
+      data.openingAnimationType === "typewriter" || data.openingAnimationType === "soft-fade"
+        ? data.openingAnimationType
+        : "none",
+    openingBackgroundType: data.openingBackgroundType === "image" ? "image" : "color",
+    openingBackgroundColor: data.openingBackgroundColor ?? "#e6d8ca",
+    openingImageUrl: toNonEmptyString(data.openingImageUrl),
+    openingTitle: toNonEmptyString(data.openingTitle) ?? `${data.groomName ?? "신랑"} ${data.brideName ?? "신부"}`,
+    openingMessage: toNonEmptyString(data.openingMessage) ?? "우리 결혼합니다.",
+    openingFontFamily: toNonEmptyString(data.openingFontFamily) ?? normalizedThemeFontFamily,
+    openingFontColor: toNonEmptyString(data.openingFontColor),
+    openingTitleFontSize: data.openingTitleFontSize ?? 34,
+    openingMessageFontSize: data.openingMessageFontSize ?? 19,
   };
 }
 

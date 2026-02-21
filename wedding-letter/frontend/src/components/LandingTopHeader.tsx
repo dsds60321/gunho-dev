@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import { fetchAuthMe, logout } from "@/lib/auth";
@@ -79,7 +80,9 @@ export default function LandingTopHeader() {
       <header className="sticky top-0 z-50 border-b border-warm bg-white">
         <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-8">
           <div className="flex items-center gap-14">
-            <div className="serif-font text-2xl font-semibold tracking-tight text-theme-brand">Wedding Letter</div>
+            <Link className="serif-font text-2xl font-semibold tracking-tight text-theme-brand" href="/">
+              Wedding Letter
+            </Link>
             <nav className="hidden items-center gap-10 text-[14px] font-medium text-theme-secondary lg:flex">
               <button className="transition-colors hover:text-[var(--theme-brand)]" type="button" onClick={goToEditorWithGuard}>
                 모바일 청첩장

@@ -86,6 +86,17 @@ export type InvitationMobileViewData = {
   locationContact?: string;
   showMap?: boolean;
   lockMap?: boolean;
+  openingEnabled?: boolean;
+  openingAnimationType?: string;
+  openingBackgroundType?: string;
+  openingBackgroundColor?: string;
+  openingImageUrl?: string;
+  openingTitle?: string;
+  openingMessage?: string;
+  openingFontFamily?: string;
+  openingFontColor?: string;
+  openingTitleFontSize?: number;
+  openingMessageFontSize?: number;
 };
 
 type HeroEffectOptions = {
@@ -104,6 +115,14 @@ type InvitationMobileViewProps = {
 };
 
 const INVALID_ASSET_URL_TOKENS = new Set(["null", "undefined", "nan"]);
+const OPENING_BACKGROUND_DEFAULT = "#e6d8ca";
+const OPENING_TITLE_DEFAULT = "신랑 신부";
+const OPENING_MESSAGE_DEFAULT = "우리 결혼합니다.";
+const OPENING_TITLE_SIZE_DEFAULT = 34;
+const OPENING_MESSAGE_SIZE_DEFAULT = 19;
+const OPENING_TYPEWRITER_STEP_MS = 92;
+const OPENING_CLOSE_DELAY_MS = 900;
+const OPENING_CLOSE_DURATION_MS = 680;
 
 const HERO_EFFECT_DEFAULTS: HeroEffectOptions = {
   particleCount: 30,
@@ -188,6 +207,15 @@ function sanitizeAssetUrl(value?: string | null): string {
 function sanitizeAssetUrlList(values?: string[] | null): string[] {
   if (!Array.isArray(values)) return [];
   return values.map((value) => sanitizeAssetUrl(value)).filter(Boolean);
+}
+
+function pickReadableTextColor(backgroundHex: string): string {
+  const normalized = normalizeHexColor(backgroundHex, OPENING_BACKGROUND_DEFAULT);
+  const red = Number.parseInt(normalized.slice(1, 3), 16);
+  const green = Number.parseInt(normalized.slice(3, 5), 16);
+  const blue = Number.parseInt(normalized.slice(5, 7), 16);
+  const luma = (red * 299 + green * 587 + blue * 114) / 1000;
+  return luma >= 160 ? "#202228" : "#ffffff";
 }
 
 const SEOUL_TIME_ZONE = "Asia/Seoul";
@@ -327,6 +355,11 @@ export default function InvitationMobileView({
   const [isContactModalOpen, setIsContactModalOpen] = useState(false);
   const [isBackgroundMusicPlaying, setIsBackgroundMusicPlaying] = useState(false);
   const [backgroundMusicError, setBackgroundMusicError] = useState<string | null>(null);
+  const [isOpeningVisible, setIsOpeningVisible] = useState(false);
+  const [isOpeningClosing, setIsOpeningClosing] = useState(false);
+  const [typedOpeningTitle, setTypedOpeningTitle] = useState("");
+  const [typedOpeningMessage, setTypedOpeningMessage] = useState("");
+  const [openingViewportHeight, setOpeningViewportHeight] = useState(720);
   const dateInfo = useMemo(() => formatInvitationDate(invitation.weddingDateTime), [invitation.weddingDateTime]);
   const calendarInfo = useMemo(() => buildCalendarInfo(invitation.weddingDateTime), [invitation.weddingDateTime]);
   const [countdownInfo, setCountdownInfo] = useState(() => ({ days: "00", hours: "00", mins: "00", secs: "00", diffDaysText: "0" }));
@@ -386,6 +419,98 @@ export default function InvitationMobileView({
     () => (backgroundMusicUrl ? resolveAssetUrl(backgroundMusicUrl, apiBaseUrl) : ""),
     [backgroundMusicUrl, apiBaseUrl],
   );
+  const weddingTitle = `${invitation.groomName || "신랑"} & ${invitation.brideName || "신부"}`;
+  const openingAnimationType = useMemo(() => {
+    if (invitation.openingAnimationType === "typewriter") return "typewriter";
+    if (invitation.openingAnimationType === "soft-fade") return "soft-fade";
+    return "none";
+  }, [invitation.openingAnimationType]);
+  const openingEnabled = (invitation.openingEnabled ?? false) && openingAnimationType !== "none";
+  const openingBackgroundType = invitation.openingBackgroundType === "image" ? "image" : "color";
+  const openingBackgroundColor = useMemo(
+    () => normalizeHexColor(invitation.openingBackgroundColor, OPENING_BACKGROUND_DEFAULT),
+    [invitation.openingBackgroundColor],
+  );
+  const openingImageUrl = useMemo(
+    () => resolveAssetUrl(sanitizeAssetUrl(invitation.openingImageUrl), apiBaseUrl),
+    [invitation.openingImageUrl, apiBaseUrl],
+  );
+  const openingMessageText = useMemo(() => {
+    const normalized = invitation.openingMessage?.trim() ?? "";
+    return normalized || OPENING_MESSAGE_DEFAULT;
+  }, [invitation.openingMessage]);
+  const openingTitleText = useMemo(
+    () =>
+      (invitation.openingTitle?.trim() ?? "") ||
+      `${invitation.groomName || "신랑"} ${invitation.brideName || "신부"}` ||
+      OPENING_TITLE_DEFAULT,
+    [invitation.openingTitle, invitation.groomName, invitation.brideName],
+  );
+  const openingFontFamily = useMemo(
+    () => normalizeFontFamilyValue(invitation.openingFontFamily, contentFontFamily),
+    [invitation.openingFontFamily, contentFontFamily],
+  );
+  const openingFontColor = useMemo(() => {
+    if (invitation.openingFontColor && /^#[0-9a-fA-F]{6}$/.test(invitation.openingFontColor.trim())) {
+      return invitation.openingFontColor.trim();
+    }
+    return openingBackgroundType === "image" && openingImageUrl ? "#ffffff" : pickReadableTextColor(openingBackgroundColor);
+  }, [invitation.openingFontColor, openingBackgroundType, openingImageUrl, openingBackgroundColor]);
+  const openingTitleFontSize = useMemo(
+    () =>
+      Math.round(
+        clampHeroEffectValue(
+          Number(invitation.openingTitleFontSize ?? OPENING_TITLE_SIZE_DEFAULT),
+          12,
+          72,
+        ),
+      ),
+    [invitation.openingTitleFontSize],
+  );
+  const openingMessageFontSize = useMemo(
+    () =>
+      Math.round(
+        clampHeroEffectValue(
+          Number(invitation.openingMessageFontSize ?? OPENING_MESSAGE_SIZE_DEFAULT),
+          10,
+          52,
+        ),
+      ),
+    [invitation.openingMessageFontSize],
+  );
+  const openingBackgroundStyle = useMemo<CSSProperties>(() => {
+    if (openingBackgroundType === "image" && openingImageUrl) {
+      return {
+        backgroundImage: `linear-gradient(180deg, rgba(0, 0, 0, 0.28) 0%, rgba(0, 0, 0, 0.54) 100%), url(${openingImageUrl})`,
+        backgroundPosition: "center",
+        backgroundRepeat: "no-repeat",
+        backgroundSize: "cover",
+      };
+    }
+
+    return {
+      background: `linear-gradient(165deg, ${toRgba(openingBackgroundColor, 0.95)} 0%, ${toRgba(openingBackgroundColor, 0.82)} 100%)`,
+    };
+  }, [openingBackgroundType, openingImageUrl, openingBackgroundColor]);
+  const openingLayerPositionStyle = useMemo<CSSProperties>(() => {
+    if (embedded) {
+      return {
+        height: `${openingViewportHeight}px`,
+        inset: "0 0 auto 0",
+        position: "absolute",
+      };
+    }
+
+    return {
+      height: "100dvh",
+      left: "50%",
+      maxWidth: "420px",
+      position: "fixed",
+      top: 0,
+      transform: "translateX(-50%)",
+      width: "100vw",
+    };
+  }, [embedded, openingViewportHeight]);
   const revealEnabled = invitation.themeScrollReveal ?? THEME_DEFAULTS.scrollReveal;
   const patternStyle = useMemo(() => buildThemePatternStyle(themePattern, themeAccentColor), [themePattern, themeAccentColor]);
   const themeParticles = useMemo(() => buildThemeParticles(themeEffectType), [themeEffectType]);
@@ -440,6 +565,126 @@ export default function InvitationMobileView({
     const timer = window.setInterval(updateCountdown, 1000);
     return () => window.clearInterval(timer);
   }, [invitation.weddingDateTime]);
+
+  useEffect(() => {
+    const updateOpeningViewportHeight = () => {
+      if (embedded) {
+        const frameHeight = rootRef.current?.parentElement?.clientHeight ?? 0;
+        setOpeningViewportHeight(frameHeight > 0 ? frameHeight : 720);
+        return;
+      }
+      setOpeningViewportHeight(window.innerHeight > 0 ? window.innerHeight : 720);
+    };
+
+    updateOpeningViewportHeight();
+    window.addEventListener("resize", updateOpeningViewportHeight);
+    return () => window.removeEventListener("resize", updateOpeningViewportHeight);
+  }, [embedded]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const timers: number[] = [];
+    const queue = (handler: () => void, delay: number) => {
+      const timerId = window.setTimeout(() => {
+        if (cancelled) return;
+        handler();
+      }, delay);
+      timers.push(timerId);
+    };
+
+    if (!openingEnabled) {
+      queue(() => {
+        setIsOpeningVisible(false);
+        setIsOpeningClosing(false);
+        setTypedOpeningTitle("");
+        setTypedOpeningMessage("");
+      }, 0);
+      return () => {
+        cancelled = true;
+        timers.forEach((timer) => window.clearTimeout(timer));
+      };
+    }
+
+    const startClosing = () => {
+      setIsOpeningClosing(true);
+      queue(() => {
+        setIsOpeningVisible(false);
+        setIsOpeningClosing(false);
+      }, OPENING_CLOSE_DURATION_MS);
+    };
+
+    queue(() => {
+      setIsOpeningVisible(true);
+      setIsOpeningClosing(false);
+
+      if (openingAnimationType === "typewriter") {
+        setTypedOpeningTitle("");
+        setTypedOpeningMessage("");
+
+        let titleIndex = 0;
+        let messageIndex = 0;
+        const titleText = openingTitleText;
+        const messageText = openingMessageText;
+
+        const typeMessage = () => {
+          if (!messageText) {
+            queue(startClosing, OPENING_CLOSE_DELAY_MS);
+            return;
+          }
+          messageIndex += 1;
+          setTypedOpeningMessage(messageText.slice(0, messageIndex));
+          if (messageIndex < messageText.length) {
+            queue(typeMessage, OPENING_TYPEWRITER_STEP_MS - 8);
+            return;
+          }
+          queue(startClosing, OPENING_CLOSE_DELAY_MS);
+        };
+
+        const typeTitle = () => {
+          if (!titleText) {
+            queue(typeMessage, 180);
+            return;
+          }
+          titleIndex += 1;
+          setTypedOpeningTitle(titleText.slice(0, titleIndex));
+          if (titleIndex < titleText.length) {
+            queue(typeTitle, OPENING_TYPEWRITER_STEP_MS);
+            return;
+          }
+          queue(typeMessage, 180);
+        };
+
+        queue(typeTitle, 260);
+        return;
+      }
+
+      setTypedOpeningTitle(openingTitleText);
+      setTypedOpeningMessage(openingMessageText);
+      queue(startClosing, 3300);
+    }, 0);
+
+    return () => {
+      cancelled = true;
+      timers.forEach((timer) => window.clearTimeout(timer));
+    };
+  }, [
+    openingEnabled,
+    openingAnimationType,
+    openingTitleText,
+    openingMessageText,
+    openingBackgroundColor,
+    openingBackgroundType,
+    openingImageUrl,
+  ]);
+
+  useEffect(() => {
+    if (!isOpeningVisible || embedded) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isOpeningVisible, embedded]);
 
   useEffect(() => {
     const audio = backgroundMusicRef.current;
@@ -573,7 +818,6 @@ export default function InvitationMobileView({
       ].filter((row): row is { label: string; value: string } => Boolean(row.value))
     : [{ label: "계좌", value: invitation.accountNumber }].filter((row): row is { label: string; value: string } => Boolean(row.value));
 
-  const weddingTitle = `${invitation.groomName || "신랑"} & ${invitation.brideName || "신부"}`;
   const normalizedImageUrls = useMemo(() => sanitizeAssetUrlList(invitation.imageUrls), [invitation.imageUrls]);
   const heroImageCandidate = useMemo(
     () =>
@@ -665,15 +909,46 @@ export default function InvitationMobileView({
     return (
       <div className="absolute right-4 top-4 z-20 flex flex-col items-end gap-1.5">
         <button
-          className="inline-flex h-10 w-10 items-center justify-center rounded-full border-[0.5px] border-black/45 bg-white/95 text-black shadow-sm transition-colors hover:bg-white"
+          className={`invite-music-toggle ${isBackgroundMusicPlaying ? "is-playing" : ""}`}
           type="button"
           onClick={() => void toggleBackgroundMusic()}
           aria-label={isBackgroundMusicPlaying ? "배경음악 일시정지" : "배경음악 재생"}
           title={isBackgroundMusicPlaying ? "배경음악 일시정지" : "배경음악 재생"}
         >
-          <span className="material-symbols-outlined text-[18px]">{isBackgroundMusicPlaying ? "volume_up" : "volume_mute"}</span>
+          <span className="invite-music-bars" aria-hidden="true">
+            <span className="invite-music-bar" />
+            <span className="invite-music-bar" />
+            <span className="invite-music-bar" />
+            <span className="invite-music-bar" />
+          </span>
+          <span className="invite-music-indicator material-symbols-outlined">{isBackgroundMusicPlaying ? "stop" : "play_arrow"}</span>
         </button>
         {backgroundMusicError ? <p className="rounded-lg bg-black/65 px-2 py-1 text-[10px] text-white">{backgroundMusicError}</p> : null}
+      </div>
+    );
+  };
+  const renderOpeningOverlay = () => {
+    if (!isOpeningVisible) return null;
+
+    return (
+      <div className={`invite-opening-layer ${isOpeningClosing ? "is-closing" : ""}`} style={{ ...openingBackgroundStyle, ...openingLayerPositionStyle }}>
+        <div
+          className={`invite-opening-content ${openingAnimationType === "typewriter" ? "is-typewriter" : "is-soft-fade"}`}
+          style={{ color: openingFontColor, fontFamily: openingFontFamily }}
+        >
+          <p
+            className={`invite-opening-title whitespace-pre-line ${openingAnimationType === "typewriter" ? "invite-opening-caret" : ""}`}
+            style={{ fontSize: `${openingTitleFontSize}px` }}
+          >
+            {openingAnimationType === "typewriter" ? typedOpeningTitle : openingTitleText}
+          </p>
+          <p
+            className={`invite-opening-message whitespace-pre-line ${openingAnimationType === "typewriter" ? "invite-opening-caret-delay" : ""}`}
+            style={{ fontSize: `${openingMessageFontSize}px` }}
+          >
+            {openingAnimationType === "typewriter" ? typedOpeningMessage : openingMessageText}
+          </p>
+        </div>
       </div>
     );
   };
@@ -1060,7 +1335,9 @@ export default function InvitationMobileView({
         </div>
       ) : null}
 
-      <div className="relative z-[2]">
+      {renderOpeningOverlay()}
+
+      <div className={`relative z-[2] ${isOpeningVisible ? "pointer-events-none select-none" : ""}`}>
       {renderHeroSection()}
 
       <div className="space-y-8 px-6 py-10">

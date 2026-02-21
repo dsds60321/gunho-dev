@@ -398,89 +398,27 @@ input:disabled {
 
 .invite-music-toggle {
   align-items: center;
-  background: rgba(255, 255, 255, 0.96);
-  border: 0.5px solid rgba(0, 0, 0, 0.46);
+  backdrop-filter: blur(5px);
+  background: rgba(170, 170, 170, 0.28);
+  border: 1px solid rgba(255, 255, 255, 0.32);
   border-radius: 9999px;
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
-  color: #232323;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.18);
+  color: rgba(255, 255, 255, 0.95);
   display: inline-flex;
-  height: 42px;
+  height: 40px;
   justify-content: center;
-  position: relative;
-  transition: background-color 0.2s ease;
-  width: 42px;
+  transition: background-color 0.22s ease, transform 0.22s ease, opacity 0.22s ease;
+  width: 40px;
 }
 
 .invite-music-toggle:hover {
-  background: #ffffff;
+  background: rgba(165, 165, 165, 0.34);
+  transform: translateY(-1px);
 }
 
-.invite-music-bars {
-  align-items: flex-end;
-  display: inline-flex;
-  gap: 2px;
-  height: 16px;
-}
-
-.invite-music-bar {
-  background: rgba(0, 0, 0, 0.78);
-  border-radius: 9999px;
-  display: inline-block;
-  height: 12px;
-  transform: scaleY(0.28);
-  transform-origin: bottom;
-  transition: transform 0.2s ease;
-  width: 2.5px;
-}
-
-.invite-music-toggle .invite-music-bar:nth-child(1) {
-  animation-delay: 0s;
-}
-
-.invite-music-toggle .invite-music-bar:nth-child(2) {
-  animation-delay: 0.16s;
-}
-
-.invite-music-toggle .invite-music-bar:nth-child(3) {
-  animation-delay: 0.1s;
-}
-
-.invite-music-toggle .invite-music-bar:nth-child(4) {
-  animation-delay: 0.22s;
-}
-
-.invite-music-toggle.is-playing .invite-music-bar {
-  animation: invite-music-eq 0.95s ease-in-out infinite;
-}
-
-.invite-music-indicator {
-  bottom: 3px;
-  font-size: 11px;
-  left: 50%;
-  position: absolute;
-  transform: translateX(-50%);
-}
-
-.invite-music-toggle.is-playing .invite-music-indicator {
-  font-size: 9px;
-}
-
-@keyframes invite-music-eq {
-  0% {
-    transform: scaleY(0.2);
-  }
-  24% {
-    transform: scaleY(0.95);
-  }
-  56% {
-    transform: scaleY(0.34);
-  }
-  78% {
-    transform: scaleY(0.74);
-  }
-  100% {
-    transform: scaleY(0.28);
-  }
+.invite-music-icon {
+  font-size: 20px;
+  line-height: 1;
 }
 
 .invite-opening-layer {
@@ -505,6 +443,14 @@ input:disabled {
 .invite-opening-content {
   max-width: 360px;
   width: 100%;
+}
+
+.invite-modal-panel {
+  background-color: var(--theme-bg);
+  background-image: var(--invite-pattern-image, none);
+  background-position: var(--invite-pattern-position, 0 0);
+  background-repeat: var(--invite-pattern-repeat, repeat);
+  background-size: var(--invite-pattern-size, auto);
 }
 
 .invite-opening-title {
@@ -598,7 +544,19 @@ input:disabled {
 
 .invitation-theme-scope .bg-white {
   background-color: var(--invite-surface, rgba(255, 255, 255, 0.74)) !important;
+  background-image: var(--invite-pattern-image, none);
+  background-position: var(--invite-pattern-position, 0 0);
+  background-repeat: var(--invite-pattern-repeat, repeat);
+  background-size: var(--invite-pattern-size, auto);
   backdrop-filter: blur(1px);
+}
+
+.invitation-theme-scope .bg-theme {
+  background-color: var(--theme-bg) !important;
+  background-image: var(--invite-pattern-image, none);
+  background-position: var(--invite-pattern-position, 0 0);
+  background-repeat: var(--invite-pattern-repeat, repeat);
+  background-size: var(--invite-pattern-size, auto);
 }
 
 .invitation-theme-scope .bg-stone-50,
@@ -606,6 +564,10 @@ input:disabled {
 .invitation-theme-scope .bg-stone-200,
 .invitation-theme-scope .bg-gray-50 {
   background-color: var(--invite-surface-soft, rgba(255, 255, 255, 0.62)) !important;
+  background-image: var(--invite-pattern-image, none);
+  background-position: var(--invite-pattern-position, 0 0);
+  background-repeat: var(--invite-pattern-repeat, repeat);
+  background-size: var(--invite-pattern-size, auto);
 }
 
 .invitation-theme-scope .text-red-300,
@@ -660,6 +622,43 @@ input:disabled {
 .invitation-theme-scope.invite-reveal-enabled [data-invite-reveal].invite-reveal-visible {
   opacity: 1;
   transform: translate3d(0, 0, 0);
+}
+
+.invite-scroll-top {
+  align-items: center;
+  backdrop-filter: blur(5px);
+  background: rgba(170, 170, 170, 0.28);
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  border-radius: 9999px;
+  bottom: 16px;
+  color: rgba(255, 255, 255, 0.94);
+  display: inline-flex;
+  height: 45px;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  position: fixed;
+  right: max(12px, calc((100vw - 420px) / 2 + 12px));
+  transform: translate3d(0, 14px, 0);
+  transition: opacity 0.34s ease, transform 0.34s ease, background-color 0.25s ease;
+  width: 45px;
+  z-index: 72;
+}
+
+.invite-scroll-top.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translate3d(0, 0, 0);
+}
+
+.invite-scroll-top:hover {
+  background: rgba(165, 165, 165, 0.36);
+}
+
+.invite-scroll-top.is-embedded {
+  bottom: 14px;
+  position: fixed;
+  right: max(10px, calc((100vw - 420px) / 2 + 10px));
 }
 
 @keyframes invite-theme-fall {

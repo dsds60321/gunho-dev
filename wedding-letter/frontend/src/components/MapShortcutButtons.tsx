@@ -12,13 +12,14 @@ type MapShortcutButtonsProps = {
 type MapShortcutOption = {
   id: "naver" | "kakao" | "tmap";
   label: string;
+  iconSrc: string;
   appUrl: string;
   webUrl: string;
 };
 
-const DEFAULT_WRAPPER_CLASS = "flex justify-center gap-3 px-8";
+const DEFAULT_WRAPPER_CLASS = "grid grid-cols-3 gap-2 px-2.5";
 const DEFAULT_BUTTON_CLASS =
-  "flex-1 rounded-full border border-warm py-3 text-[11px] font-bold text-gray-600 hover:bg-gray-50 transition-colors";
+  "flex h-[44px] min-w-0 items-center justify-center gap-1 rounded-md border border-warm bg-white px-1 text-[12px] font-semibold text-theme-secondary shadow-[0_1px_0_rgba(0,0,0,0.02)] transition-colors hover:bg-theme";
 const APP_NAME = "wedding-letter";
 
 function buildMapShortcutOptions(query: string): MapShortcutOption[] {
@@ -27,22 +28,25 @@ function buildMapShortcutOptions(query: string): MapShortcutOption[] {
 
   return [
     {
-      id: "naver",
-      label: "네이버 지도",
-      appUrl: `nmap://search?query=${encodedQuery}&appname=${encodedAppName}`,
-      webUrl: `https://map.naver.com/v5/search/${encodedQuery}`,
+      id: "tmap",
+      label: "티맵",
+      iconSrc: "/tmap_icon.png",
+      appUrl: `tmap://search?name=${encodedQuery}`,
+      webUrl: "https://www.tmap.co.kr/",
     },
     {
       id: "kakao",
-      label: "카카오맵",
+      label: "카카오내비",
+      iconSrc: "/kakao_icon.png",
       appUrl: `kakaomap://search?q=${encodedQuery}`,
       webUrl: `https://map.kakao.com/?q=${encodedQuery}`,
     },
     {
-      id: "tmap",
-      label: "티맵",
-      appUrl: `tmap://search?name=${encodedQuery}`,
-      webUrl: "https://www.tmap.co.kr/",
+      id: "naver",
+      label: "네이버지도",
+      iconSrc: "/navermap_icon_2.png",
+      appUrl: `nmap://search?query=${encodedQuery}&appname=${encodedAppName}`,
+      webUrl: `https://map.naver.com/v5/search/${encodedQuery}`,
     },
   ];
 }
@@ -98,7 +102,8 @@ export default function MapShortcutButtons({
           }}
           disabled={disabled}
         >
-          {option.label}
+          <img src={option.iconSrc} alt="" className="h-[15px] w-[15px] shrink-0 object-contain" aria-hidden="true" />
+          <span className="min-w-0 truncate whitespace-nowrap leading-none">{option.label}</span>
         </button>
       ))}
     </div>

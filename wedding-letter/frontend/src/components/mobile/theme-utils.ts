@@ -45,10 +45,11 @@ export function clampThemeFontSize(value: number | undefined): number {
   return Math.min(28, Math.max(12, Math.round(value as number)));
 }
 
-export function buildThemePatternStyle(pattern: string, accentColor: string): CSSProperties {
-  const strong = toRgba(accentColor, 0.12);
-  const soft = toRgba(accentColor, 0.08);
-  const subtle = toRgba(accentColor, 0.05);
+export function buildThemePatternStyle(pattern: string, accentColor: string, patternColor: string = accentColor): CSSProperties {
+  const patternTone = normalizeHexColor(patternColor, accentColor);
+  const strong = toRgba(patternTone, 0.12);
+  const soft = toRgba(patternTone, 0.08);
+  const subtle = toRgba(patternTone, 0.05);
 
   if (pattern === "dot") {
     return {
@@ -76,6 +77,87 @@ export function buildThemePatternStyle(pattern: string, accentColor: string): CS
       backgroundImage: `radial-gradient(circle at 20% 20%, ${soft} 0 12%, transparent 13%), radial-gradient(circle at 80% 80%, ${strong} 0 10%, transparent 11%)`,
       backgroundSize: "48px 48px",
     };
+  }
+
+  if (pattern === "paper") {
+    return {
+      backgroundImage:
+        `repeating-linear-gradient(45deg, ${toRgba(patternTone, 0.048)} 0 2px, transparent 2px 10px),` +
+        `repeating-linear-gradient(-45deg, ${toRgba(patternTone, 0.048)} 0 2px, transparent 2px 10px)`,
+      backgroundSize: "18px 18px, 18px 18px",
+    };
+  }
+
+  if (pattern === "hanji-texture") {
+    const red = Number.parseInt(patternTone.slice(1, 3), 16);
+    const green = Number.parseInt(patternTone.slice(3, 5), 16);
+    const blue = Number.parseInt(patternTone.slice(5, 7), 16);
+    const makeSeededRandom = (initialSeed: number) => {
+      let seed = initialSeed >>> 0;
+      return () => {
+        seed = (seed * 1664525 + 1013904223) >>> 0;
+        return seed / 4294967296;
+      };
+    };
+    const createHanjiEmbossSvg = (tileSize: number, count: number, seed: number) => {
+      const rand = makeSeededRandom(seed);
+      let shapes = "";
+
+      for (let index = 0; index < count; index += 1) {
+        const x = rand() * tileSize;
+        const y = rand() * tileSize;
+        const isLongStroke = rand() < 0.34;
+        const rx = isLongStroke ? 2.4 + rand() * 5.6 : 0.8 + rand() * 2.7;
+        const ry = isLongStroke ? 0.3 + rand() * 0.9 : 0.38 + rand() * 1.26;
+        const angle = -82 + rand() * 164;
+        const darkDx = 0.28 + rand() * 0.58;
+        const darkDy = 0.28 + rand() * 0.58;
+        const lightDx = 0.24 + rand() * 0.5;
+        const lightDy = 0.24 + rand() * 0.5;
+        const darkOpacity = 0.036 + rand() * 0.07;
+        const lightOpacity = 0.042 + rand() * 0.08;
+        const highlightRx = Math.max(0.24, rx - (0.2 + rand() * 0.58));
+        const highlightRy = Math.max(0.16, ry - (0.08 + rand() * 0.3));
+
+        shapes +=
+          `<g transform='rotate(${angle.toFixed(2)} ${x.toFixed(2)} ${y.toFixed(2)})'>` +
+          `<ellipse cx='${(x + darkDx).toFixed(2)}' cy='${(y + darkDy).toFixed(2)}' rx='${rx.toFixed(2)}' ry='${ry.toFixed(2)}' fill='black' opacity='${darkOpacity.toFixed(3)}'/>` +
+          `<ellipse cx='${(x - lightDx).toFixed(2)}' cy='${(y - lightDy).toFixed(2)}' rx='${highlightRx.toFixed(2)}' ry='${highlightRy.toFixed(2)}' fill='white' opacity='${lightOpacity.toFixed(3)}'/>` +
+          `</g>`;
+      }
+
+      return (
+        `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 ${tileSize} ${tileSize}' preserveAspectRatio='none'>` +
+        `<filter id='hanji' x='-6%' y='-6%' width='112%' height='112%'><feGaussianBlur stdDeviation='0.38'/></filter>` +
+        `<g filter='url(#hanji)'>${shapes}</g>` +
+        `</svg>`
+      );
+    };
+
+    const hanjiSvgA = createHanjiEmbossSvg(460, 186, 17);
+    const hanjiSvgB = createHanjiEmbossSvg(336, 128, 59);
+    const hanjiReliefSvg = createHanjiEmbossSvg(620, 88, 83);
+    const hanjiNoiseSvg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 260 260'><filter id='n' x='0' y='0' width='100%' height='100%'><feTurbulence type='fractalNoise' baseFrequency='0.92' numOctaves='2' seed='31' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/><feComponentTransfer><feFuncA type='table' tableValues='0 0.078'/></feComponentTransfer></filter><rect width='260' height='260' fill='rgb(${red},${green},${blue})' opacity='0.24' filter='url(#n)'/></svg>`;
+    const hanjiTextureA = `url("data:image/svg+xml,${encodeURIComponent(hanjiSvgA)}")`;
+    const hanjiTextureB = `url("data:image/svg+xml,${encodeURIComponent(hanjiSvgB)}")`;
+    const hanjiReliefTexture = `url("data:image/svg+xml,${encodeURIComponent(hanjiReliefSvg)}")`;
+    const hanjiNoiseTexture = `url("data:image/svg+xml,${encodeURIComponent(hanjiNoiseSvg)}")`;
+
+    return {
+      backgroundImage:
+        `${hanjiReliefTexture},` +
+        `${hanjiTextureA},` +
+        `${hanjiTextureB},` +
+        `${hanjiNoiseTexture},` +
+        `linear-gradient(180deg, ${toRgba("#ffffff", 0.068)} 0%, ${toRgba("#000000", 0.03)} 100%)`,
+      backgroundSize: "620px 620px, 460px 460px, 336px 336px, 260px 260px, 100% 100%",
+      backgroundPosition: "0 0, 0 0, 0 0, 0 0, 0 0",
+      backgroundRepeat: "repeat",
+    };
+  }
+
+  if (pattern === "paper-texture") {
+    return {};
   }
 
   return {};

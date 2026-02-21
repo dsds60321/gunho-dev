@@ -93,28 +93,6 @@ export default function LoginPage() {
               </button>
             </div>
           ) : null}
-
-          <div className="flex items-center gap-4 py-2">
-            <div className="h-px flex-1 bg-[var(--theme-divider)]" />
-            <span className="text-[10px] font-bold uppercase tracking-widest text-gray-300">Or</span>
-            <div className="h-px flex-1 bg-[var(--theme-divider)]" />
-          </div>
-
-          <button className="text-xs font-bold uppercase tracking-widest text-gray-400 transition-colors hover:text-[var(--theme-brand)]" type="button">
-            이메일 로그인(준비중)
-          </button>
-        </div>
-
-        <div className="flex items-center justify-center gap-8 text-[11px] font-medium text-gray-400">
-          <a className="hover:text-[var(--theme-brand)]" href="#">
-            이용약관
-          </a>
-          <a className="hover:text-[var(--theme-brand)]" href="#">
-            개인정보처리방침
-          </a>
-          <a className="hover:text-[var(--theme-brand)]" href="#">
-            고객센터
-          </a>
         </div>
 
         <Link className="inline-block text-xs text-theme-secondary underline" href="/">

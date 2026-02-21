@@ -157,8 +157,15 @@ class InvitationService(
         request.fontFamily?.let { content.fontFamily = it }
         request.fontColor?.let { content.fontColor = it }
         request.fontSize?.let { content.fontSize = it }
+        request.heroMainFontFamily?.let { content.heroMainFontFamily = it }
+        request.heroMainFontColor?.let { content.heroMainFontColor = it.trim() }
+        request.heroMainFontSize?.let { content.heroMainFontSize = it.coerceIn(12, 42) }
+        request.heroSubFontFamily?.let { content.heroSubFontFamily = it }
+        request.heroSubFontColor?.let { content.heroSubFontColor = it.trim() }
+        request.heroSubFontSize?.let { content.heroSubFontSize = it.coerceIn(10, 36) }
         request.useGuestbook?.let { content.useGuestbook = it }
         request.useRsvpModal?.let { content.useRsvpModal = it }
+        request.rsvpAutoOpenOnLoad?.let { content.rsvpAutoOpenOnLoad = it }
         request.backgroundMusicUrl?.let { rawBackgroundMusicUrl ->
             val normalizedBackgroundMusicUrl = rawBackgroundMusicUrl.trim()
             if (normalizedBackgroundMusicUrl.isBlank()) {
@@ -182,6 +189,7 @@ class InvitationService(
         request.themeBackgroundColor?.let { content.themeBackgroundColor = it.trim() }
         request.themeTextColor?.let { content.themeTextColor = it.trim() }
         request.themeAccentColor?.let { content.themeAccentColor = it.trim() }
+        request.themePatternColor?.let { content.themePatternColor = it.trim() }
         request.themePattern?.let { content.themePattern = it.trim() }
         request.themeEffectType?.let { content.themeEffectType = it.trim() }
         request.themeFontFamily?.let { content.themeFontFamily = it }
@@ -708,6 +716,7 @@ class InvitationService(
             themeBackgroundColor = content.themeBackgroundColor,
             themeTextColor = content.themeTextColor,
             themeAccentColor = content.themeAccentColor,
+            themePatternColor = content.themePatternColor,
             themePattern = content.themePattern,
             themeEffectType = content.themeEffectType,
             themeFontFamily = content.themeFontFamily,
@@ -750,10 +759,17 @@ class InvitationService(
             car = content.car,
             useGuestbook = content.useGuestbook,
             useRsvpModal = content.useRsvpModal,
+            rsvpAutoOpenOnLoad = content.rsvpAutoOpenOnLoad,
             backgroundMusicUrl = content.backgroundMusicUrl,
             fontFamily = content.fontFamily,
             fontColor = content.fontColor,
             fontSize = content.fontSize,
+            heroMainFontFamily = content.heroMainFontFamily,
+            heroMainFontColor = content.heroMainFontColor,
+            heroMainFontSize = content.heroMainFontSize,
+            heroSubFontFamily = content.heroSubFontFamily,
+            heroSubFontColor = content.heroSubFontColor,
+            heroSubFontSize = content.heroSubFontSize,
             accountNumber = content.accountNumber,
             useSeparateAccounts = content.useSeparateAccounts,
             groomAccountNumber = content.groomAccountNumber,
@@ -890,8 +906,15 @@ class InvitationService(
             fontFamily = content.fontFamily,
             fontColor = content.fontColor,
             fontSize = content.fontSize,
+            heroMainFontFamily = content.heroMainFontFamily,
+            heroMainFontColor = content.heroMainFontColor,
+            heroMainFontSize = content.heroMainFontSize,
+            heroSubFontFamily = content.heroSubFontFamily,
+            heroSubFontColor = content.heroSubFontColor,
+            heroSubFontSize = content.heroSubFontSize,
             useGuestbook = content.useGuestbook,
             useRsvpModal = content.useRsvpModal,
+            rsvpAutoOpenOnLoad = content.rsvpAutoOpenOnLoad,
             backgroundMusicUrl = content.backgroundMusicUrl,
             seoTitle = content.seoTitle,
             seoDescription = content.seoDescription,
@@ -901,6 +924,7 @@ class InvitationService(
             themeBackgroundColor = content.themeBackgroundColor,
             themeTextColor = content.themeTextColor,
             themeAccentColor = content.themeAccentColor,
+            themePatternColor = content.themePatternColor,
             themePattern = content.themePattern,
             themeEffectType = content.themeEffectType,
             themeFontFamily = content.themeFontFamily,
@@ -1061,6 +1085,7 @@ class InvitationService(
         content.themeBackgroundColor = companyProfile.invitationThemeBackgroundColor.trim().ifBlank { content.themeBackgroundColor ?: "#fdf8f5" }
         content.themeTextColor = companyProfile.invitationThemeTextColor.trim().ifBlank { content.themeTextColor ?: "#4a2c2a" }
         content.themeAccentColor = companyProfile.invitationThemeAccentColor.trim().ifBlank { content.themeAccentColor ?: "#803b2a" }
+        content.themePatternColor = content.themeAccentColor
         content.themePattern = companyProfile.invitationThemePattern.trim().ifBlank { content.themePattern ?: "none" }
         content.themeEffectType = companyProfile.invitationThemeEffectType.trim().ifBlank { content.themeEffectType ?: "none" }
         content.themeFontFamily = companyProfile.invitationThemeFontFamily.trim().ifBlank { content.themeFontFamily ?: "'Noto Sans KR', sans-serif" }

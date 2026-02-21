@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 export type WeddingGalleryMode = "swipe" | "thumbnail-swipe" | "grid";
@@ -24,12 +24,9 @@ export default function WeddingGallery({ images, mode, autoSlideMs = 3200 }: Wed
   const [isViewMoreOpen, setIsViewMoreOpen] = useState(false);
   const [isImageFullscreenOpen, setIsImageFullscreenOpen] = useState(false);
   const [fullscreenIndex, setFullscreenIndex] = useState(0);
-  const [mounted, setMounted] = useState(false);
+  const thumbnailStripRef = useRef<HTMLDivElement>(null);
   const resolvedIndex = safeImages.length === 0 ? 0 : Math.min(activeIndex, safeImages.length - 1);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const resolvedFullscreenIndex = safeImages.length === 0 ? 0 : Math.min(fullscreenIndex, safeImages.length - 1);
 
   useEffect(() => {
     if (galleryMode === "grid" || safeImages.length < 2) return;
@@ -38,17 +35,6 @@ export default function WeddingGallery({ images, mode, autoSlideMs = 3200 }: Wed
     }, autoSlideMs);
     return () => window.clearInterval(timer);
   }, [autoSlideMs, galleryMode, safeImages.length]);
-
-  useEffect(() => {
-    if (safeImages.length === 0) {
-      setIsViewMoreOpen(false);
-      setIsImageFullscreenOpen(false);
-      setFullscreenIndex(0);
-      return;
-    }
-    setActiveIndex((prev) => Math.min(prev, safeImages.length - 1));
-    setFullscreenIndex((prev) => Math.min(prev, safeImages.length - 1));
-  }, [safeImages.length]);
 
   if (safeImages.length === 0) return null;
 
@@ -70,50 +56,18 @@ export default function WeddingGallery({ images, mode, autoSlideMs = 3200 }: Wed
   const moveFullscreenNext = () => {
     setFullscreenIndex((prev) => (prev + 1) % safeImages.length);
   };
-  const openViewMore = () => setIsViewMoreOpen(true);
-  const closeViewMore = () => setIsViewMoreOpen(false);
+  const toggleViewMore = () => setIsViewMoreOpen((prev) => !prev);
   const closeImageFullscreen = () => setIsImageFullscreenOpen(false);
+  const moveThumbnailStrip = (direction: "prev" | "next") => {
+    const strip = thumbnailStripRef.current;
+    if (!strip) return;
+    const amount = Math.max(88, Math.round(strip.clientWidth * 0.62));
+    strip.scrollBy({ left: direction === "prev" ? -amount : amount, behavior: "smooth" });
+  };
 
-  const viewMoreModal =
-    mounted && isViewMoreOpen
-      ? createPortal(
-          <div
-            className="fixed inset-0 z-[240] flex items-center justify-center bg-black/70 p-4"
-            role="dialog"
-            aria-modal="true"
-            aria-label="갤러리 전체 보기"
-            onClick={closeViewMore}
-          >
-            <div className="w-full max-w-[720px] rounded-3xl bg-white p-5 md:p-6" onClick={(event) => event.stopPropagation()}>
-              <div className="mb-4 flex items-center justify-between">
-                <p className="text-sm font-bold text-theme-brand">전체 갤러리</p>
-                <button className="rounded-full p-1 text-theme-secondary transition-colors hover:bg-theme hover:text-theme-brand" type="button" onClick={closeViewMore}>
-                  <span className="material-symbols-outlined">close</span>
-                </button>
-              </div>
-              <div className="grid max-h-[70vh] grid-cols-2 gap-2 overflow-y-auto md:grid-cols-3">
-                {safeImages.map((url, index) => (
-                  <button
-                    key={`${url}-full-${index}`}
-                    type="button"
-                    className="overflow-hidden rounded-lg"
-                    onClick={() => {
-                      closeViewMore();
-                      openImageFullscreen(index);
-                    }}
-                  >
-                    <img className="aspect-square w-full object-cover transition-transform duration-200 hover:scale-[1.03]" src={url} alt={`gallery-full-${index + 1}`} />
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>,
-          document.body,
-        )
-      : null;
-
+  const canUsePortal = typeof document !== "undefined";
   const fullscreenModal =
-    mounted && isImageFullscreenOpen
+    canUsePortal && isImageFullscreenOpen
       ? createPortal(
           <div
             className="fixed inset-0 z-[250] flex items-center justify-center bg-black/90 p-4"
@@ -151,7 +105,11 @@ export default function WeddingGallery({ images, mode, autoSlideMs = 3200 }: Wed
                 </>
               ) : null}
 
-              <img className="max-h-[88vh] w-auto max-w-[92vw] rounded-2xl object-contain shadow-2xl" src={safeImages[fullscreenIndex]} alt={`gallery-preview-${fullscreenIndex + 1}`} />
+              <img
+                className="max-h-[88vh] w-auto max-w-[92vw] rounded-2xl object-contain shadow-2xl"
+                src={safeImages[resolvedFullscreenIndex]}
+                alt={`gallery-preview-${resolvedFullscreenIndex + 1}`}
+              />
             </div>
           </div>,
           document.body,
@@ -159,10 +117,11 @@ export default function WeddingGallery({ images, mode, autoSlideMs = 3200 }: Wed
       : null;
 
   if (galleryMode === "grid") {
+    const visibleImages = isViewMoreOpen ? safeImages : safeImages.slice(0, 4);
     return (
       <div className="space-y-3">
         <div className="grid grid-cols-2 gap-2">
-          {safeImages.slice(0, 4).map((url, index) => (
+          {visibleImages.map((url, index) => (
             <button key={`${url}-${index}`} type="button" className="overflow-hidden rounded-xl" onClick={() => openImageFullscreen(index)}>
               <img className="aspect-square w-full rounded-xl object-cover transition-transform duration-200 hover:scale-[1.03]" src={url} alt={`gallery-${index + 1}`} />
             </button>
@@ -171,14 +130,13 @@ export default function WeddingGallery({ images, mode, autoSlideMs = 3200 }: Wed
         {safeImages.length > 4 ? (
           <button
             type="button"
-            className="mx-auto flex items-center gap-1 rounded-full border border-warm bg-white px-4 py-2 text-xs font-bold text-theme-secondary hover:bg-theme"
-            onClick={openViewMore}
+            className="mx-auto flex items-center gap-1 rounded-full bg-white/85 px-4 py-2 text-xs font-bold text-theme-secondary shadow-sm hover:bg-theme"
+            onClick={toggleViewMore}
           >
-            <span className="material-symbols-outlined text-[16px]">grid_view</span>
-            <span>View More</span>
+            <span>{isViewMoreOpen ? "접기" : "더 보기"}</span>
+            <span className="material-symbols-outlined text-[16px]">{isViewMoreOpen ? "keyboard_arrow_up" : "keyboard_arrow_down"}</span>
           </button>
         ) : null}
-        {viewMoreModal}
         {fullscreenModal}
       </div>
     );
@@ -211,32 +169,44 @@ export default function WeddingGallery({ images, mode, autoSlideMs = 3200 }: Wed
       </div>
 
       {galleryMode === "thumbnail-swipe" ? (
-        <div className="flex gap-2 overflow-x-auto pb-1">
-          {safeImages.map((url, index) => (
-            <button
-              key={`${url}-thumb-${index}`}
-              type="button"
-              onClick={() => setActiveIndex(index)}
-              className={`shrink-0 overflow-hidden rounded border ${index === resolvedIndex ? "border-theme-brand" : "border-warm"}`}
+        <div className="relative">
+          {safeImages.length > 4 ? (
+            <>
+              <button
+                type="button"
+                className="absolute left-0 top-1/2 z-10 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full bg-black/35 text-white shadow-sm md:hidden"
+                onClick={() => moveThumbnailStrip("prev")}
+                aria-label="썸네일 이전"
+              >
+                <span className="material-symbols-outlined text-[16px]">chevron_left</span>
+              </button>
+              <button
+                type="button"
+                className="absolute right-0 top-1/2 z-10 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full bg-black/35 text-white shadow-sm md:hidden"
+                onClick={() => moveThumbnailStrip("next")}
+                aria-label="썸네일 다음"
+              >
+                <span className="material-symbols-outlined text-[16px]">chevron_right</span>
+              </button>
+            </>
+          ) : null}
+            <div
+              ref={thumbnailStripRef}
+              className={`hide-scrollbar flex gap-2 overflow-x-auto pb-1 ${safeImages.length > 4 ? "px-8 md:px-0" : ""}`}
             >
-              <img className="h-14 w-14 object-cover" src={url} alt={`gallery-thumb-${index + 1}`} />
-            </button>
-          ))}
+            {safeImages.map((url, index) => (
+              <button
+                key={`${url}-thumb-${index}`}
+                type="button"
+                onClick={() => setActiveIndex(index)}
+                className={`shrink-0 overflow-hidden rounded border ${index === resolvedIndex ? "border-theme-brand" : "border-warm"}`}
+              >
+                <img className="h-14 w-14 object-cover" src={url} alt={`gallery-thumb-${index + 1}`} />
+              </button>
+            ))}
+          </div>
         </div>
       ) : null}
-
-      {safeImages.length > 4 ? (
-        <button
-          type="button"
-          className="mx-auto flex items-center gap-1 rounded-full border border-warm bg-white px-4 py-2 text-xs font-bold text-theme-secondary hover:bg-theme"
-          onClick={openViewMore}
-        >
-          <span className="material-symbols-outlined text-[16px]">grid_view</span>
-          <span>View More</span>
-        </button>
-      ) : null}
-
-      {viewMoreModal}
       {fullscreenModal}
     </div>
   );

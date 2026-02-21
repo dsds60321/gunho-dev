@@ -132,8 +132,15 @@ type EditorInvitation = {
   fontFamily?: string | null;
   fontColor?: string | null;
   fontSize?: number | null;
+  heroMainFontFamily?: string | null;
+  heroMainFontColor?: string | null;
+  heroMainFontSize?: number | null;
+  heroSubFontFamily?: string | null;
+  heroSubFontColor?: string | null;
+  heroSubFontSize?: number | null;
   useGuestbook: boolean;
   useRsvpModal: boolean;
+  rsvpAutoOpenOnLoad?: boolean | null;
   backgroundMusicUrl?: string | null;
   seoTitle?: string | null;
   seoDescription?: string | null;
@@ -143,6 +150,7 @@ type EditorInvitation = {
   themeBackgroundColor?: string | null;
   themeTextColor?: string | null;
   themeAccentColor?: string | null;
+  themePatternColor?: string | null;
   themePattern?: string | null;
   themeEffectType?: string | null;
   themeFontFamily?: string | null;
@@ -225,8 +233,15 @@ type FormState = {
   fontFamily: string;
   fontColor: string;
   fontSize: string;
+  heroMainFontFamily: string;
+  heroMainFontColor: string;
+  heroMainFontSize: number;
+  heroSubFontFamily: string;
+  heroSubFontColor: string;
+  heroSubFontSize: number;
   useGuestbook: boolean;
   useRsvpModal: boolean;
+  rsvpAutoOpenOnLoad: boolean;
   backgroundMusicUrl: string;
   accountBank: string;
   groomAccountBank: string;
@@ -239,6 +254,7 @@ type FormState = {
   themeBackgroundColor: string;
   themeTextColor: string;
   themeAccentColor: string;
+  themePatternColor: string;
   themePattern: string;
   themeEffectType: string;
   themeFontFamily: string;
@@ -309,8 +325,15 @@ const defaultFormState: FormState = {
   fontFamily: DEFAULT_FONT_FAMILY,
   fontColor: "#333333",
   fontSize: "16",
+  heroMainFontFamily: DEFAULT_FONT_FAMILY,
+  heroMainFontColor: "#333333",
+  heroMainFontSize: 28,
+  heroSubFontFamily: DEFAULT_FONT_FAMILY,
+  heroSubFontColor: "#333333",
+  heroSubFontSize: 16,
   useGuestbook: true,
   useRsvpModal: true,
+  rsvpAutoOpenOnLoad: false,
   backgroundMusicUrl: "",
   accountBank: "",
   groomAccountBank: "",
@@ -323,6 +346,7 @@ const defaultFormState: FormState = {
   themeBackgroundColor: "#fdf8f5",
   themeTextColor: "#4a2c2a",
   themeAccentColor: "#803b2a",
+  themePatternColor: "#803b2a",
   themePattern: "none",
   themeEffectType: "none",
   themeFontFamily: DEFAULT_FONT_FAMILY,
@@ -337,9 +361,9 @@ const defaultFormState: FormState = {
   heroAccentFontFamily: "'Playfair Display', serif",
   messageFontFamily: DEFAULT_FONT_FAMILY,
   transportFontFamily: DEFAULT_FONT_FAMILY,
-  rsvpTitle: "참석 의사 전달",
+  rsvpTitle: "참석 여부 전달",
   rsvpMessage: "특별한 날 축하의 마음으로 참석해주시는 모든 분들을 위해\n참석 여부 전달을 부탁드립니다.",
-  rsvpButtonText: "참석의사 전달하기",
+  rsvpButtonText: "참석 여부 전달",
   rsvpFontFamily: DEFAULT_FONT_FAMILY,
   locationTitle: "오시는 길",
   locationFloorHall: "",
@@ -475,6 +499,8 @@ const THEME_PATTERN_OPTIONS = [
   { id: "grid", name: "그리드" },
   { id: "linen", name: "린넨" },
   { id: "petal", name: "꽃잎 무늬" },
+  { id: "paper", name: "체크패턴" },
+  { id: "hanji-texture", name: "한지패턴" },
 ];
 
 const THEME_EFFECT_OPTIONS = [
@@ -496,9 +522,9 @@ const EDITOR_SECTION_META: Record<EditorSectionKey, { title: string; hint: strin
   location: { title: "예식 장소", hint: "주소/지도" },
   transport: { title: "교통 안내", hint: "지하철/버스/자가용" },
   guestbook: { title: "방명록", hint: "사용 여부/등록" },
-  rsvp: { title: "RSVP", hint: "참석 의사 팝업" },
+  rsvp: { title: "참석여부 전달", hint: "팝업/자동 노출" },
   music: { title: "배경 음악", hint: "BGM 설정" },
-  detail: { title: "추가 정보", hint: "SEO/갤러리/링크" },
+  detail: { title: "추가 정보", hint: "미리보기/갤러리/링크" },
 };
 
 function buildOpenSections(sectionKey: EditorSectionKey): Record<EditorSectionKey, boolean> {
@@ -685,8 +711,39 @@ function buildFormStateFromInvitation(data: EditorInvitation): FormState {
     fontFamily: normalizeFontFamilyValue(data.fontFamily, defaultFormState.fontFamily),
     fontColor: data.fontColor ?? "#333333",
     fontSize: String(data.fontSize ?? 16),
+    heroMainFontFamily: normalizeFontFamilyValue(
+      typedData.heroMainFontFamily ?? data.fontFamily,
+      defaultFormState.heroMainFontFamily,
+    ),
+    heroMainFontColor: sanitizeColorValue(
+      typedData.heroMainFontColor ?? data.fontColor ?? defaultFormState.heroMainFontColor,
+      defaultFormState.heroMainFontColor,
+    ),
+    heroMainFontSize: Math.round(
+      clampHeroEffectValue(
+        Number(typedData.heroMainFontSize ?? data.fontSize ?? defaultFormState.heroMainFontSize),
+        12,
+        42,
+      ),
+    ),
+    heroSubFontFamily: normalizeFontFamilyValue(
+      typedData.heroSubFontFamily ?? data.fontFamily,
+      defaultFormState.heroSubFontFamily,
+    ),
+    heroSubFontColor: sanitizeColorValue(
+      typedData.heroSubFontColor ?? data.fontColor ?? defaultFormState.heroSubFontColor,
+      defaultFormState.heroSubFontColor,
+    ),
+    heroSubFontSize: Math.round(
+      clampHeroEffectValue(
+        Number(typedData.heroSubFontSize ?? data.fontSize ?? defaultFormState.heroSubFontSize),
+        10,
+        36,
+      ),
+    ),
     useGuestbook: data.useGuestbook ?? true,
     useRsvpModal: data.useRsvpModal ?? true,
+    rsvpAutoOpenOnLoad: typedData.rsvpAutoOpenOnLoad ?? defaultFormState.rsvpAutoOpenOnLoad,
     backgroundMusicUrl: sanitizeAssetUrl(data.backgroundMusicUrl),
     accountBank: mainAccount.bank,
     groomAccountBank: groomAccount.bank,
@@ -707,6 +764,10 @@ function buildFormStateFromInvitation(data: EditorInvitation): FormState {
     themeAccentColor: sanitizeColorValue(
       typedData.themeAccentColor ?? defaultFormState.themeAccentColor,
       defaultFormState.themeAccentColor,
+    ),
+    themePatternColor: sanitizeColorValue(
+      typedData.themePatternColor ?? typedData.themeAccentColor ?? defaultFormState.themePatternColor,
+      defaultFormState.themePatternColor,
     ),
     themePattern: typedData.themePattern ?? defaultFormState.themePattern,
     themeEffectType: typedData.themeEffectType ?? defaultFormState.themeEffectType,
@@ -794,11 +855,18 @@ function createUnsavedInvitation(): EditorInvitation {
     useSeparateAccounts: defaultFormState.useSeparateAccounts,
     useGuestbook: defaultFormState.useGuestbook,
     useRsvpModal: defaultFormState.useRsvpModal,
+    rsvpAutoOpenOnLoad: defaultFormState.rsvpAutoOpenOnLoad,
     heroDesignId: defaultFormState.heroDesignId,
     heroEffectType: defaultFormState.heroEffectType,
     heroEffectParticleCount: defaultFormState.heroEffectParticleCount,
     heroEffectSpeed: defaultFormState.heroEffectSpeed,
     heroEffectOpacity: defaultFormState.heroEffectOpacity,
+    heroMainFontFamily: defaultFormState.heroMainFontFamily,
+    heroMainFontColor: defaultFormState.heroMainFontColor,
+    heroMainFontSize: defaultFormState.heroMainFontSize,
+    heroSubFontFamily: defaultFormState.heroSubFontFamily,
+    heroSubFontColor: defaultFormState.heroSubFontColor,
+    heroSubFontSize: defaultFormState.heroSubFontSize,
     heroAccentFontFamily: defaultFormState.heroAccentFontFamily,
     messageFontFamily: defaultFormState.messageFontFamily,
     transportFontFamily: defaultFormState.transportFontFamily,
@@ -825,6 +893,7 @@ function createUnsavedInvitation(): EditorInvitation {
     themeBackgroundColor: defaultFormState.themeBackgroundColor,
     themeTextColor: defaultFormState.themeTextColor,
     themeAccentColor: defaultFormState.themeAccentColor,
+    themePatternColor: defaultFormState.themePatternColor,
     themePattern: defaultFormState.themePattern,
     themeEffectType: defaultFormState.themeEffectType,
     themeFontFamily: defaultFormState.themeFontFamily,
@@ -1616,7 +1685,8 @@ export default function EditorPage() {
   };
 
   const buildSavePayload = () => {
-    const parsedFontSize = Number(form.fontSize);
+    const parsedMainFontSize = Number(form.heroMainFontSize);
+    const parsedSubFontSize = Number(form.heroSubFontSize);
 
     return {
       groomName: form.groomName,
@@ -1648,11 +1718,18 @@ export default function EditorPage() {
       bus: form.bus,
       subway: form.subway,
       car: form.car,
-      fontFamily: form.fontFamily,
-      fontColor: form.fontColor,
-      fontSize: Number.isFinite(parsedFontSize) && parsedFontSize > 0 ? parsedFontSize : null,
+      fontFamily: form.heroMainFontFamily,
+      fontColor: sanitizeColorValue(form.heroMainFontColor, defaultFormState.heroMainFontColor),
+      fontSize: Number.isFinite(parsedMainFontSize) && parsedMainFontSize > 0 ? parsedMainFontSize : null,
+      heroMainFontFamily: form.heroMainFontFamily,
+      heroMainFontColor: sanitizeColorValue(form.heroMainFontColor, defaultFormState.heroMainFontColor),
+      heroMainFontSize: Number.isFinite(parsedMainFontSize) ? Math.round(clampHeroEffectValue(parsedMainFontSize, 12, 42)) : null,
+      heroSubFontFamily: form.heroSubFontFamily,
+      heroSubFontColor: sanitizeColorValue(form.heroSubFontColor, defaultFormState.heroSubFontColor),
+      heroSubFontSize: Number.isFinite(parsedSubFontSize) ? Math.round(clampHeroEffectValue(parsedSubFontSize, 10, 36)) : null,
       useGuestbook: form.useGuestbook,
       useRsvpModal: form.useRsvpModal,
+      rsvpAutoOpenOnLoad: form.rsvpAutoOpenOnLoad,
       backgroundMusicUrl: sanitizeAssetUrl(form.backgroundMusicUrl),
       seoTitle: form.seoTitle,
       seoDescription: form.seoDescription,
@@ -1662,6 +1739,7 @@ export default function EditorPage() {
       themeBackgroundColor: sanitizeColorValue(form.themeBackgroundColor, defaultFormState.themeBackgroundColor),
       themeTextColor: sanitizeColorValue(form.themeTextColor, defaultFormState.themeTextColor),
       themeAccentColor: sanitizeColorValue(form.themeAccentColor, defaultFormState.themeAccentColor),
+      themePatternColor: sanitizeColorValue(form.themePatternColor, defaultFormState.themePatternColor),
       themePattern: form.themePattern,
       themeEffectType: form.themeEffectType,
       themeFontFamily: form.themeFontFamily,
@@ -1970,7 +2048,7 @@ export default function EditorPage() {
   const actionLockedUntilSaved = !isInvitationSaved;
   const sectionCompletion = useMemo<Record<EditorSectionKey, boolean>>(
     () => ({
-      theme: Boolean(form.themeFontFamily && form.themeBackgroundColor && form.themeTextColor && form.themeAccentColor),
+      theme: Boolean(form.themeFontFamily && form.themeBackgroundColor && form.themeTextColor && form.themeAccentColor && form.themePatternColor),
       basic: Boolean(form.groomName.trim() && form.brideName.trim()),
       hero: Boolean(form.date && sanitizeAssetUrl(form.mainImageUrl)),
       location: Boolean(form.locationName.trim() && form.address.trim()),
@@ -2158,12 +2236,19 @@ export default function EditorPage() {
                 subway: form.subway,
                 bus: form.bus,
                 car: form.car,
-                fontFamily: form.fontFamily,
-                fontColor: form.fontColor,
-                fontSize: Number.isFinite(Number(form.fontSize)) ? Number(form.fontSize) : undefined,
+                fontFamily: form.heroMainFontFamily,
+                fontColor: sanitizeColorValue(form.heroMainFontColor, defaultFormState.heroMainFontColor),
+                fontSize: Number.isFinite(Number(form.heroMainFontSize)) ? Number(form.heroMainFontSize) : undefined,
+                heroMainFontFamily: form.heroMainFontFamily,
+                heroMainFontColor: sanitizeColorValue(form.heroMainFontColor, defaultFormState.heroMainFontColor),
+                heroMainFontSize: Math.round(clampHeroEffectValue(form.heroMainFontSize, 12, 42)),
+                heroSubFontFamily: form.heroSubFontFamily,
+                heroSubFontColor: sanitizeColorValue(form.heroSubFontColor, defaultFormState.heroSubFontColor),
+                heroSubFontSize: Math.round(clampHeroEffectValue(form.heroSubFontSize, 10, 36)),
                 useSeparateAccounts: form.useSeparateAccounts,
                 useGuestbook: form.useGuestbook,
                 useRsvpModal: form.useRsvpModal,
+                rsvpAutoOpenOnLoad: form.rsvpAutoOpenOnLoad,
                 accountNumber: combineBankAndAccount(form.accountBank, form.accountNumber),
                 groomAccountNumber: combineBankAndAccount(form.groomAccountBank, form.groomAccountNumber),
                 brideAccountNumber: combineBankAndAccount(form.brideAccountBank, form.brideAccountNumber),
@@ -2172,6 +2257,7 @@ export default function EditorPage() {
                 themeBackgroundColor: sanitizeColorValue(form.themeBackgroundColor, defaultFormState.themeBackgroundColor),
                 themeTextColor: sanitizeColorValue(form.themeTextColor, defaultFormState.themeTextColor),
                 themeAccentColor: sanitizeColorValue(form.themeAccentColor, defaultFormState.themeAccentColor),
+                themePatternColor: sanitizeColorValue(form.themePatternColor, defaultFormState.themePatternColor),
                 themePattern: form.themePattern,
                 themeEffectType: form.themeEffectType,
                 themeFontFamily: form.themeFontFamily,
@@ -2333,7 +2419,7 @@ export default function EditorPage() {
                 <div className="space-y-6 px-6 pt-2 pb-10 md:px-10">
                   <div className="rounded-2xl border border-warm bg-[#fdfcfb] p-6 space-y-5">
                     <p className="text-xs font-bold tracking-wider text-theme-brand">색상</p>
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                       <label className="space-y-2 block">
                         <span className="text-xs font-bold text-theme-secondary">배경 색상</span>
                         <div className="flex gap-3">
@@ -2379,6 +2465,22 @@ export default function EditorPage() {
                             className="input-premium flex-1"
                             value={form.themeAccentColor}
                             onChange={(e) => updateField("themeAccentColor", e.target.value)}
+                          />
+                        </div>
+                      </label>
+                      <label className="space-y-2 block">
+                        <span className="text-xs font-bold text-theme-secondary">패턴 색상</span>
+                        <div className="flex gap-3">
+                          <input
+                            className="h-10 w-14 cursor-pointer rounded border border-warm overflow-hidden"
+                            type="color"
+                            value={form.themePatternColor}
+                            onChange={(e) => updateField("themePatternColor", e.target.value)}
+                          />
+                          <input
+                            className="input-premium flex-1"
+                            value={form.themePatternColor}
+                            onChange={(e) => updateField("themePatternColor", e.target.value)}
                           />
                         </div>
                       </label>
@@ -2677,9 +2779,22 @@ export default function EditorPage() {
                   <div className="rounded-2xl border border-warm bg-[#fdfcfb] p-5 space-y-4">
                     <p className="text-xs font-bold tracking-wider text-theme-brand">메인 디자인 텍스트 스타일</p>
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <label className="space-y-2 block">
+                        <span className="text-xs font-bold text-theme-secondary">메인 텍스트 색상</span>
+                        <div className="flex gap-3">
+                            <input
+                                className="h-10 w-14 cursor-pointer rounded border border-warm overflow-hidden"
+                                type="color"
+                                value={form.heroMainFontColor}
+                                onChange={(e) => updateField("heroMainFontColor", e.target.value)}
+                            />
+                            <input className="input-premium flex-1" value={form.heroMainFontColor} onChange={(e) => updateField("heroMainFontColor", e.target.value)} />
+                        </div>
+                    </label>
+                    <label className="space-y-2 block"></label>
                       <label className="space-y-2 block">
-                        <span className="text-xs font-bold text-theme-secondary">메인 문구 폰트</span>
-                        <select className="input-premium text-xs" value={form.fontFamily} onChange={(e) => updateField("fontFamily", e.target.value)}>
+                        <span className="text-xs font-bold text-theme-secondary">메인 텍스트 폰트</span>
+                        <select className="input-premium text-xs" value={form.heroMainFontFamily} onChange={(e) => updateField("heroMainFontFamily", e.target.value)}>
                           {EDITOR_FONT_FAMILY_OPTIONS.map((option) => (
                             <option key={`hero-main-font-${option.value}`} value={option.value}>
                               {option.label}
@@ -2688,27 +2803,48 @@ export default function EditorPage() {
                         </select>
                       </label>
                       <label className="space-y-2 block">
-                        <span className="text-xs font-bold text-theme-secondary">메인 문구 크기 (px)</span>
+                        <span className="text-xs font-bold text-theme-secondary">메인 텍스트 크기 (px)</span>
+                        <input
+                          className="input-premium"
+                          type="number"
+                          min={12}
+                          max={42}
+                          value={form.heroMainFontSize}
+                          onChange={(e) => updateField("heroMainFontSize", Number(e.target.value))}
+                        />
+                      </label>
+                        <label className="space-y-2 block">
+                            <span className="text-xs font-bold text-theme-secondary">보조 텍스트 색상</span>
+                            <div className="flex gap-3">
+                                <input
+                                    className="h-10 w-14 cursor-pointer rounded border border-warm overflow-hidden"
+                                    type="color"
+                                    value={form.heroSubFontColor}
+                                    onChange={(e) => updateField("heroSubFontColor", e.target.value)}
+                                />
+                                <input className="input-premium flex-1" value={form.heroSubFontColor} onChange={(e) => updateField("heroSubFontColor", e.target.value)} />
+                            </div>
+                        </label>
+                      <label className="space-y-2 block">
+                        <span className="text-xs font-bold text-theme-secondary">보조 텍스트 폰트</span>
+                        <select className="input-premium text-xs" value={form.heroSubFontFamily} onChange={(e) => updateField("heroSubFontFamily", e.target.value)}>
+                          {EDITOR_FONT_FAMILY_OPTIONS.map((option) => (
+                            <option key={`hero-sub-font-${option.value}`} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="space-y-2 block">
+                        <span className="text-xs font-bold text-theme-secondary">보조 텍스트 크기 (px)</span>
                         <input
                           className="input-premium"
                           type="number"
                           min={10}
-                          max={30}
-                          value={form.fontSize}
-                          onChange={(e) => updateField("fontSize", e.target.value)}
+                          max={36}
+                          value={form.heroSubFontSize}
+                          onChange={(e) => updateField("heroSubFontSize", Number(e.target.value))}
                         />
-                      </label>
-                      <label className="space-y-2 block">
-                        <span className="text-xs font-bold text-theme-secondary">메인 문구 색상</span>
-                        <div className="flex gap-3">
-                          <input
-                            className="h-10 w-14 cursor-pointer rounded border border-warm overflow-hidden"
-                            type="color"
-                            value={form.fontColor}
-                            onChange={(e) => updateField("fontColor", e.target.value)}
-                          />
-                          <input className="input-premium flex-1" value={form.fontColor} onChange={(e) => updateField("fontColor", e.target.value)} />
-                        </div>
                       </label>
                       <label className="space-y-2 block">
                         <span className="text-xs font-bold text-theme-secondary">장식 문구 폰트</span>
@@ -3177,7 +3313,7 @@ export default function EditorPage() {
                 type="button"
                 onClick={() => toggleSection("rsvp")}
               >
-                <span className="text-lg font-medium text-theme-brand">RSVP 안내 팝업 설정</span>
+                <span className="text-lg font-medium text-theme-brand">참석여부 전달 팝업 설정</span>
                 <span
                   className={`material-symbols-outlined text-theme-secondary transition-transform duration-200 ${openSections.rsvp ? "rotate-180" : ""}`}
                   style={{ fontVariationSettings: "'wght' 200" }}
@@ -3188,11 +3324,19 @@ export default function EditorPage() {
               {openSections.rsvp ? (
                 <div className="space-y-6 px-6 pt-2 pb-10 md:px-10">
                   <label className="flex items-center gap-2 mb-4 rounded-xl border border-warm bg-white px-4 py-3 text-sm text-theme-secondary">
-                    <input type="checkbox" checked={form.useRsvpModal} onChange={(e) => updateField("useRsvpModal", e.target.checked)} /> RSVP 섹션 사용
+                    <input type="checkbox" checked={form.useRsvpModal} onChange={(e) => updateField("useRsvpModal", e.target.checked)} /> 참석여부 전달 섹션 사용
                   </label>
                   
                   {form.useRsvpModal && (
                     <div className="space-y-4 rounded-2xl border border-warm bg-white p-6 shadow-sm">
+                      <label className="flex items-center gap-2 rounded-xl border border-warm bg-theme px-4 py-3 text-sm text-theme-secondary">
+                        <input
+                          type="checkbox"
+                          checked={form.rsvpAutoOpenOnLoad}
+                          onChange={(e) => updateField("rsvpAutoOpenOnLoad", e.target.checked)}
+                        />
+                        첫 화면 진입 시 참석여부 전달 안내 모달 자동 표시
+                      </label>
                       <label className="space-y-2 block">
                         <span className="text-xs font-bold text-theme-secondary">팝업 제목</span>
                         <input className="input-premium" value={form.rsvpTitle} onChange={(e) => updateField("rsvpTitle", e.target.value)} />
@@ -3245,6 +3389,20 @@ export default function EditorPage() {
                   <div className="space-y-3">
                     <span className="text-xs font-bold text-theme-secondary italic block mb-2">Music Library</span>
                     <div className="grid grid-cols-1 gap-2">
+                      <label
+                        className={`flex items-center justify-between gap-3 p-4 rounded-xl border transition-all cursor-pointer ${form.backgroundMusicUrl === "" ? "border-theme-brand bg-theme/30" : "border-warm bg-white hover:bg-theme/10"}`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <input
+                            type="radio"
+                            className="accent-theme-brand"
+                            checked={form.backgroundMusicUrl === ""}
+                            onChange={() => updateField("backgroundMusicUrl", "")}
+                          />
+                          <span className="text-sm font-medium text-theme-secondary">사용 안 함</span>
+                        </div>
+                        <span className="material-symbols-outlined text-[20px] text-theme-secondary">music_off</span>
+                      </label>
                       {MP3_LIBRARY.map((music) => (
                         <label 
                           key={music.url} 
@@ -3453,19 +3611,19 @@ export default function EditorPage() {
                   </label>
 
                   <div className="space-y-3 rounded-2xl border border-warm bg-white p-4">
-                    <span className="text-xs font-bold text-theme-secondary">SEO 대표 이미지 업로드</span>
+                    <span className="text-xs font-bold text-theme-secondary">미리보기 대표 이미지 업로드</span>
                     <div className="flex flex-col gap-3">
                       <div className="relative aspect-[4/3] w-full max-w-[200px] overflow-hidden rounded-xl border border-dashed border-gray-300 bg-white group">
                         {seoImagePreviewUrl ? (
                           <>
-                            <img className="h-full w-full object-cover" src={seoImagePreviewUrl} alt="SEO Preview" />
+                            <img className="h-full w-full object-cover" src={seoImagePreviewUrl} alt="미리보기 대표 이미지" />
                             <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 transition-opacity group-hover:opacity-100">
                               <span className="text-xs font-bold text-white">이미지 변경</span>
                             </div>
                           </>
                         ) : (
                           <div className="flex h-full w-full items-center justify-center px-3 text-center text-[11px] text-gray-400">
-                            SEO 대표 이미지를 업로드해 주세요
+                            미리보기 대표 이미지를 업로드해 주세요
                           </div>
                         )}
                         <input
@@ -3539,12 +3697,12 @@ export default function EditorPage() {
                   </label>
 
                   <label className="space-y-2 block">
-                    <span className="text-xs font-bold text-theme-secondary">SEO 제목</span>
+                    <span className="text-xs font-bold text-theme-secondary">미리보기 제목</span>
                     <input className="input-premium" value={form.seoTitle} onChange={(e) => updateField("seoTitle", e.target.value)} />
                   </label>
 
                   <label className="space-y-2 block">
-                    <span className="text-xs font-bold text-theme-secondary">SEO 설명</span>
+                    <span className="text-xs font-bold text-theme-secondary">미리보기 설명</span>
                     <textarea className="input-premium" value={form.seoDescription} onChange={(e) => updateField("seoDescription", e.target.value)} />
                   </label>
 

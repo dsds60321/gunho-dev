@@ -90,6 +90,8 @@ const THEME_PATTERN_OPTIONS = [
   { id: "grid", name: "그리드" },
   { id: "linen", name: "린넨" },
   { id: "petal", name: "꽃잎 무늬" },
+  { id: "paper", name: "체크패턴" },
+  { id: "hanji-texture", name: "한지패턴" },
 ];
 
 const THEME_EFFECT_OPTIONS = [

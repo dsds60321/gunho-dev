@@ -98,10 +98,16 @@ function normalizeInvitation(data: Partial<InvitationData>, invitationId: string
   const normalizedCoverImage = pickFirstNonEmpty([data.coverImageUrl, data.mainImageUrl, imageUrls[0]]) ?? "";
   const normalizedMainImage = pickFirstNonEmpty([data.mainImageUrl, data.coverImageUrl, imageUrls[0]]) ?? "";
   const normalizedDefaultFontFamily = "'Noto Sans KR', sans-serif";
-  const normalizedThemeFontFamily = data.themeFontFamily ?? normalizedDefaultFontFamily;
-  const normalizedHeroFontFamily = data.fontFamily ?? normalizedThemeFontFamily;
   const normalizedThemeTextColor = data.themeTextColor ?? "#4a2c2a";
   const normalizedThemeFontSize = data.themeFontSize ?? 16;
+  const normalizedThemeFontFamily = data.themeFontFamily ?? normalizedDefaultFontFamily;
+  const normalizedHeroFontFamily = data.fontFamily ?? normalizedThemeFontFamily;
+  const normalizedHeroMainFontFamily = data.heroMainFontFamily ?? normalizedHeroFontFamily;
+  const normalizedHeroSubFontFamily = data.heroSubFontFamily ?? normalizedHeroFontFamily;
+  const normalizedHeroMainFontColor = data.heroMainFontColor ?? data.fontColor ?? normalizedThemeTextColor;
+  const normalizedHeroSubFontColor = data.heroSubFontColor ?? data.fontColor ?? normalizedThemeTextColor;
+  const normalizedHeroMainFontSize = data.heroMainFontSize ?? data.fontSize ?? normalizedThemeFontSize;
+  const normalizedHeroSubFontSize = data.heroSubFontSize ?? data.fontSize ?? normalizedThemeFontSize;
 
   const messageLines =
     data.messageLines && data.messageLines.length > 0
@@ -143,10 +149,17 @@ function normalizeInvitation(data: Partial<InvitationData>, invitationId: string
     useSeparateAccounts: data.useSeparateAccounts ?? false,
     useGuestbook: data.useGuestbook ?? true,
     useRsvpModal: data.useRsvpModal ?? true,
+    rsvpAutoOpenOnLoad: data.rsvpAutoOpenOnLoad ?? false,
     backgroundMusicUrl: toNonEmptyString(data.backgroundMusicUrl),
     fontFamily: normalizedHeroFontFamily,
     fontColor: data.fontColor ?? normalizedThemeTextColor,
     fontSize: data.fontSize ?? normalizedThemeFontSize,
+    heroMainFontFamily: normalizedHeroMainFontFamily,
+    heroMainFontColor: normalizedHeroMainFontColor,
+    heroMainFontSize: normalizedHeroMainFontSize,
+    heroSubFontFamily: normalizedHeroSubFontFamily,
+    heroSubFontColor: normalizedHeroSubFontColor,
+    heroSubFontSize: normalizedHeroSubFontSize,
     accountNumber: data.accountNumber,
     groomAccountNumber: data.groomAccountNumber,
     brideAccountNumber: data.brideAccountNumber,
@@ -158,6 +171,7 @@ function normalizeInvitation(data: Partial<InvitationData>, invitationId: string
     themeBackgroundColor: data.themeBackgroundColor ?? "#fdf8f5",
     themeTextColor: data.themeTextColor ?? "#4a2c2a",
     themeAccentColor: data.themeAccentColor ?? "#803b2a",
+    themePatternColor: data.themePatternColor ?? data.themeAccentColor ?? "#803b2a",
     themePattern: data.themePattern ?? "none",
     themeEffectType: data.themeEffectType ?? "none",
     themeFontFamily: normalizedThemeFontFamily,
@@ -171,9 +185,9 @@ function normalizeInvitation(data: Partial<InvitationData>, invitationId: string
     heroAccentFontFamily: data.heroAccentFontFamily ?? "'Playfair Display', serif",
     messageFontFamily: data.messageFontFamily ?? normalizedThemeFontFamily,
     transportFontFamily: data.transportFontFamily ?? normalizedThemeFontFamily,
-    rsvpTitle: data.rsvpTitle ?? "참석 의사 전달",
+    rsvpTitle: data.rsvpTitle ?? "참석 여부 전달",
     rsvpMessage: data.rsvpMessage ?? "특별한 날 축하의 마음으로 참석해주시는 모든 분들을 위해\n참석 여부 전달을 부탁드립니다.",
-    rsvpButtonText: data.rsvpButtonText ?? "참석의사 전달하기",
+    rsvpButtonText: data.rsvpButtonText ?? "참석 여부 전달",
     rsvpFontFamily: data.rsvpFontFamily ?? normalizedThemeFontFamily,
     detailContent: data.detailContent,
     detailFontFamily: data.detailFontFamily ?? normalizedThemeFontFamily,

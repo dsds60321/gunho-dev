@@ -55,14 +55,14 @@ export default function InvitationFullscreenModal({
         className={`absolute inset-0 bg-black/85 backdrop-blur-[3px] transition-opacity duration-300 ease-out ${open ? "opacity-100" : "opacity-0"}`}
       />
 
-      <div className={`absolute inset-0 flex flex-col bg-[#f5f5f7] transition-all duration-300 ease-out ${open ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"}`}>
-        <header className="relative flex h-16 shrink-0 items-center justify-center border-b border-[#e4e5e8] bg-white px-4">
-          <h3 className="text-[16px] font-semibold tracking-[-0.01em] text-[#2f3136]">{title}</h3>
+      <div className={`invite-modal-panel absolute inset-0 flex flex-col transition-all duration-300 ease-out ${open ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"}`}>
+        <header className="relative flex h-16 shrink-0 items-center justify-center border-b border-warm bg-white px-4">
+          <h3 className="text-[16px] font-semibold tracking-[-0.01em] text-theme-brand">{title}</h3>
           <button
             type="button"
             onClick={onClose}
             aria-label={closeLabel}
-            className="absolute right-4 top-1/2 -translate-y-1/2 text-[#44474d]"
+            className="absolute right-4 top-1/2 -translate-y-1/2 text-theme-secondary"
           >
             <span className="material-symbols-outlined text-[24px]">close</span>
           </button>

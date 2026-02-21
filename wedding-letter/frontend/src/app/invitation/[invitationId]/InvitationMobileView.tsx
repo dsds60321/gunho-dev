@@ -49,9 +49,16 @@ export type InvitationMobileViewData = {
   fontFamily?: string;
   fontColor?: string;
   fontSize?: number;
+  heroMainFontFamily?: string;
+  heroMainFontColor?: string;
+  heroMainFontSize?: number;
+  heroSubFontFamily?: string;
+  heroSubFontColor?: string;
+  heroSubFontSize?: number;
   useSeparateAccounts: boolean;
   useGuestbook: boolean;
   useRsvpModal: boolean;
+  rsvpAutoOpenOnLoad?: boolean;
   backgroundMusicUrl?: string;
   accountNumber?: string;
   groomAccountNumber?: string;
@@ -61,6 +68,7 @@ export type InvitationMobileViewData = {
   themeBackgroundColor?: string;
   themeTextColor?: string;
   themeAccentColor?: string;
+  themePatternColor?: string;
   themePattern?: string;
   themeEffectType?: string;
   themeFontFamily?: string;
@@ -357,6 +365,7 @@ export default function InvitationMobileView({
   const [backgroundMusicError, setBackgroundMusicError] = useState<string | null>(null);
   const [isOpeningVisible, setIsOpeningVisible] = useState(false);
   const [isOpeningClosing, setIsOpeningClosing] = useState(false);
+  const [showScrollTopButton, setShowScrollTopButton] = useState(false);
   const [typedOpeningTitle, setTypedOpeningTitle] = useState("");
   const [typedOpeningMessage, setTypedOpeningMessage] = useState("");
   const [openingViewportHeight, setOpeningViewportHeight] = useState(720);
@@ -387,6 +396,10 @@ export default function InvitationMobileView({
     () => normalizeHexColor(invitation.themeAccentColor, THEME_DEFAULTS.accentColor),
     [invitation.themeAccentColor],
   );
+  const themePatternColor = useMemo(
+    () => normalizeHexColor(invitation.themePatternColor, themeAccentColor),
+    [invitation.themePatternColor, themeAccentColor],
+  );
   const themePattern = invitation.themePattern ?? THEME_DEFAULTS.pattern;
   const themeEffectType = invitation.themeEffectType ?? THEME_DEFAULTS.effectType;
   const contentFontFamily = useMemo(
@@ -394,8 +407,12 @@ export default function InvitationMobileView({
     [invitation.themeFontFamily],
   );
   const heroMainFontFamily = useMemo(
-    () => normalizeFontFamilyValue(invitation.fontFamily, contentFontFamily),
-    [invitation.fontFamily, contentFontFamily],
+    () => normalizeFontFamilyValue(invitation.heroMainFontFamily ?? invitation.fontFamily, contentFontFamily),
+    [invitation.heroMainFontFamily, invitation.fontFamily, contentFontFamily],
+  );
+  const heroSubFontFamily = useMemo(
+    () => normalizeFontFamilyValue(invitation.heroSubFontFamily ?? invitation.fontFamily, contentFontFamily),
+    [invitation.heroSubFontFamily, invitation.fontFamily, contentFontFamily],
   );
   const themeFontSize = useMemo(() => clampThemeFontSize(invitation.themeFontSize), [invitation.themeFontSize]);
   const messageFontFamily = useMemo(
@@ -512,7 +529,14 @@ export default function InvitationMobileView({
     };
   }, [embedded, openingViewportHeight]);
   const revealEnabled = invitation.themeScrollReveal ?? THEME_DEFAULTS.scrollReveal;
-  const patternStyle = useMemo(() => buildThemePatternStyle(themePattern, themeAccentColor), [themePattern, themeAccentColor]);
+  const patternStyle = useMemo(
+    () => buildThemePatternStyle(themePattern, themeAccentColor, themePatternColor),
+    [themePattern, themeAccentColor, themePatternColor],
+  );
+  const patternBackgroundImage = typeof patternStyle.backgroundImage === "string" ? patternStyle.backgroundImage : "none";
+  const patternBackgroundSize = typeof patternStyle.backgroundSize === "string" ? patternStyle.backgroundSize : "auto";
+  const patternBackgroundPosition = typeof patternStyle.backgroundPosition === "string" ? patternStyle.backgroundPosition : "0 0";
+  const patternBackgroundRepeat = typeof patternStyle.backgroundRepeat === "string" ? patternStyle.backgroundRepeat : "repeat";
   const themeParticles = useMemo(() => buildThemeParticles(themeEffectType), [themeEffectType]);
   const themeWrapperStyle = useMemo(
     () =>
@@ -521,18 +545,35 @@ export default function InvitationMobileView({
         "--theme-bg": themeBackgroundColor,
         "--theme-text-primary": themeTextColor,
         "--theme-text-secondary": toRgba(themeTextColor, 0.72),
-        "--theme-divider": toRgba(themeAccentColor, 0.22),
+        "--theme-divider": toRgba(themeTextColor, 0.2),
         "--theme-brand": themeAccentColor,
         "--theme-accent": toRgba(themeAccentColor, 0.88),
+        "--invite-pattern-color": themePatternColor,
         "--invite-theme-text": themeTextColor,
         "--invite-surface": toRgba(themeBackgroundColor, 0.86),
         "--invite-surface-soft": toRgba(themeBackgroundColor, 0.72),
+        "--invite-pattern-image": patternBackgroundImage,
+        "--invite-pattern-size": patternBackgroundSize,
+        "--invite-pattern-position": patternBackgroundPosition,
+        "--invite-pattern-repeat": patternBackgroundRepeat,
         backgroundColor: themeBackgroundColor,
         color: themeTextColor,
         fontFamily: contentFontFamily,
         fontSize: `${themeFontSize}px`,
       }) as CSSProperties,
-    [patternStyle, themeBackgroundColor, themeTextColor, themeAccentColor, contentFontFamily, themeFontSize],
+    [
+      patternStyle,
+      themeBackgroundColor,
+      themeTextColor,
+      themeAccentColor,
+      themePatternColor,
+      contentFontFamily,
+      themeFontSize,
+      patternBackgroundImage,
+      patternBackgroundPosition,
+      patternBackgroundRepeat,
+      patternBackgroundSize,
+    ],
   );
 
   useEffect(() => {
@@ -811,6 +852,39 @@ export default function InvitationMobileView({
     invitation.imageUrls.length,
   ]);
 
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+
+    const scrollTarget = embedded ? root.parentElement : window;
+    if (!scrollTarget) return;
+
+    const handleScroll = () => {
+      const container = root.parentElement;
+      const scrollTop = embedded
+        ? (container?.scrollTop ?? 0)
+        : window.scrollY || document.documentElement.scrollTop || 0;
+      setShowScrollTopButton(scrollTop > 140);
+    };
+
+    handleScroll();
+    window.addEventListener("resize", handleScroll);
+
+    if (scrollTarget instanceof Window) {
+      scrollTarget.addEventListener("scroll", handleScroll, { passive: true });
+      return () => {
+        scrollTarget.removeEventListener("scroll", handleScroll);
+        window.removeEventListener("resize", handleScroll);
+      };
+    }
+
+    scrollTarget.addEventListener("scroll", handleScroll, { passive: true });
+    return () => {
+      scrollTarget.removeEventListener("scroll", handleScroll);
+      window.removeEventListener("resize", handleScroll);
+    };
+  }, [embedded]);
+
   const accountRows = invitation.useSeparateAccounts
     ? [
         { label: "신랑측", value: invitation.groomAccountNumber },
@@ -903,6 +977,13 @@ export default function InvitationMobileView({
       setBackgroundMusicError("화면을 터치한 뒤 다시 재생해 주세요.");
     }
   }, [backgroundMusicSrc]);
+  const scrollToTop = useCallback(() => {
+    if (embedded) {
+      rootRef.current?.parentElement?.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [embedded]);
   const renderBackgroundMusicControl = () => {
     if (!backgroundMusicSrc) return null;
 
@@ -915,18 +996,24 @@ export default function InvitationMobileView({
           aria-label={isBackgroundMusicPlaying ? "배경음악 일시정지" : "배경음악 재생"}
           title={isBackgroundMusicPlaying ? "배경음악 일시정지" : "배경음악 재생"}
         >
-          <span className="invite-music-bars" aria-hidden="true">
-            <span className="invite-music-bar" />
-            <span className="invite-music-bar" />
-            <span className="invite-music-bar" />
-            <span className="invite-music-bar" />
+          <span className="material-symbols-outlined invite-music-icon" aria-hidden="true">
+            {isBackgroundMusicPlaying ? "volume_off" : "music_note"}
           </span>
-          <span className="invite-music-indicator material-symbols-outlined">{isBackgroundMusicPlaying ? "stop" : "play_arrow"}</span>
         </button>
         {backgroundMusicError ? <p className="rounded-lg bg-black/65 px-2 py-1 text-[10px] text-white">{backgroundMusicError}</p> : null}
       </div>
     );
   };
+  const renderScrollTopButton = () => (
+    <button
+      type="button"
+      onClick={scrollToTop}
+      aria-label="맨 위로 이동"
+      className={`invite-scroll-top ${showScrollTopButton ? "is-visible" : ""} ${embedded ? "is-embedded" : ""}`}
+    >
+      <span className="material-symbols-outlined text-[15px]">keyboard_arrow_up</span>
+    </button>
+  );
   const renderOpeningOverlay = () => {
     if (!isOpeningVisible) return null;
 
@@ -955,17 +1042,30 @@ export default function InvitationMobileView({
 
   const designId = invitation.heroDesignId ?? "simply-meant";
   const heroTitleFontFamily = heroMainFontFamily;
-  const heroBodyFontFamily = heroMainFontFamily;
+  const heroBodyFontFamily = heroSubFontFamily;
   const heroAccentFontFamily = normalizeFontFamilyValue(invitation.heroAccentFontFamily, HERO_ACCENT_FONT_FAMILY);
-  const heroTitleSize = clampHeroEffectValue(Number.isFinite(invitation.fontSize) ? (invitation.fontSize as number) : 16, 12, 36);
-  const heroBodySize = clampHeroEffectValue(
-    Number.isFinite(invitation.fontSize) ? (invitation.fontSize as number) : 16,
-    10,
-    28,
+  const heroTitleSize = clampHeroEffectValue(
+    Number.isFinite(invitation.heroMainFontSize)
+      ? (invitation.heroMainFontSize as number)
+      : Number.isFinite(invitation.fontSize)
+        ? (invitation.fontSize as number)
+        : 16,
+    12,
+    42,
   );
-  const heroPrimaryColor = normalizeHexColor(invitation.fontColor, themeTextColor);
+  const heroBodySize = clampHeroEffectValue(
+    Number.isFinite(invitation.heroSubFontSize)
+      ? (invitation.heroSubFontSize as number)
+      : Number.isFinite(invitation.fontSize)
+        ? (invitation.fontSize as number)
+        : 16,
+    10,
+    36,
+  );
+  const heroPrimaryColor = normalizeHexColor(invitation.heroMainFontColor ?? invitation.fontColor, themeTextColor);
+  const heroSubColor = normalizeHexColor(invitation.heroSubFontColor ?? invitation.fontColor, themeTextColor);
   const heroAccentTextColor = heroPrimaryColor;
-  const heroBodyColor = heroPrimaryColor;
+  const heroBodyColor = heroSubColor;
   const heroDateCompact = `${dateInfo.year}.${dateInfo.month}.${String(dateInfo.day).padStart(2, "0")}`;
   const heroLocationText = invitation.venueName || "예식장 정보 미입력";
 
@@ -1153,7 +1253,7 @@ export default function InvitationMobileView({
           <div className="pt-10 space-y-3">
             <p
               className="leading-[0.9]"
-              style={{ fontFamily: heroTitleFontFamily, color: toRgba("#ffffff", 0.96), fontSize: `${heroTitleSize * 2.3}px`, fontWeight: 600 }}
+              style={{ fontFamily: heroTitleFontFamily, color: toRgba(heroPrimaryColor, 0.96), fontSize: `${heroTitleSize * 2.3}px`, fontWeight: 600 }}
             >
               TWO
               <br />
@@ -1161,7 +1261,7 @@ export default function InvitationMobileView({
               <br />
               ONE
             </p>
-            <p style={{ fontFamily: heroBodyFontFamily, color: toRgba("#ffffff", 0.92), fontSize: `${heroBodySize * 1.02}px` }}>
+            <p style={{ fontFamily: heroBodyFontFamily, color: toRgba(heroBodyColor, 0.92), fontSize: `${heroBodySize * 1.02}px` }}>
               {invitation.groomName || "신랑"} 그리고 {invitation.brideName || "신부"}, 결혼합니다.
             </p>
           </div>
@@ -1175,8 +1275,8 @@ export default function InvitationMobileView({
           })}
           {renderBackgroundMusicControl()}
           <div className="absolute inset-x-0 bottom-9 text-center space-y-1">
-            <p style={{ fontFamily: heroBodyFontFamily, color: toRgba("#ffffff", 0.95), fontSize: `${heroBodySize}px` }}>{dateInfo.infoDate}</p>
-            <p style={{ fontFamily: heroBodyFontFamily, color: toRgba("#ffffff", 0.88), fontSize: `${heroBodySize * 0.94}px` }}>{heroLocationText}</p>
+            <p style={{ fontFamily: heroBodyFontFamily, color: toRgba(heroBodyColor, 0.95), fontSize: `${heroBodySize}px` }}>{dateInfo.infoDate}</p>
+            <p style={{ fontFamily: heroBodyFontFamily, color: toRgba(heroBodyColor, 0.88), fontSize: `${heroBodySize * 0.94}px` }}>{heroLocationText}</p>
           </div>
         </section>
       );
@@ -1198,7 +1298,7 @@ export default function InvitationMobileView({
               <p className="mt-1" style={{ fontFamily: heroTitleFontFamily, color: toRgba(heroAccentTextColor, 0.9), fontSize: `${heroTitleSize * 0.98}px` }}>Wedding Invitation</p>
               <p className="mt-8" style={{ fontFamily: heroBodyFontFamily, color: toRgba(heroBodyColor, 0.94), fontSize: `${heroBodySize * 1.02}px` }}>{weddingTitle}</p>
             </div>
-            <p className="absolute inset-x-0 bottom-6 text-center" style={{ fontFamily: heroBodyFontFamily, color: toRgba("#ffffff", 0.86), fontSize: `${heroBodySize * 1.28}px`, fontWeight: 600 }}>
+            <p className="absolute inset-x-0 bottom-6 text-center" style={{ fontFamily: heroBodyFontFamily, color: toRgba(heroBodyColor, 0.9), fontSize: `${heroBodySize * 1.28}px`, fontWeight: 600 }}>
               {heroDateCompact}
             </p>
           </div>
@@ -1337,7 +1437,7 @@ export default function InvitationMobileView({
 
       {renderOpeningOverlay()}
 
-      <div className={`relative z-[2] ${isOpeningVisible ? "pointer-events-none select-none" : ""}`}>
+      <div className={`relative z-[2] transition-opacity duration-200 ${isOpeningVisible ? "pointer-events-none select-none opacity-0" : "opacity-100"}`}>
       {renderHeroSection()}
 
       <div className="space-y-8 px-6 py-10">
@@ -1362,14 +1462,14 @@ export default function InvitationMobileView({
 
         <section className="bg-white py-16 px-8 text-center" data-invite-reveal>
           <div className="mb-10 space-y-2">
-            <p className="serif-font text-[22px] tracking-widest text-theme-brand">{calendarInfo.fullDateText}</p>
-            <p className="text-[13px] text-theme-secondary font-light">{calendarInfo.weekdayTimeText}</p>
+            <p className="serif-font text-[22px] tracking-widest text-theme-primary">{calendarInfo.fullDateText}</p>
+            <p className="text-[13px] text-theme-primary font-light">{calendarInfo.weekdayTimeText}</p>
           </div>
 
           <div className="mx-auto max-w-[320px] pt-6 border-t border-warm/50">
-            <div className="grid grid-cols-7 mb-6 text-[11px] font-medium text-theme-secondary">
-              {["일", "월", "화", "수", "목", "금", "토"].map((weekday, index) => (
-                <div key={weekday} className={index === 0 ? "text-theme-accent" : ""}>
+            <div className="grid grid-cols-7 mb-6 text-[11px] font-medium text-theme-primary">
+              {["일", "월", "화", "수", "목", "금", "토"].map((weekday) => (
+                <div key={weekday}>
                   {weekday}
                 </div>
               ))}
@@ -1377,12 +1477,11 @@ export default function InvitationMobileView({
             <div className="grid grid-cols-7 text-[14px] font-light text-theme-primary gap-y-4">
               {calendarInfo.days.map((day, index) => {
                 const isWeddingDay = day === calendarInfo.weddingDay;
-                const isSunday = index % 7 === 0;
                 if (day === null) return <div key={`empty-${index}`} />;
                 return (
                   <div key={`day-${index}`} className="relative flex items-center justify-center h-9">
                     {isWeddingDay ? <span className="absolute h-9 w-9 rounded-full -z-0" style={{ backgroundColor: toRgba(themeAccentColor, 0.22) }} /> : null}
-                    <span className={`relative z-10 ${isWeddingDay ? "font-bold" : isSunday ? "text-theme-accent" : ""}`} style={isWeddingDay ? { color: themeAccentColor } : undefined}>
+                    <span className={`relative z-10 ${isWeddingDay ? "font-bold" : ""}`} style={isWeddingDay ? { color: themeAccentColor } : undefined}>
                       {day}
                     </span>
                   </div>
@@ -1394,26 +1493,26 @@ export default function InvitationMobileView({
           <div className="mt-16 pt-10 border-t border-warm/30 space-y-8">
             <div className="flex justify-center items-center gap-6">
               <div className="flex flex-col gap-1">
-                <span className="text-[9px] tracking-widest text-theme-secondary uppercase font-bold">Days</span>
+                <span className="text-[9px] tracking-widest text-theme-primary uppercase font-bold">Days</span>
                 <span className="text-[24px] font-light tracking-widest text-theme-primary">{countdownInfo.days}</span>
               </div>
-              <span className="text-xl font-light mb-1 text-theme-secondary opacity-60">:</span>
+              <span className="text-xl font-light mb-1 text-theme-primary opacity-55">:</span>
               <div className="flex flex-col gap-1">
-                <span className="text-[9px] tracking-widest text-theme-secondary uppercase font-bold">Hour</span>
+                <span className="text-[9px] tracking-widest text-theme-primary uppercase font-bold">Hour</span>
                 <span className="text-[24px] font-light tracking-widest text-theme-primary">{countdownInfo.hours}</span>
               </div>
-              <span className="text-xl font-light mb-1 text-theme-secondary opacity-60">:</span>
+              <span className="text-xl font-light mb-1 text-theme-primary opacity-55">:</span>
               <div className="flex flex-col gap-1">
-                <span className="text-[9px] tracking-widest text-theme-secondary uppercase font-bold">Min</span>
+                <span className="text-[9px] tracking-widest text-theme-primary uppercase font-bold">Min</span>
                 <span className="text-[24px] font-light tracking-widest text-theme-primary">{countdownInfo.mins}</span>
               </div>
-              <span className="text-xl font-light mb-1 text-theme-secondary opacity-60">:</span>
+              <span className="text-xl font-light mb-1 text-theme-primary opacity-55">:</span>
               <div className="flex flex-col gap-1">
-                <span className="text-[9px] tracking-widest text-theme-secondary uppercase font-bold">Sec</span>
+                <span className="text-[9px] tracking-widest text-theme-primary uppercase font-bold">Sec</span>
                 <span className="text-[24px] font-light tracking-widest text-theme-primary">{countdownInfo.secs}</span>
               </div>
             </div>
-            <p className="text-[13px] text-theme-secondary font-light">
+            <p className="text-[13px] text-theme-primary font-light">
               <span className="font-bold text-theme-primary">
                 {invitation.groomName || "신랑"}, {invitation.brideName || "신부"}
               </span>
@@ -1469,7 +1568,8 @@ export default function InvitationMobileView({
           <MapShortcutButtons
             venueName={invitation.venueName}
             address={invitation.venueAddress}
-            buttonClassName="flex-1 rounded-full border border-warm bg-white py-3 text-[11px] font-bold text-theme-secondary hover:bg-theme transition-colors"
+            className="grid grid-cols-3 gap-2 px-2.5"
+            buttonClassName="flex h-[44px] min-w-0 items-center justify-center gap-1 rounded-md border border-warm bg-white px-1 text-[12px] font-semibold text-theme-secondary shadow-[0_1px_0_rgba(0,0,0,0.02)] transition-colors hover:bg-theme"
           />
 
           <div className="px-8 space-y-6 pt-4">
@@ -1522,9 +1622,12 @@ export default function InvitationMobileView({
           slug={slugForActions}
           preview={preview}
           embedded={embedded}
+          groomName={invitation.groomName}
+          brideName={invitation.brideName}
           venueAddress={invitation.venueAddress}
           venueName={invitation.venueName}
           weddingDateText={dateInfo.infoDate}
+          autoOpenOnFirstLoad={invitation.rsvpAutoOpenOnLoad ?? false}
           rsvpTitle={invitation.rsvpTitle}
           rsvpMessage={invitation.rsvpMessage}
           rsvpButtonText={invitation.rsvpButtonText}
@@ -1583,6 +1686,7 @@ export default function InvitationMobileView({
           ))}
         </div>
       </InvitationFullscreenModal>
+      {renderScrollTopButton()}
     </div>
     </div>
   );

@@ -681,9 +681,6 @@ export default function MyPage() {
               >
                 로그아웃
               </button>
-              <button className="block py-2 text-red-400" type="button">
-                회원 탈퇴 (준비중)
-              </button>
             </div>
           </aside>
 

@@ -10,9 +10,12 @@ type RsvpEntryModalProps = {
   enabled: boolean;
   preview?: boolean;
   embedded?: boolean;
+  groomName?: string;
+  brideName?: string;
   weddingDateText: string;
   venueName: string;
   venueAddress: string;
+  autoOpenOnFirstLoad?: boolean;
   rsvpTitle?: string;
   rsvpMessage?: string;
   rsvpButtonText?: string;
@@ -84,15 +87,23 @@ export default function RsvpEntryModal({
   enabled,
   preview = false,
   embedded = false,
+  groomName = "신랑",
+  brideName = "신부",
   weddingDateText,
   venueName,
   venueAddress,
-  rsvpTitle = "참석 의사 전달",
-  rsvpMessage = "신랑, 신부에게 참석의사를\n미리 전달할 수 있어요.",
-  rsvpButtonText = "참석의사 전달하기",
+  autoOpenOnFirstLoad = false,
+  rsvpTitle = "참석 여부 전달",
+  rsvpMessage = "신랑, 신부에게 참석 여부를\n미리 전달할 수 있어요.",
+  rsvpButtonText = "참석 여부 전달",
   rsvpFontFamily = "'Noto Sans KR', sans-serif",
 }: RsvpEntryModalProps) {
+  const storageKey = useMemo(() => {
+    const base = slug?.trim() ? slug.trim() : invitationId;
+    return `invite-rsvp-intro-hide-until:${base}`;
+  }, [slug, invitationId]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isIntroPromptOpen, setIsIntroPromptOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [entriesLoading, setEntriesLoading] = useState(false);
   const [deleteSubmitting, setDeleteSubmitting] = useState(false);
@@ -138,11 +149,30 @@ export default function RsvpEntryModal({
     void loadEntries();
   }, [enabled, isModalOpen, loadEntries]);
 
+  useEffect(() => {
+    if (!enabled || !autoOpenOnFirstLoad || preview || embedded) return;
+    if (typeof window === "undefined") return;
+
+    const hiddenUntil = Number(window.localStorage.getItem(storageKey) ?? "0");
+    if (Number.isFinite(hiddenUntil) && hiddenUntil > Date.now()) return;
+    setIsIntroPromptOpen(true);
+  }, [enabled, autoOpenOnFirstLoad, preview, embedded, storageKey]);
+
+  useEffect(() => {
+    if (!isIntroPromptOpen || embedded) return;
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [isIntroPromptOpen, embedded]);
+
   if (!enabled) return null;
 
   const openModal = () => {
     setErrorMessage("");
     setSuccessMessage("");
+    setIsIntroPromptOpen(false);
     setIsModalOpen(true);
   };
 
@@ -152,6 +182,19 @@ export default function RsvpEntryModal({
     setMenuEntryId(null);
     setDeleteTarget(null);
     setDeletePassword("");
+  };
+
+  const closeIntroPrompt = () => {
+    setIsIntroPromptOpen(false);
+  };
+
+  const hideIntroPromptForToday = () => {
+    if (typeof window !== "undefined") {
+      const now = new Date();
+      const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+      window.localStorage.setItem(storageKey, String(tomorrow.getTime()));
+    }
+    setIsIntroPromptOpen(false);
   };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -193,10 +236,10 @@ export default function RsvpEntryModal({
       });
 
       setForm(defaultForm);
-      setSuccessMessage("참석 의사가 전달되었습니다.");
+      setSuccessMessage("참석 여부가 전달되었습니다.");
       await loadEntries();
     } catch (error) {
-      setErrorMessage(getApiErrorMessage(error, "참석 의사 전달에 실패했습니다. 잠시 후 다시 시도해 주세요."));
+      setErrorMessage(getApiErrorMessage(error, "참석 여부 전달에 실패했습니다. 잠시 후 다시 시도해 주세요."));
     } finally {
       setSubmitting(false);
     }
@@ -220,10 +263,10 @@ export default function RsvpEntryModal({
       setDeleteTarget(null);
       setDeletePassword("");
       setMenuEntryId(null);
-      setSuccessMessage("RSVP가 삭제되었습니다.");
+      setSuccessMessage("참석 여부가 삭제되었습니다.");
       await loadEntries();
     } catch (error) {
-      setErrorMessage(getApiErrorMessage(error, "RSVP 삭제에 실패했습니다."));
+      setErrorMessage(getApiErrorMessage(error, "참석 여부 삭제에 실패했습니다."));
     } finally {
       setDeleteSubmitting(false);
     }
@@ -231,16 +274,16 @@ export default function RsvpEntryModal({
 
   return (
     <>
-      <section className="bg-theme py-14 px-8 text-center" data-invite-reveal style={{ fontFamily: rsvpFontFamily }}>
+      <section className="bg-theme py-12 px-7 text-center" data-invite-reveal style={{ fontFamily: rsvpFontFamily }}>
         <div className="mx-auto max-w-[420px] space-y-8">
           <div className="space-y-4">
-            <p className="serif-font text-[14px] tracking-[0.28em] text-theme-accent uppercase">R.S.V.P.</p>
-            <h3 className="serif-kr text-[28px] font-semibold text-theme-brand">{rsvpTitle}</h3>
-            <p className="text-[16px] leading-[1.65] text-theme-secondary whitespace-pre-wrap">{rsvpMessage}</p>
+            <p className="serif-font text-[12px] tracking-[0.24em] text-theme-accent uppercase">참석여부 전달</p>
+            <h3 className="serif-kr text-[24px] font-semibold text-theme-brand">{rsvpTitle}</h3>
+            <p className="text-[0.92rem] leading-[1.6] text-theme-secondary whitespace-pre-wrap">{rsvpMessage}</p>
           </div>
 
           <button
-            className="mx-auto inline-flex min-w-[220px] items-center justify-center gap-2 rounded-2xl border border-warm bg-white px-8 py-3.5 text-[18px] font-semibold text-theme-secondary shadow-sm transition-colors hover:bg-theme"
+            className="mx-auto inline-flex min-w-[210px] items-center justify-center gap-2 rounded-2xl border border-warm bg-white px-7 py-3 text-[16px] font-semibold text-theme-secondary shadow-sm transition-colors hover:bg-theme"
             type="button"
             onClick={openModal}
           >
@@ -254,7 +297,48 @@ export default function RsvpEntryModal({
         </div>
       </section>
 
-      <InvitationFullscreenModal open={isModalOpen} embedded={embedded} title="참석 의사 전달" onClose={closeModal} closeLabel="참석 의사 모달 닫기">
+      {isIntroPromptOpen ? (
+        <div className="fixed inset-0 z-[108] flex h-dvh min-h-[100dvh] w-full items-center justify-center p-4">
+          <button
+            type="button"
+            aria-label="참석여부 안내 닫기 배경"
+            onClick={closeIntroPrompt}
+            className="fixed inset-0 bg-black/55 backdrop-blur-[2px]"
+          />
+          <div className="relative w-[90%] max-w-[390px] overflow-hidden rounded-[18px] border border-warm bg-theme shadow-[0_30px_60px_-20px_rgba(0,0,0,0.45)]">
+            <button type="button" onClick={closeIntroPrompt} aria-label="참석여부 안내 닫기" className="absolute right-3 top-3 text-theme-secondary">
+              <span className="material-symbols-outlined text-[24px]">close</span>
+            </button>
+            <div className="px-7 pb-7 pt-12 text-center">
+              <h3 className="serif-kr text-[28px] font-semibold text-theme-brand">{rsvpTitle}</h3>
+              <p className="mt-4 whitespace-pre-wrap text-[0.93rem] leading-[1.6] text-theme-secondary">{rsvpMessage}</p>
+              <div className="mt-6 rounded-2xl border border-warm/80 bg-white/55 px-4 py-4 text-left">
+                <p className="text-sm font-semibold text-theme-secondary">♡ {groomName}, {brideName}</p>
+                <p className="mt-1.5 text-[14px] text-theme-secondary">{weddingDateText}</p>
+                <p className="mt-1 text-[14px] text-theme-secondary">{venueName}</p>
+                <p className="mt-1 text-[13px] text-theme-secondary">{venueAddress}</p>
+              </div>
+              <button
+                className="mt-6 w-full rounded-xl bg-theme-brand py-3.5 text-[16px] font-semibold text-white transition-opacity hover:opacity-90"
+                type="button"
+                onClick={openModal}
+              >
+                참석 여부 전달
+              </button>
+              <button
+                className="mt-3 inline-flex items-center gap-1 text-[13px] text-theme-secondary/90 underline-offset-2 hover:underline"
+                type="button"
+                onClick={hideIntroPromptForToday}
+              >
+                <span className="material-symbols-outlined text-[16px]">check_circle</span>
+                오늘 하루 보지 않기
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      <InvitationFullscreenModal open={isModalOpen} embedded={embedded} title="참석 여부 전달" onClose={closeModal} closeLabel="참석 여부 모달 닫기">
         <form className="mx-auto max-w-[440px] space-y-6" onSubmit={handleSubmit}>
           <p className="px-1 text-center text-[13px] leading-relaxed text-[#8e9096]">원활한 예식 진행을 위해 참석 정보를 미리 알려주시면 감사하겠습니다.</p>
 
@@ -435,12 +519,12 @@ export default function RsvpEntryModal({
 
         <section className="mx-auto mt-8 max-w-[440px] rounded-2xl border border-warm bg-white p-4">
           <div className="mb-3 flex items-center justify-between">
-            <h4 className="text-sm font-semibold text-theme-brand">등록된 RSVP</h4>
+            <h4 className="text-sm font-semibold text-theme-brand">등록된 참석 여부</h4>
             {!preview ? <p className="text-[11px] text-theme-secondary">작성자만 비밀번호로 삭제 가능</p> : null}
           </div>
 
           {entriesLoading ? <p className="py-6 text-center text-xs text-theme-secondary">불러오는 중...</p> : null}
-          {!entriesLoading && entries.length === 0 ? <p className="py-6 text-center text-xs text-theme-secondary">아직 RSVP 응답이 없습니다.</p> : null}
+          {!entriesLoading && entries.length === 0 ? <p className="py-6 text-center text-xs text-theme-secondary">아직 참석 응답이 없습니다.</p> : null}
 
           {!entriesLoading && entries.length > 0 ? (
             <div className="space-y-2.5">
@@ -472,7 +556,7 @@ export default function RsvpEntryModal({
                           type="button"
                           className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-warm bg-white text-theme-secondary"
                           onClick={() => setMenuEntryId((prev) => (prev === entry.id ? null : entry.id))}
-                          aria-label={`${entry.name} RSVP 메뉴`}
+                          aria-label={`${entry.name} 참석여부 메뉴`}
                         >
                           <span className="material-symbols-outlined text-[18px]">more_horiz</span>
                         </button>
@@ -503,7 +587,7 @@ export default function RsvpEntryModal({
 
           {deleteTarget && !preview ? (
             <div className="mt-4 space-y-3 rounded-xl border border-red-200 bg-red-50 p-3">
-              <p className="text-xs font-semibold text-red-700">{deleteTarget.name}님의 RSVP를 삭제하시겠습니까?</p>
+              <p className="text-xs font-semibold text-red-700">{deleteTarget.name}님의 참석 여부를 삭제하시겠습니까?</p>
               <input
                 type="password"
                 value={deletePassword}

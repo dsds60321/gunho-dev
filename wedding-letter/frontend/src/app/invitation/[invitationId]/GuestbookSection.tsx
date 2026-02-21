@@ -133,7 +133,7 @@ export default function GuestbookSection({ invitationId, slug, enabled, preview 
 
         <button
           type="button"
-          className="w-full rounded-xl border border-theme-brand bg-white py-3 text-xs font-bold text-theme-brand transition-colors hover:bg-theme"
+          className="w-full rounded-xl border border-warm bg-white py-3 text-xs font-bold text-theme-secondary transition-colors hover:bg-theme"
           onClick={() => setIsModalOpen(true)}
         >
           방명록 작성하기

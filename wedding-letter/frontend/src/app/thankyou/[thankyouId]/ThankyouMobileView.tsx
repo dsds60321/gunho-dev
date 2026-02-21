@@ -134,7 +134,7 @@ export default function ThankyouMobileView({ thankyou, apiBaseUrl, embedded = fa
         "--theme-bg": themeBackgroundColor,
         "--theme-text-primary": themeTextColor,
         "--theme-text-secondary": toRgba(themeTextColor, 0.72),
-        "--theme-divider": toRgba(themeAccentColor, 0.22),
+        "--theme-divider": toRgba(themeTextColor, 0.2),
         "--theme-brand": themeAccentColor,
         "--theme-accent": toRgba(themeAccentColor, 0.88),
         "--invite-theme-text": themeTextColor,

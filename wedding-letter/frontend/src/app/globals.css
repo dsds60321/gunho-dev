@@ -171,6 +171,128 @@ input:disabled {
   color: var(--theme-accent);
 }
 
+.landing-section {
+  position: relative;
+}
+
+.landing-shell {
+  margin: 0 auto;
+  max-width: 1200px;
+  padding-left: 24px;
+  padding-right: 24px;
+}
+
+.wedding-surface {
+  background: #ffffff;
+  border: 1px solid var(--theme-divider);
+  border-radius: 28px;
+  box-shadow: 0 30px 70px -40px rgba(81, 47, 33, 0.35);
+}
+
+.wedding-feature-card {
+  background: #ffffff;
+  border: 1px solid var(--theme-divider);
+  border-radius: 20px;
+  min-height: 220px;
+  padding: 24px;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.wedding-feature-card:hover {
+  box-shadow: 0 20px 40px -32px rgba(57, 40, 33, 0.5);
+  transform: translateY(-3px);
+}
+
+.wedding-template-card {
+  background: #ffffff;
+  border: 1px solid var(--theme-divider);
+  border-radius: 24px;
+  padding: 16px;
+}
+
+.wedding-floating-card {
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  border-radius: 18px;
+  box-shadow: 0 24px 48px -30px rgba(20, 12, 10, 0.45);
+}
+
+.btn-cta-primary {
+  align-items: center;
+  background-color: var(--theme-brand);
+  border: 1px solid var(--theme-brand);
+  border-radius: 9999px;
+  color: #ffffff;
+  display: inline-flex;
+  font-size: 15px;
+  font-weight: 700;
+  justify-content: center;
+  min-height: 52px;
+  padding: 0 26px;
+  transition: transform 0.22s ease, box-shadow 0.22s ease, opacity 0.22s ease;
+}
+
+.btn-cta-primary:hover {
+  box-shadow: 0 22px 35px -20px rgba(80, 44, 36, 0.55);
+  transform: translateY(-1px);
+}
+
+.btn-cta-primary:active {
+  transform: translateY(0);
+}
+
+.btn-cta-secondary {
+  align-items: center;
+  background-color: #ffffff;
+  border: 1px solid var(--theme-divider);
+  border-radius: 9999px;
+  color: var(--theme-text-primary);
+  display: inline-flex;
+  font-size: 15px;
+  font-weight: 600;
+  justify-content: center;
+  min-height: 52px;
+  padding: 0 26px;
+  transition: border-color 0.22s ease, color 0.22s ease, transform 0.22s ease;
+}
+
+.btn-cta-secondary:hover {
+  border-color: var(--theme-accent);
+  color: var(--theme-brand);
+  transform: translateY(-1px);
+}
+
+.review-control-button {
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid var(--theme-divider);
+  border-radius: 9999px;
+  color: var(--theme-text-primary);
+  display: inline-flex;
+  font-size: 18px;
+  height: 40px;
+  justify-content: center;
+  transition: all 0.2s ease;
+  width: 40px;
+}
+
+.review-control-button:hover {
+  border-color: var(--theme-accent);
+  color: var(--theme-brand);
+}
+
+@media (max-width: 640px) {
+  .landing-shell {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+
+  .btn-cta-primary,
+  .btn-cta-secondary {
+    min-height: 48px;
+    padding: 0 20px;
+  }
+}
+
 .login-card {
   background: #fff;
   border: 1px solid var(--theme-divider);

@@ -9,11 +9,10 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: "*",
         allow: "/",
-        disallow: ["/editor", "/login", "/mypage", "/rsvp-admin", "/api"],
+        disallow: ["/editor", "/login", "/mypage", "/rsvp-admin", "/invitation", "/thankyou", "/api"],
       },
     ],
     sitemap: joinSiteUrl("/sitemap.xml"),
     host: siteOrigin,
   };
 }
-

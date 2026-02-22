@@ -18,11 +18,5 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "daily",
       priority: 0.8,
     },
-    {
-      url: joinSiteUrl("/thankyou"),
-      lastModified: now,
-      changeFrequency: "weekly",
-      priority: 0.7,
-    },
   ];
 }

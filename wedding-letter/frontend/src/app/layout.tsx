@@ -3,6 +3,7 @@ import "./globals.css";
 import { ThemeProvider } from "./theme-provider";
 import { DEFAULT_THEME, normalizeTheme } from "@/lib/theme";
 import { getSiteOrigin, joinSiteUrl } from "@/lib/site-url";
+import GoogleAdsenseLoader from "@/components/GoogleAdsenseLoader";
 
 const siteOrigin = getSiteOrigin();
 const DEFAULT_API_BASE_URL = "http://localhost:8080";
@@ -136,14 +137,10 @@ export default async function RootLayout({
             __html: `window.__WEDDING_THEME__ = ${JSON.stringify(initialTheme)};`,
           }}
         />
-        <script
-          async
-          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8833422495639297"
-          crossOrigin="anonymous"
-        />
       </head>
       <body className="antialiased">
         <ThemeProvider>
+          <GoogleAdsenseLoader />
           {children}
         </ThemeProvider>
       </body>

@@ -95,7 +95,7 @@ export default function AdminNoticeNewPage() {
 
       pushToast("공지 저장이 완료되었습니다.", "success");
       window.setTimeout(() => {
-        router.push("/mypage/admin/notices");
+        router.push("/mypage?menu=adminNotices");
       }, 350);
     } catch (error) {
       pushToast(getApiErrorMessage(error, "공지 등록에 실패했습니다."), "error");
@@ -117,7 +117,7 @@ export default function AdminNoticeNewPage() {
               title="공지 등록"
               description="노출기간과 상태를 설정하고 저장하면 공지 관리 목록에서 즉시 확인할 수 있습니다."
               actions={
-                <Link className="rounded-full border border-warm px-4 py-2 text-xs font-bold text-theme-secondary hover:bg-theme" href="/mypage/admin/notices">
+                <Link className="rounded-full border border-warm px-4 py-2 text-xs font-bold text-theme-secondary hover:bg-theme" href="/mypage?menu=adminNotices">
                   목록
                 </Link>
               }
@@ -178,7 +178,7 @@ export default function AdminNoticeNewPage() {
                     <input checked={isBanner} type="checkbox" onChange={(event) => setIsBanner(event.target.checked)} />
                     배너 공지 노출
                   </label>
-                  <p className="text-xs text-theme-secondary">체크 시 메인 배너 영역에 "제목"으로 노출됩니다.</p>
+                  <p className="text-xs text-theme-secondary">체크 시 메인 배너 영역에 &quot;제목&quot;으로 노출됩니다.</p>
                 </div>
 
                 <label className="space-y-2 text-xs font-bold text-theme-secondary">
@@ -199,7 +199,7 @@ export default function AdminNoticeNewPage() {
                 <button
                   className="rounded-xl border border-warm px-5 py-3 text-sm font-bold text-theme-secondary"
                   type="button"
-                  onClick={() => router.push("/mypage/admin/notices")}
+                  onClick={() => router.push("/mypage?menu=adminNotices")}
                 >
                   취소
                 </button>

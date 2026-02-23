@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { fetchAuthMe } from "@/lib/auth";
@@ -20,13 +20,12 @@ type TemplateItem = {
   imageUrl: string;
 };
 
-function getCircularDistance(index: number, activeIndex: number, length: number): number {
-  let distance = index - activeIndex;
-  const half = Math.floor(length / 2);
-  if (distance > half) distance -= length;
-  if (distance < -half) distance += length;
-  return distance;
-}
+type ReviewItem = {
+  id: string;
+  couple: string;
+  quote: string;
+  meta: string;
+};
 
 const featureItems: FeatureItem[] = [
   {
@@ -94,15 +93,46 @@ const templateItems: TemplateItem[] = [
   },
 ];
 
+const reviewItems: ReviewItem[] = [
+  {
+    id: "review-01",
+    couple: "민서 & 태준",
+    quote: "처음부터 모바일 화면이 예쁘게 잡혀서 부모님께도 바로 공유할 수 있었어요. 수정도 정말 간단했습니다.",
+    meta: "2025.11 예식 · 서울",
+  },
+  {
+    id: "review-02",
+    couple: "지현 & 도윤",
+    quote: "화이트톤 기반 디자인이 고급스럽고, CTA 버튼 위치가 명확해서 하객들이 필요한 정보를 바로 찾았습니다.",
+    meta: "2025.10 예식 · 부산",
+  },
+  {
+    id: "review-03",
+    couple: "서영 & 현우",
+    quote: "템플릿 선택 폭이 넓고 갤러리, 지도, 계좌안내까지 한 번에 정리돼 준비 시간이 크게 줄었어요.",
+    meta: "2025.09 예식 · 대구",
+  },
+  {
+    id: "review-04",
+    couple: "유진 & 성훈",
+    quote: "반응형이 깔끔해서 친구들은 모바일, 어르신들은 태블릿으로도 불편함 없이 확인하셨어요.",
+    meta: "2025.08 예식 · 인천",
+  },
+];
+
 export default function LandingPage() {
   const router = useRouter();
-  const [activeTemplateIndex, setActiveTemplateIndex] = useState(2);
-  const activeTemplate = templateItems[activeTemplateIndex];
+  const [activeReviewIndex, setActiveReviewIndex] = useState(0);
+  const activeReview = reviewItems[activeReviewIndex];
+  const reviewProgress = useMemo(
+    () => ((activeReviewIndex + 1) / reviewItems.length) * 100,
+    [activeReviewIndex],
+  );
 
   useEffect(() => {
     const timer = window.setInterval(() => {
-      setActiveTemplateIndex((previous) => (previous + 1) % templateItems.length);
-    }, 4600);
+      setActiveReviewIndex((previous) => (previous + 1) % reviewItems.length);
+    }, 5200);
 
     return () => window.clearInterval(timer);
   }, []);
@@ -119,19 +149,19 @@ export default function LandingPage() {
   };
 
   return (
-    <div className="selection:bg-[var(--theme-selection-bg)]">
+    <div className="selection:bg-[#F9EBE6]" style={{ fontFamily: 'Pretendard, "Noto Sans KR", sans-serif' }}>
       <LandingTopHeader />
 
-      <main className="bg-gradient-to-b from-white via-[var(--theme-hero-via)] to-white text-theme-primary">
+      <main className="bg-white text-theme-primary">
         <section id="hero" className="landing-section overflow-hidden pb-24 pt-16 md:pb-32 md:pt-24">
           <div className="landing-shell relative grid items-center gap-12 lg:grid-cols-[minmax(0,1fr)_460px]">
             <div className="space-y-7">
-              <div className="inline-flex items-center rounded-md border border-[var(--theme-badge-border)] bg-[var(--theme-badge-bg)] px-4 py-2 text-xs font-semibold text-[var(--theme-badge-text)]">
+              <div className="inline-flex items-center rounded-full border border-warm bg-white px-4 py-2 text-xs font-semibold text-theme-secondary">
                 프리미엄 모바일 청첩장 스튜디오
               </div>
               <div className="space-y-5">
-                <p className="text-sm tracking-[0.2em] text-theme-accent uppercase">The Most Beautiful Beginning</p>
-                <h1 className="text-4xl leading-[1.2] font-semibold tracking-tight text-theme-brand md:text-6xl">
+                <p className="serif-font text-lg tracking-[0.18em] text-theme-accent italic">The Most Beautiful Beginning</p>
+                <h1 className="text-4xl leading-[1.2] text-theme-brand md:text-6xl">
                   감성은 살리고,
                   <br />
                   제작은 더 빠르게.
@@ -142,11 +172,11 @@ export default function LandingPage() {
                 </p>
               </div>
 
-              <div className="flex flex-col items-stretch gap-3 pt-2 sm:flex-row sm:flex-wrap sm:items-center">
-                <button className="btn-cta-primary w-full whitespace-nowrap sm:w-auto" type="button" onClick={goToEditorWithGuard}>
+              <div className="flex flex-wrap items-center gap-3 pt-2">
+                <button className="btn-cta-primary" type="button" onClick={goToEditorWithGuard}>
                   무료로 청첩장 시작하기
                 </button>
-                <button className="btn-cta-secondary w-full whitespace-nowrap sm:w-auto" type="button" onClick={goToEditorWithGuard}>
+                <button className="btn-cta-secondary" type="button" onClick={goToEditorWithGuard}>
                   모바일 청첩장 보기
                 </button>
               </div>
@@ -169,7 +199,7 @@ export default function LandingPage() {
 
             <div className="relative mx-auto w-full max-w-[430px]">
               <div className="wedding-surface p-4 md:p-5">
-                <div className="relative h-[560px] overflow-hidden rounded-2xl bg-[#111111]">
+                <div className="relative h-[560px] overflow-hidden rounded-3xl bg-[#1f1f1f]">
                   <img
                     className="h-full w-full object-cover opacity-85"
                     src="https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&q=80&w=1200"
@@ -197,11 +227,11 @@ export default function LandingPage() {
           </div>
         </section>
 
-        <section id="services" className="landing-section border-y border-warm bg-[var(--theme-section-soft)] py-16 md:py-24">
+        <section id="services" className="landing-section border-y border-warm bg-[#fdfbf9] py-16 md:py-24">
           <div className="landing-shell">
             <div className="mb-10 md:mb-14">
               <p className="text-sm font-semibold tracking-[0.14em] text-theme-accent">SERVICE FEATURES</p>
-              <h2 className="mt-3 text-3xl font-semibold tracking-tight text-theme-brand md:text-5xl">핵심 서비스 특징</h2>
+              <h2 className="mt-3 text-3xl text-theme-brand md:text-5xl">핵심 서비스 특징</h2>
               <p className="mt-4 max-w-3xl text-theme-secondary">
                 첫 방문 사용자도 바로 이해할 수 있는 정보 흐름으로 구성했습니다. 상단 CTA에서 시작해 템플릿 탐색, 신뢰 확보,
                 문의/시작으로 자연스럽게 전환됩니다.
@@ -224,141 +254,96 @@ export default function LandingPage() {
 
         <section id="templates" className="landing-section py-16 md:py-24">
           <div className="landing-shell">
-            <div className="text-center">
-              <h2 className="mt-3 text-3xl font-semibold tracking-tight text-theme-brand md:text-5xl">이런 청첩장을 만들 수 있어요</h2>
-              <p className="mt-4 text-sm text-theme-secondary md:text-base">좌우로 넘기며 다양한 디자인을 확인해보세요</p>
-            </div>
-
-            <div className="relative mx-auto mt-10 h-[430px] w-full max-w-[1140px] overflow-hidden [perspective:1600px] md:h-[500px]">
-              {templateItems.map((template, index) => {
-                const distance = getCircularDistance(index, activeTemplateIndex, templateItems.length);
-                const absDistance = Math.abs(distance);
-                const hidden = absDistance > 3;
-                const offsetX = distance * 180;
-                const rotateY = distance * -12;
-                const scale = absDistance === 0 ? 1 : Math.max(0.62, 1 - absDistance * 0.14);
-                const opacity = absDistance === 0 ? 1 : Math.max(0.18, 0.88 - absDistance * 0.22);
-                const zIndex = 50 - absDistance;
-
-                return (
-                  <button
-                    key={template.id}
-                    className={`absolute left-1/2 top-4 w-[180px] overflow-hidden rounded-2xl border border-white/70 bg-white shadow-[0_24px_48px_-30px_rgba(15,23,42,0.55)] transition-all duration-500 md:w-[220px] ${
-                      hidden ? "pointer-events-none opacity-0" : ""
-                    }`}
-                    style={{
-                      opacity,
-                      transform: `translateX(calc(-50% + ${offsetX}px)) rotateY(${rotateY}deg) scale(${scale})`,
-                      transformStyle: "preserve-3d",
-                      zIndex,
-                    }}
-                    type="button"
-                    onClick={() => setActiveTemplateIndex(index)}
-                    aria-label={`${template.title} 템플릿 선택`}
-                  >
-                    <div className="h-[285px] md:h-[350px]">
-                      <img className="h-full w-full object-cover" src={template.imageUrl} alt={template.title} />
-                    </div>
-                  </button>
-                );
-              })}
-
-              <button
-                className="absolute left-3 top-1/2 z-[60] -translate-y-1/2 rounded-full border border-warm bg-white/95 p-2 text-theme-secondary shadow-sm transition-colors hover:text-theme-brand"
-                type="button"
-                onClick={() =>
-                  setActiveTemplateIndex((previous) => (previous - 1 + templateItems.length) % templateItems.length)
-                }
-                aria-label="이전 템플릿"
-              >
-                <span className="material-symbols-outlined text-[18px]">chevron_left</span>
-              </button>
-              <button
-                className="absolute right-3 top-1/2 z-[60] -translate-y-1/2 rounded-full border border-warm bg-white/95 p-2 text-theme-secondary shadow-sm transition-colors hover:text-theme-brand"
-                type="button"
-                onClick={() => setActiveTemplateIndex((previous) => (previous + 1) % templateItems.length)}
-                aria-label="다음 템플릿"
-              >
-                <span className="material-symbols-outlined text-[18px]">chevron_right</span>
+            <div className="mb-10 flex flex-wrap items-end justify-between gap-4">
+              <div>
+                <p className="text-sm font-semibold tracking-[0.14em] text-theme-accent">TEMPLATE GALLERY</p>
+                <h2 className="mt-3 text-3xl text-theme-brand md:text-5xl">템플릿 갤러리</h2>
+              </div>
+              <button className="btn-cta-secondary" type="button" onClick={goToEditorWithGuard}>
+                전체 템플릿 보기
               </button>
             </div>
 
-            <div className="mt-3 text-center">
-              <p className="text-xl font-semibold text-theme-brand">{activeTemplate.title}</p>
-              <p className="mt-1 text-sm text-theme-secondary">{activeTemplate.concept}</p>
-            </div>
-
-            <div className="mt-6 flex items-center justify-center gap-2">
-              {templateItems.map((template, index) => (
-                <button
-                  key={`template-dot-${template.id}`}
-                  className={`h-2.5 rounded-full transition-all ${index === activeTemplateIndex ? "w-6 bg-theme-brand" : "w-2.5 bg-[#cfd8e3]"}`}
-                  type="button"
-                  onClick={() => setActiveTemplateIndex(index)}
-                  aria-label={`${template.title} 보기`}
-                />
+            <div className="hide-scrollbar -mx-4 flex gap-4 overflow-x-auto px-4 pb-2 md:grid md:grid-cols-2 md:gap-6 lg:grid-cols-3">
+              {templateItems.map((template) => (
+                <article key={template.id} className="wedding-template-card min-w-[250px] md:min-w-0">
+                  <div className="h-72 overflow-hidden rounded-2xl md:h-80">
+                    <img className="h-full w-full object-cover transition-transform duration-500 hover:scale-105" src={template.imageUrl} alt={template.title} />
+                  </div>
+                  <div className="mt-5 space-y-2">
+                    <h3 className="text-lg font-semibold text-theme-brand">{template.title}</h3>
+                    <p className="text-sm leading-6 text-theme-secondary">{template.concept}</p>
+                  </div>
+                </article>
               ))}
-            </div>
-
-            <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-              <button className="btn-cta-primary min-w-[170px]" type="button" onClick={goToEditorWithGuard}>
-                이 샘플 미리보기
-              </button>
-              <button className="btn-cta-secondary min-w-[170px]" type="button" onClick={goToEditorWithGuard}>
-                샘플 전체 보러가기
-              </button>
             </div>
           </div>
         </section>
 
-        <section id="reviews" className="landing-section bg-[var(--theme-section-muted)] py-16 md:py-24">
-          <div className="landing-shell space-y-8 md:space-y-10">
-            <article className="mx-auto max-w-[1040px] rounded-[26px] border border-warm bg-white px-6 py-10 shadow-[0_16px_45px_-34px_rgba(15,23,42,0.35)] md:px-10 md:py-12">
-              <p className="text-center text-sm font-semibold text-theme-secondary">연중무휴 24시간 편집 지원</p>
-              <h2 className="mt-2 text-center text-3xl font-semibold tracking-tight text-theme-brand md:text-5xl">
-                <span className="text-[#a9adb4]">발행 후에도 </span>
-                무제한 수정
-              </h2>
+        <section id="reviews" className="landing-section bg-[#fdfaf7] py-16 md:py-24">
+          <div className="landing-shell">
+            <div className="mb-9 md:mb-12">
+              <p className="text-sm font-semibold tracking-[0.14em] text-theme-accent">CUSTOMER REVIEW</p>
+              <h2 className="mt-3 text-3xl text-theme-brand md:text-5xl">고객 후기</h2>
+              <p className="mt-4 max-w-2xl text-theme-secondary">실제 사용자 피드백을 카드 슬라이더 형태로 노출해 신뢰도를 확보합니다.</p>
+            </div>
 
-              <div className="mx-auto mt-8 grid max-w-[620px] grid-cols-1 gap-4 sm:grid-cols-2">
-                {[0, 1].map((phoneIndex) => (
-                  <div key={`edit-phone-${phoneIndex}`} className="relative overflow-hidden rounded-2xl border border-warm bg-[#1b1d22] p-3 shadow-sm">
-                    <div className="absolute left-3 top-3 rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-semibold text-theme-secondary">
-                      {phoneIndex === 0 ? "샘플 이용중" : "210일 뒤 완료"}
-                    </div>
-                    <div className="mt-8 rounded-xl bg-white/92 p-3">
-                      <div className="space-y-2">
-                        {["관리페이지", "공유하기", "청첩장 보기", "청첩장 편집하기", "프로필/제목 변경", "삭제하기"].map((menu, menuIndex) => (
-                          <div
-                            key={`${menu}-${menuIndex}`}
-                            className={`rounded-md px-2 py-1.5 text-[11px] font-medium ${
-                              menu === "청첩장 편집하기" ? "bg-[var(--theme-section-soft)] text-theme-brand" : "text-[#a0a5ad]"
-                            }`}
-                          >
-                            {menu}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="mt-3 grid grid-cols-3 gap-2">
-                      <div className="rounded-md bg-white px-2 py-1 text-center text-[10px] font-semibold text-theme-secondary">...</div>
-                      <div className="rounded-md bg-[#dce8ff] px-2 py-1 text-center text-[10px] font-semibold text-[#2f6dd8]">
-                        {phoneIndex === 0 ? "편집하기" : "관리페이지"}
-                      </div>
-                      <div className="rounded-md bg-[#dce8ff] px-2 py-1 text-center text-[10px] font-semibold text-[#2f6dd8]">
-                        {phoneIndex === 0 ? "구매하기" : "공유하기"}
-                      </div>
-                    </div>
-                  </div>
-                ))}
+            <div className="wedding-surface overflow-hidden p-6 md:p-8">
+              <div className="min-h-[170px] transition-opacity duration-400">
+                <p className="text-lg leading-8 text-theme-primary md:text-2xl md:leading-10">“{activeReview.quote}”</p>
+                <div className="mt-7 flex flex-wrap items-center gap-3 text-sm">
+                  <span className="font-semibold text-theme-brand">{activeReview.couple}</span>
+                  <span className="text-theme-secondary">{activeReview.meta}</span>
+                </div>
               </div>
-            </article>
+
+              <div className="mt-8 flex items-center justify-between gap-5">
+                <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[#ece2dc]">
+                  <div className="h-full rounded-full bg-theme-brand transition-all duration-500" style={{ width: `${reviewProgress}%` }} />
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    className="review-control-button"
+                    type="button"
+                    onClick={() =>
+                      setActiveReviewIndex((previous) => (previous - 1 + reviewItems.length) % reviewItems.length)
+                    }
+                    aria-label="이전 후기"
+                  >
+                    ←
+                  </button>
+                  <button
+                    className="review-control-button"
+                    type="button"
+                    onClick={() => setActiveReviewIndex((previous) => (previous + 1) % reviewItems.length)}
+                    aria-label="다음 후기"
+                  >
+                    →
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-8 flex flex-wrap gap-2">
+              {reviewItems.map((review, index) => (
+                <button
+                  key={review.id}
+                  className={`rounded-full px-4 py-2 text-xs font-semibold transition-colors ${
+                    index === activeReviewIndex ? "bg-theme-brand text-white" : "border border-warm bg-white text-theme-secondary hover:text-theme-brand"
+                  }`}
+                  type="button"
+                  onClick={() => setActiveReviewIndex(index)}
+                >
+                  {review.couple}
+                </button>
+              ))}
+            </div>
           </div>
         </section>
 
         <section className="landing-section border-t border-warm bg-white py-16 text-center md:py-20">
           <div className="landing-shell">
-            <h2 className="text-3xl font-semibold tracking-tight text-theme-brand md:text-5xl">지금, 우리만의 청첩장을 시작하세요</h2>
+            <h2 className="text-3xl text-theme-brand md:text-5xl">지금, 우리만의 청첩장을 시작하세요</h2>
             <p className="mx-auto mt-4 max-w-2xl text-theme-secondary">
               섹션 구조는 익숙하게, 무드는 더 섬세하게. 웨딩 초대장의 첫인상을 완성할 준비가 되었습니다.
             </p>
@@ -373,7 +358,7 @@ export default function LandingPage() {
           </div>
         </section>
 
-        <footer className="border-t border-warm bg-[var(--theme-section-muted)] py-12">
+        <footer className="border-t border-warm bg-[#fcf9f6] py-12">
           <div className="landing-shell grid gap-10 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
             <div>
               <p className="serif-font text-3xl text-theme-brand">Wedding Letter</p>

@@ -158,7 +158,7 @@ function AdminUserInvitationsPageContent() {
       <main className="px-6 py-10">
         <div className="mx-auto max-w-6xl space-y-5">
           <nav className="text-xs text-theme-secondary">
-            <Link className="hover:underline" href="/mypage/admin/users">
+            <Link className="hover:underline" href="/mypage?menu=adminUsers">
               사용자 목록
             </Link>
             <span className="mx-2">&gt;</span>
@@ -171,7 +171,7 @@ function AdminUserInvitationsPageContent() {
             title="관리자 | 사용자 청첩장"
             description="사용자별 청첩장 발행 현황을 확인하고, 미리보기/관리 화면으로 이동할 수 있습니다."
             actions={
-              <Link className="rounded-full border border-warm px-4 py-2 text-xs font-bold text-theme-secondary hover:bg-white" href="/mypage/admin/users">
+              <Link className="rounded-full border border-warm px-4 py-2 text-xs font-bold text-theme-secondary hover:bg-white" href="/mypage?menu=adminUsers">
                 사용자 목록
               </Link>
             }

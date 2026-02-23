@@ -515,16 +515,16 @@ const THEME_EFFECT_OPTIONS = [
 const EDITOR_SECTION_ORDER = ["theme", "basic", "hero", "location", "transport", "guestbook", "rsvp", "music", "detail"] as const;
 type EditorSectionKey = (typeof EDITOR_SECTION_ORDER)[number];
 
-const EDITOR_SECTION_META: Record<EditorSectionKey, { title: string; hint: string }> = {
-  theme: { title: "테마 설정", hint: "전체 분위기" },
-  basic: { title: "기본 정보", hint: "신랑/신부/혼주" },
-  hero: { title: "메인 화면", hint: "이미지/디자인" },
-  location: { title: "예식 장소", hint: "주소/지도" },
-  transport: { title: "교통 안내", hint: "지하철/버스/자가용" },
-  guestbook: { title: "방명록", hint: "사용 여부/등록" },
-  rsvp: { title: "참석여부 전달", hint: "팝업/자동 노출" },
-  music: { title: "배경 음악", hint: "BGM 설정" },
-  detail: { title: "추가 정보", hint: "미리보기/갤러리/링크" },
+const EDITOR_SECTION_META: Record<EditorSectionKey, { title: string; hint: string; icon: string }> = {
+  theme: { title: "테마 설정", hint: "전체 분위기", icon: "palette" },
+  basic: { title: "기본 정보", hint: "신랑/신부/혼주", icon: "person" },
+  hero: { title: "메인 화면", hint: "이미지/디자인", icon: "photo_library" },
+  location: { title: "예식 장소", hint: "주소/지도", icon: "location_on" },
+  transport: { title: "교통 안내", hint: "지하철/버스/자가용", icon: "commute" },
+  guestbook: { title: "방명록", hint: "사용 여부/등록", icon: "rate_review" },
+  rsvp: { title: "참석여부 전달", hint: "팝업/자동 노출", icon: "fact_check" },
+  music: { title: "배경 음악", hint: "BGM 설정", icon: "music_note" },
+  detail: { title: "추가 정보", hint: "미리보기/갤러리/링크", icon: "tune" },
 };
 
 function buildOpenSections(sectionKey: EditorSectionKey): Record<EditorSectionKey, boolean> {
@@ -548,9 +548,9 @@ const MAX_OPENING_TITLE_FONT_SIZE = 72;
 const MIN_OPENING_MESSAGE_FONT_SIZE = 10;
 const MAX_OPENING_MESSAGE_FONT_SIZE = 52;
 const INVALID_ASSET_URL_TOKENS = new Set(["null", "undefined", "nan"]);
-const MIN_PREVIEW_SPLIT_PERCENT = 36;
-const MAX_PREVIEW_SPLIT_PERCENT = 64;
-const DEFAULT_PREVIEW_SPLIT_PERCENT = 50;
+const MIN_PREVIEW_SPLIT_PERCENT = 24;
+const MAX_PREVIEW_SPLIT_PERCENT = 42;
+const DEFAULT_PREVIEW_SPLIT_PERCENT = 40;
 const KAKAO_SHARE_DEFAULT_IMAGE_URL =
   "https://images.unsplash.com/photo-1515934751635-c81c6bc9a2d8?auto=format&fit=crop&w=1200&q=80";
 
@@ -944,6 +944,7 @@ export default function EditorPage() {
   const [openSections, setOpenSections] = useState<Record<EditorSectionKey, boolean>>(() => buildOpenSections("theme"));
   const [previewSplitPercent, setPreviewSplitPercent] = useState(DEFAULT_PREVIEW_SPLIT_PERCENT);
   const [isResizingPanels, setIsResizingPanels] = useState(false);
+  const [isMobileActionMenuOpen, setIsMobileActionMenuOpen] = useState(false);
 
   const activeSection = useMemo<EditorSectionKey>(
     () => EDITOR_SECTION_ORDER.find((key) => openSections[key]) ?? EDITOR_SECTION_ORDER[0],
@@ -2069,6 +2070,7 @@ export default function EditorPage() {
     [completedStepCount],
   );
   const seoImagePreviewUrl = useMemo(() => resolveAssetUrl(form.seoImageUrl), [form.seoImageUrl]);
+  const closeMobileActionMenu = () => setIsMobileActionMenuOpen(false);
 
   if (!ready || !invitation) {
     return <div className="flex min-h-screen items-center justify-center text-sm text-theme-secondary">{loadingText}</div>;
@@ -2086,17 +2088,18 @@ export default function EditorPage() {
           showToast("카카오 SDK를 불러오지 못했습니다.", "error");
         }}
       />
-      <header className="z-50 flex h-16 shrink-0 items-center justify-between border-b border-warm bg-white px-6 md:px-8">
-        <div className="flex items-center gap-4">
+      <header className="z-50 flex h-16 shrink-0 items-center justify-between border-b border-warm bg-white px-4 sm:px-6 md:px-8">
+        <div className="flex items-center gap-2 sm:gap-4">
           <button className="group flex items-center gap-2 text-gray-400 transition-colors hover:text-gray-900" type="button" onClick={() => router.push("/")}>
             <span className="material-symbols-outlined text-[20px]">arrow_back</span>
-            <span className="text-sm font-medium">Wedding Letter 에디터</span>
+            <span className="text-sm font-medium sm:hidden">에디터</span>
+            <span className="hidden text-sm font-medium sm:block">Wedding Letter 에디터</span>
           </button>
           <div className="hidden h-4 w-px bg-[var(--theme-divider)] md:block" />
           <div className="hidden text-xs font-medium text-gray-400 md:block">초대장 ID: {invitation.id > 0 ? invitation.id : "미저장"}</div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="hidden items-center gap-2 md:flex">
           <button
             className="rounded-full border border-warm px-4 py-2 text-xs font-bold text-theme-secondary transition-colors hover:bg-theme disabled:cursor-not-allowed disabled:opacity-50"
             type="button"
@@ -2176,11 +2179,124 @@ export default function EditorPage() {
             로그아웃
           </button>
         </div>
+
+        <button
+          className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-warm text-theme-secondary transition-colors hover:bg-theme md:hidden"
+          type="button"
+          onClick={() => setIsMobileActionMenuOpen((prev) => !prev)}
+          aria-label={isMobileActionMenuOpen ? "작업 메뉴 닫기" : "작업 메뉴 열기"}
+          aria-expanded={isMobileActionMenuOpen}
+        >
+          <span className="material-symbols-outlined text-[22px]">{isMobileActionMenuOpen ? "close" : "menu"}</span>
+        </button>
       </header>
+
+      <div className={`editor-mobile-actions border-b border-warm bg-white md:hidden ${isMobileActionMenuOpen ? "open" : ""}`}>
+        <div className="space-y-2 px-4 py-3">
+          <button
+            className="w-full rounded-md border border-warm px-4 py-2.5 text-left text-xs font-bold text-theme-secondary transition-colors hover:bg-theme disabled:cursor-not-allowed disabled:opacity-50"
+            type="button"
+            onClick={() => {
+              closeMobileActionMenu();
+              void handleSave();
+            }}
+            disabled={saving || uploading}
+          >
+            {saving ? "저장중..." : "저장하기"}
+          </button>
+          <button
+            className="w-full rounded-md border border-warm px-4 py-2.5 text-left text-xs font-bold text-theme-secondary transition-colors hover:bg-theme disabled:cursor-not-allowed disabled:opacity-50"
+            type="button"
+            onClick={() => {
+              closeMobileActionMenu();
+              if (!isInvitationSaved) {
+                showToast("먼저 저장 후 미리보기를 이용해 주세요.", "error");
+                return;
+              }
+              router.push(`/invitation/${invitation.id}?preview=1`);
+            }}
+            disabled={actionLockedUntilSaved}
+          >
+            미리보기
+          </button>
+          {invitation.published ? (
+            <button
+              className="w-full rounded-md border border-warm px-4 py-2.5 text-left text-xs font-bold text-theme-secondary transition-colors hover:bg-theme"
+              type="button"
+              onClick={() => {
+                closeMobileActionMenu();
+                void copyShareUrl();
+              }}
+            >
+              URL 복사
+            </button>
+          ) : null}
+          <button
+            className="w-full rounded-md border border-warm px-4 py-2.5 text-left text-xs font-bold text-theme-secondary transition-colors hover:bg-theme disabled:cursor-not-allowed disabled:opacity-60"
+            type="button"
+            onClick={() => {
+              closeMobileActionMenu();
+              void shareOnKakao();
+            }}
+            disabled={!kakaoShareSdkLoaded}
+          >
+            카카오 공유
+          </button>
+          {invitation.published ? (
+            <button
+              className="w-full rounded-md border border-warm px-4 py-2.5 text-left text-xs font-bold text-theme-secondary disabled:cursor-not-allowed disabled:opacity-50"
+              type="button"
+              onClick={() => {
+                closeMobileActionMenu();
+                void handleUnpublish();
+              }}
+              disabled={actionLockedUntilSaved || unpublishing || publishing}
+            >
+              {unpublishing ? "해제중..." : "발행해제"}
+            </button>
+          ) : (
+            <>
+              <button
+                className="w-full rounded-md bg-theme-brand px-4 py-2.5 text-left text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                type="button"
+                onClick={() => {
+                  closeMobileActionMenu();
+                  void handlePublish();
+                }}
+                disabled={actionLockedUntilSaved || publishing || unpublishing || uploading || deleting}
+              >
+                {publishing ? "발행중..." : "발행하기"}
+              </button>
+              <button
+                className="w-full rounded-md border border-red-200 bg-red-50 px-4 py-2.5 text-left text-xs font-bold text-red-500 disabled:cursor-not-allowed disabled:opacity-50"
+                type="button"
+                onClick={() => {
+                  closeMobileActionMenu();
+                  void handleDelete();
+                }}
+                disabled={actionLockedUntilSaved || saving || publishing || uploading || deleting}
+              >
+                {deleting ? "삭제중..." : "삭제하기"}
+              </button>
+            </>
+          )}
+          <button
+            className="w-full rounded-md border border-warm px-4 py-2.5 text-left text-xs font-bold text-theme-secondary"
+            type="button"
+            onClick={async () => {
+              closeMobileActionMenu();
+              await logout();
+              router.push("/");
+            }}
+          >
+            로그아웃
+          </button>
+        </div>
+      </div>
 
       <main
         ref={editorMainRef}
-        className="grid flex-1 grid-cols-1 md:[grid-template-columns:var(--editor-preview-width)_14px_minmax(0,1fr)]"
+        className="grid flex-1 grid-cols-1 md:[grid-template-columns:var(--editor-preview-width)_14px_minmax(0,1fr)] lg:[grid-template-columns:var(--editor-preview-width)_14px_96px_minmax(0,1fr)]"
         style={editorMainStyle}
       >
         <section className="border-b border-warm bg-theme p-4 md:sticky md:top-0 md:h-[calc(100vh-64px)] md:border-b-0 md:p-5">
@@ -2307,8 +2423,8 @@ export default function EditorPage() {
         </section>
 
         <button
-          className={`group hidden touch-none cursor-col-resize items-stretch justify-center border-x border-warm transition-colors md:flex ${
-            isResizingPanels ? "bg-theme/80" : "bg-white/70 hover:bg-theme/60"
+          className={`group hidden touch-none cursor-col-resize items-stretch justify-center border-x border-[#eceff3] transition-colors md:flex ${
+            isResizingPanels ? "bg-[#eef2f7]" : "bg-[#f8fafc] hover:bg-[#f1f5f9]"
           }`}
           type="button"
           aria-label="미리보기와 등록패널 너비 조절"
@@ -2324,15 +2440,47 @@ export default function EditorPage() {
         >
           <span
             className={`my-auto h-24 w-[3px] rounded-full transition-colors ${
-              isResizingPanels ? "bg-theme-brand" : "bg-theme-secondary/30 group-hover:bg-theme-brand/70"
+              isResizingPanels ? "bg-theme-brand" : "bg-[#cbd5e1] group-hover:bg-theme-brand/70"
             }`}
           />
         </button>
 
-        <section className="custom-scrollbar overflow-y-auto bg-theme">
+        <aside className="hidden border-x border-[#eceff3] bg-[#fafbfc] lg:block">
+          <div className="custom-scrollbar h-[calc(100vh-64px)] overflow-y-auto">
+            <div className="min-h-full border border-warm bg-white p-2 shadow-sm">
+              <div className="mt-2 space-y-1.5">
+                {EDITOR_SECTION_ORDER.map((sectionKey, index) => {
+                  const isActive = sectionKey === activeSection;
+                  const isCompleted = sectionCompletion[sectionKey];
+                  return (
+                    <button
+                      key={`compact-${sectionKey}`}
+                      className={`w-full rounded-md border px-1.5 py-2 transition-colors ${
+                        isActive
+                          ? "border-theme-brand bg-theme-brand text-white"
+                          : isCompleted
+                            ? "border-[var(--theme-badge-border)] bg-[var(--theme-badge-bg)] text-[var(--theme-badge-text)]"
+                            : "border-warm bg-white text-theme-secondary hover:bg-theme"
+                      }`}
+                      type="button"
+                      onClick={() => openSection(sectionKey)}
+                      title={EDITOR_SECTION_META[sectionKey].title}
+                    >
+                      <span className="material-symbols-outlined mx-auto block text-[12px]">{EDITOR_SECTION_META[sectionKey].icon}</span>
+                      <span className="mt-0.5 block text-center text-[9px] leading-[1.2]">{EDITOR_SECTION_META[sectionKey].title}</span>
+                      <span className="mt-0.5 block text-center text-[8px] opacity-70">{index + 1}/{EDITOR_SECTION_ORDER.length}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        <section className="custom-scrollbar overflow-y-auto border-l border-[#eceff3] bg-theme">
           <form className="mx-auto max-w-none px-0 py-0 md:px-0" onSubmit={handleSave}>
             <div className="px-6 py-10 md:px-10 space-y-2">
-              <h1 className="serif-font text-3xl text-theme-brand">초대장 편집</h1>
+              <h1 className="font-pretendard text-3xl font-semibold text-theme-brand">초대장 편집</h1>
               <p className="text-sm text-theme-secondary opacity-70">청첩장 내용을 항목별로 깔끔하게 관리하세요.</p>
               <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-900">
                 {!isInvitationSaved
@@ -2342,11 +2490,12 @@ export default function EditorPage() {
             </div>
 
             <div className="px-6 pb-10 md:px-10">
-              <div className="grid grid-cols-1 gap-6 xl:grid-cols-[240px_minmax(0,1fr)]">
-                <aside className="h-fit rounded-2xl border border-warm bg-white p-4 shadow-sm xl:sticky xl:top-6">
+              <div className="grid grid-cols-1 gap-6">
+                <aside className="h-fit rounded-2xl border border-warm bg-white p-4 shadow-sm lg:hidden">
                   <div className="mb-4">
                     <p className="text-xs font-bold tracking-[0.12em] text-theme-secondary">등록 패널</p>
-                    <p className="mt-1 text-sm font-semibold text-theme-brand">
+                    <p className="mt-1 flex items-center gap-1.5 text-sm font-semibold text-theme-brand">
+                      <span className="material-symbols-outlined text-[12px]">{EDITOR_SECTION_META[activeSection].icon}</span>
                       {activeStepIndex + 1}. {EDITOR_SECTION_META[activeSection].title}
                     </p>
                     <p className="mt-1 text-[11px] text-theme-secondary">{EDITOR_SECTION_META[activeSection].hint}</p>
@@ -2359,17 +2508,23 @@ export default function EditorPage() {
                       return (
                         <button
                           key={sectionKey}
-                          className={`w-full rounded-xl border px-3 py-2 text-left text-xs font-bold transition-colors ${
+                          className={`flex w-full items-center justify-between rounded-xl border px-3 py-2 text-left text-xs font-bold transition-colors ${
                             isActive
                               ? "border-theme-brand bg-theme-brand text-white"
                               : isCompleted
-                                ? "border-[#f3c4d4] bg-[#ffeef4] text-[#b85f7e]"
+                                ? "border-[var(--theme-badge-border)] bg-[var(--theme-badge-bg)] text-[var(--theme-badge-text)]"
                                 : "border-warm bg-white text-theme-secondary hover:bg-theme"
                           }`}
                           type="button"
                           onClick={() => openSection(sectionKey)}
                         >
-                          {index + 1}. {EDITOR_SECTION_META[sectionKey].title}
+                          <span className="flex items-center gap-1.5">
+                            <span className="material-symbols-outlined text-[11px]">{EDITOR_SECTION_META[sectionKey].icon}</span>
+                            <span>
+                              {index + 1}. {EDITOR_SECTION_META[sectionKey].title}
+                            </span>
+                          </span>
+                          {isCompleted ? <span className="material-symbols-outlined text-[10px]">check_circle</span> : null}
                         </button>
                       );
                     })}
@@ -3472,7 +3627,7 @@ export default function EditorPage() {
                 <div className="space-y-6 px-6 pt-2 pb-10 md:px-10">
                   <div className="space-y-3 rounded-2xl border border-warm bg-[#fdfcfb] p-6">
                     <label className="space-y-2 block">
-                      <span className="text-xs font-bold text-theme-secondary">공유 URL slug</span>
+                      <span className="text-xs font-bold text-theme-secondary">공유 URL</span>
                       <div className="flex gap-2">
                         <input className="input-premium flex-1" placeholder="예: gunho-sebin-wedding" value={form.slug} onChange={(e) => updateField("slug", e.target.value)} />
                         <button
@@ -3611,7 +3766,7 @@ export default function EditorPage() {
                   </label>
 
                   <div className="space-y-3 rounded-2xl border border-warm bg-white p-4">
-                    <span className="text-xs font-bold text-theme-secondary">미리보기 대표 이미지 업로드</span>
+                    <span className="text-xs font-bold text-theme-secondary">미리보기 대표 이미지</span>
                     <div className="flex flex-col gap-3">
                       <div className="relative aspect-[4/3] w-full max-w-[200px] overflow-hidden rounded-xl border border-dashed border-gray-300 bg-white group">
                         {seoImagePreviewUrl ? (
@@ -3702,7 +3857,7 @@ export default function EditorPage() {
                   </label>
 
                   <label className="space-y-2 block">
-                    <span className="text-xs font-bold text-theme-secondary">미리보기 설명</span>
+                    <span className="text-xs font-bold text-theme-secondary">미리 보기 설명</span>
                     <textarea className="input-premium" value={form.seoDescription} onChange={(e) => updateField("seoDescription", e.target.value)} />
                   </label>
 

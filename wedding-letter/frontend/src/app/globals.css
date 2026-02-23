@@ -34,67 +34,140 @@
 }
 
 :root,
+[data-theme='default'] {
+  --theme-bg: #ffffff;
+  --theme-text-primary: #111111;
+  --theme-text-secondary: #6b7280;
+  --theme-divider: #e5e7eb;
+  --theme-brand: #111111;
+  --theme-accent: #007aff;
+  --theme-selection-bg: #dbeafe;
+  --theme-hero-via: #f8fbff;
+  --theme-section-soft: #f4f9ff;
+  --theme-section-muted: #f8fafc;
+  --theme-progress-track: #e5e7eb;
+  --theme-badge-bg: #eff6ff;
+  --theme-badge-border: #bfdbfe;
+  --theme-badge-text: #1d4ed8;
+}
+
 [data-theme='autumn'] {
-  --theme-bg: #fdf8f5;
-  --theme-text-primary: #4a2c2a;
-  --theme-text-secondary: #8c6d6a;
-  --theme-divider: #ebd9d5;
-  --theme-brand: #803b2a;
-  --theme-accent: #d69e2e;
+  --theme-bg: #fffaf6;
+  --theme-text-primary: #2f231b;
+  --theme-text-secondary: #7b6b60;
+  --theme-divider: #e9dfd8;
+  --theme-brand: #2f231b;
+  --theme-accent: #0a7cff;
+  --theme-selection-bg: #dbeafe;
+  --theme-hero-via: #fdf8f2;
+  --theme-section-soft: #fbf5ef;
+  --theme-section-muted: #faf6f2;
+  --theme-progress-track: #e9dfd8;
+  --theme-badge-bg: #eef5ff;
+  --theme-badge-border: #bfd8ff;
+  --theme-badge-text: #215fb0;
 }
 
 [data-theme='classic'] {
-  --theme-bg: #fffbf5;
-  --theme-text-primary: #1f2937;
+  --theme-bg: #fbfdff;
+  --theme-text-primary: #111827;
   --theme-text-secondary: #6b7280;
-  --theme-divider: #e7e0d6;
-  --theme-brand: #1f2a44;
-  --theme-accent: #b89b6a;
+  --theme-divider: #dce3ee;
+  --theme-brand: #111827;
+  --theme-accent: #1d4ed8;
+  --theme-selection-bg: #dbeafe;
+  --theme-hero-via: #f5f8ff;
+  --theme-section-soft: #f4f7ff;
+  --theme-section-muted: #f7f9fc;
+  --theme-progress-track: #dce3ee;
+  --theme-badge-bg: #eaf1ff;
+  --theme-badge-border: #bfd4ff;
+  --theme-badge-text: #1e40af;
 }
 
 [data-theme='spring'] {
-  --theme-bg: #fff9f5;
-  --theme-text-primary: #3d403a;
-  --theme-text-secondary: #7a8275;
-  --theme-divider: #e5ebdd;
-  --theme-brand: #8ba888;
-  --theme-accent: #f5a792;
+  --theme-bg: #f8fcf9;
+  --theme-text-primary: #1a3a2c;
+  --theme-text-secondary: #5f7f70;
+  --theme-divider: #d8e7de;
+  --theme-brand: #1a3a2c;
+  --theme-accent: #0a84ff;
+  --theme-selection-bg: #d8f1ff;
+  --theme-hero-via: #f2faf6;
+  --theme-section-soft: #f0f8f4;
+  --theme-section-muted: #f5faf7;
+  --theme-progress-track: #d8e7de;
+  --theme-badge-bg: #eaf4ff;
+  --theme-badge-border: #bfdcff;
+  --theme-badge-text: #1d4ed8;
 }
 
 [data-theme='summer'] {
-  --theme-bg: #f5f8fa;
-  --theme-text-primary: #2d3748;
-  --theme-text-secondary: #718096;
-  --theme-divider: #e2e8f0;
-  --theme-brand: #5a7d9a;
-  --theme-accent: #90cdf4;
+  --theme-bg: #f7fbff;
+  --theme-text-primary: #102a43;
+  --theme-text-secondary: #5c738b;
+  --theme-divider: #d6e3f0;
+  --theme-brand: #102a43;
+  --theme-accent: #0284c7;
+  --theme-selection-bg: #dbeafe;
+  --theme-hero-via: #f1f8ff;
+  --theme-section-soft: #eef6ff;
+  --theme-section-muted: #f5f9fd;
+  --theme-progress-track: #d6e3f0;
+  --theme-badge-bg: #e9f4ff;
+  --theme-badge-border: #bae0ff;
+  --theme-badge-text: #0369a1;
 }
 
 [data-theme='winter'] {
-  --theme-bg: #fdfbfa;
-  --theme-text-primary: #1a1a1a;
-  --theme-text-secondary: #4a4a4a;
-  --theme-divider: #e2d8d8;
-  --theme-brand: #63171b;
-  --theme-accent: #b89b6a;
+  --theme-bg: #f8fafd;
+  --theme-text-primary: #0f172a;
+  --theme-text-secondary: #64748b;
+  --theme-divider: #d9e1eb;
+  --theme-brand: #0f172a;
+  --theme-accent: #2563eb;
+  --theme-selection-bg: #dbeafe;
+  --theme-hero-via: #f2f6fd;
+  --theme-section-soft: #eff4fc;
+  --theme-section-muted: #f5f8fd;
+  --theme-progress-track: #d9e1eb;
+  --theme-badge-bg: #eaf1ff;
+  --theme-badge-border: #c4d7ff;
+  --theme-badge-text: #1e40af;
 }
 
 [data-theme='rose'] {
-  --theme-bg: #fffbfc;
-  --theme-text-primary: #3d3535;
-  --theme-text-secondary: #8f7e7e;
-  --theme-divider: #f2e6e6;
-  --theme-brand: #f2b6b6;
-  --theme-accent: #a0a0a0;
+  --theme-bg: #fffafb;
+  --theme-text-primary: #3f2a33;
+  --theme-text-secondary: #8b7280;
+  --theme-divider: #ecdfe6;
+  --theme-brand: #3f2a33;
+  --theme-accent: #3b82f6;
+  --theme-selection-bg: #fce7f3;
+  --theme-hero-via: #fff4f8;
+  --theme-section-soft: #fff1f6;
+  --theme-section-muted: #fff6fa;
+  --theme-progress-track: #ecdfe6;
+  --theme-badge-bg: #f0f5ff;
+  --theme-badge-border: #cddfff;
+  --theme-badge-text: #1e3a8a;
 }
 
 [data-theme='gh'] {
-    --theme-bg: #fffbfc;
-    --theme-text-primary: #3d3535;
-    --theme-text-secondary: #8f7e7e;
-    --theme-divider: #f2e6e6;
-    --theme-brand: #e6b2b2;
-    --theme-accent: #a0a0a0;
+  --theme-bg: #fffbfc;
+  --theme-text-primary: #3f2f37;
+  --theme-text-secondary: #8f7f86;
+  --theme-divider: #ede1e8;
+  --theme-brand: #3f2f37;
+  --theme-accent: #2563eb;
+  --theme-selection-bg: #f4e8f0;
+  --theme-hero-via: #fff4f8;
+  --theme-section-soft: #fff2f7;
+  --theme-section-muted: #fff7fa;
+  --theme-progress-track: #ede1e8;
+  --theme-badge-bg: #eef4ff;
+  --theme-badge-border: #c6dbff;
+  --theme-badge-text: #1d4ed8;
 }
 
 
@@ -112,7 +185,7 @@ body {
 body {
   background-color: var(--theme-bg);
   color: var(--theme-text-primary);
-  font-family: "Noto Sans KR", sans-serif;
+  font-family: "Pretendard", "Noto Sans KR", sans-serif;
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
@@ -185,42 +258,50 @@ input:disabled {
 .wedding-surface {
   background: #ffffff;
   border: 1px solid var(--theme-divider);
-  border-radius: 28px;
-  box-shadow: 0 30px 70px -40px rgba(81, 47, 33, 0.35);
+  border-radius: 16px;
+  box-shadow: 0 30px 56px -44px rgba(15, 23, 42, 0.5);
 }
 
 .wedding-feature-card {
   background: #ffffff;
   border: 1px solid var(--theme-divider);
-  border-radius: 20px;
+  border-radius: 12px;
   min-height: 220px;
   padding: 24px;
   transition: transform 0.25s ease, box-shadow 0.25s ease;
 }
 
 .wedding-feature-card:hover {
-  box-shadow: 0 20px 40px -32px rgba(57, 40, 33, 0.5);
-  transform: translateY(-3px);
+  border-color: color-mix(in srgb, var(--theme-accent) 35%, #ffffff);
+  box-shadow: 0 18px 34px -30px rgba(0, 122, 255, 0.5);
+  transform: translateY(-2px);
 }
 
 .wedding-template-card {
   background: #ffffff;
   border: 1px solid var(--theme-divider);
-  border-radius: 24px;
+  border-radius: 12px;
   padding: 16px;
+  transition: border-color 0.22s ease, box-shadow 0.22s ease, transform 0.22s ease;
+}
+
+.wedding-template-card:hover {
+  border-color: color-mix(in srgb, var(--theme-accent) 38%, #ffffff);
+  box-shadow: 0 16px 34px -30px rgba(0, 122, 255, 0.52);
+  transform: translateY(-2px);
 }
 
 .wedding-floating-card {
-  border: 1px solid rgba(255, 255, 255, 0.85);
-  border-radius: 18px;
-  box-shadow: 0 24px 48px -30px rgba(20, 12, 10, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  border-radius: 10px;
+  box-shadow: 0 24px 48px -34px rgba(15, 23, 42, 0.62);
 }
 
 .btn-cta-primary {
   align-items: center;
-  background-color: var(--theme-brand);
-  border: 1px solid var(--theme-brand);
-  border-radius: 9999px;
+  background: linear-gradient(135deg, #007aff 0%, #0062cc 100%);
+  border: 1px solid #007aff;
+  border-radius: 10px;
   color: #ffffff;
   display: inline-flex;
   font-size: 15px;
@@ -232,7 +313,7 @@ input:disabled {
 }
 
 .btn-cta-primary:hover {
-  box-shadow: 0 22px 35px -20px rgba(80, 44, 36, 0.55);
+  box-shadow: 0 20px 32px -22px rgba(0, 122, 255, 0.66);
   transform: translateY(-1px);
 }
 
@@ -244,7 +325,7 @@ input:disabled {
   align-items: center;
   background-color: #ffffff;
   border: 1px solid var(--theme-divider);
-  border-radius: 9999px;
+  border-radius: 10px;
   color: var(--theme-text-primary);
   display: inline-flex;
   font-size: 15px;
@@ -257,7 +338,8 @@ input:disabled {
 
 .btn-cta-secondary:hover {
   border-color: var(--theme-accent);
-  color: var(--theme-brand);
+  color: var(--theme-accent);
+  box-shadow: 0 14px 28px -26px rgba(0, 122, 255, 0.7);
   transform: translateY(-1px);
 }
 
@@ -265,7 +347,7 @@ input:disabled {
   align-items: center;
   background: #ffffff;
   border: 1px solid var(--theme-divider);
-  border-radius: 9999px;
+  border-radius: 10px;
   color: var(--theme-text-primary);
   display: inline-flex;
   font-size: 18px;
@@ -277,7 +359,30 @@ input:disabled {
 
 .review-control-button:hover {
   border-color: var(--theme-accent);
-  color: var(--theme-brand);
+  color: var(--theme-accent);
+}
+
+.font-pretendard {
+  font-family: "Pretendard", "Noto Sans KR", sans-serif;
+}
+
+.mypage-modern .rounded-3xl,
+.mypage-modern .rounded-2xl,
+.mypage-modern .rounded-xl,
+.mypage-modern .rounded-lg {
+  border-radius: 0.375rem;
+}
+
+.editor-mobile-actions {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: max-height 0.28s ease, opacity 0.28s ease;
+}
+
+.editor-mobile-actions.open {
+  max-height: 600px;
+  opacity: 1;
 }
 
 @media (max-width: 640px) {

@@ -123,7 +123,7 @@ export default function AdminNoticeEditPage() {
         setStatus(toFormStatus(data.status, normalizedStartAt));
       } catch {
         pushToast("공지사항을 찾을 수 없습니다.", "error");
-        router.replace("/mypage/admin/notices");
+        router.replace("/mypage?menu=adminNotices");
       } finally {
         setLoading(false);
       }
@@ -158,7 +158,7 @@ export default function AdminNoticeEditPage() {
 
       pushToast("공지 수정이 완료되었습니다.", "success");
       window.setTimeout(() => {
-        router.push("/mypage/admin/notices");
+        router.push("/mypage?menu=adminNotices");
       }, 350);
     } catch (error) {
       pushToast(getApiErrorMessage(error, "공지 수정에 실패했습니다."), "error");
@@ -187,7 +187,7 @@ export default function AdminNoticeEditPage() {
               title="공지 수정"
               description="기존 공지 내용을 수정하고, 노출기간/상태를 다시 설정할 수 있습니다."
               actions={
-                <Link className="rounded-full border border-warm px-4 py-2 text-xs font-bold text-theme-secondary hover:bg-theme" href="/mypage/admin/notices">
+                <Link className="rounded-full border border-warm px-4 py-2 text-xs font-bold text-theme-secondary hover:bg-theme" href="/mypage?menu=adminNotices">
                   목록
                 </Link>
               }
@@ -242,7 +242,7 @@ export default function AdminNoticeEditPage() {
                     <input checked={isBanner} type="checkbox" onChange={(event) => setIsBanner(event.target.checked)} />
                     배너 공지 노출
                   </label>
-                  <p className="text-xs text-theme-secondary">체크 시 메인 배너 영역에 "제목"으로 노출됩니다.</p>
+                  <p className="text-xs text-theme-secondary">체크 시 메인 배너 영역에 &quot;제목&quot;으로 노출됩니다.</p>
                 </div>
 
                 <label className="space-y-2 text-xs font-bold text-theme-secondary">
@@ -263,7 +263,7 @@ export default function AdminNoticeEditPage() {
                 <button
                   className="rounded-xl border border-warm px-5 py-3 text-sm font-bold text-theme-secondary"
                   type="button"
-                  onClick={() => router.push("/mypage/admin/notices")}
+                  onClick={() => router.push("/mypage?menu=adminNotices")}
                 >
                   취소
                 </button>

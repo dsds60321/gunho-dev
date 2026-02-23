@@ -1,13 +1,16 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { fetchAuthMe, logout } from "@/lib/auth";
 import { apiFetch, apiFetchRaw, getApiErrorMessage, isApiError } from "@/lib/api";
 import { resolveAssetUrl } from "@/lib/assets";
+import type { AdminNoticeSummary, PagedResponse } from "@/types/notice";
+import type { AdminUserSummary } from "@/types/user";
 
 type RsvpStatus = "attending" | "declined";
-type MyPageMenu = "dashboard" | "invitations" | "thankyou" | "rsvp" | "guestbook";
+type MyPageMenu = "dashboard" | "invitations" | "thankyou" | "rsvp" | "guestbook" | "adminUsers" | "adminNotices";
+type NoticeViewStatus = "DRAFT" | "SCHEDULED" | "PUBLISHED" | "EXPIRED" | "HIDDEN";
 
 type MyInvitation = {
   id: number;
@@ -142,6 +145,36 @@ function formatChartDate(value: string): string {
   return `${month}/${day}`;
 }
 
+function resolveNoticeViewStatus(row: AdminNoticeSummary): NoticeViewStatus {
+  if (row.status === "DRAFT") return "DRAFT";
+  if (row.status === "HIDDEN") return "HIDDEN";
+
+  const now = Date.now();
+  const startAt = new Date(row.startAt).getTime();
+  const endAt = row.endAt ? new Date(row.endAt).getTime() : Number.NaN;
+
+  if (!Number.isNaN(startAt) && now < startAt) return "SCHEDULED";
+  if (!Number.isNaN(endAt) && now > endAt) return "EXPIRED";
+  return "PUBLISHED";
+}
+
+function getNoticeStatusMeta(status: NoticeViewStatus): { label: string; className: string } {
+  switch (status) {
+    case "DRAFT":
+      return { label: "초안", className: "bg-gray-100 text-gray-600" };
+    case "SCHEDULED":
+      return { label: "예약", className: "bg-sky-100 text-sky-700" };
+    case "PUBLISHED":
+      return { label: "발행", className: "bg-green-100 text-green-700" };
+    case "EXPIRED":
+      return { label: "만료", className: "bg-amber-100 text-amber-700" };
+    case "HIDDEN":
+      return { label: "중지", className: "bg-rose-100 text-rose-700" };
+    default:
+      return { label: status, className: "bg-gray-100 text-gray-600" };
+  }
+}
+
 function VisitorTrendChart({ points }: { points: DashboardVisitPoint[] }) {
   if (points.length === 0) return null;
 
@@ -199,6 +232,7 @@ function VisitorTrendChart({ points }: { points: DashboardVisitPoint[] }) {
 
 export default function MyPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [ready, setReady] = useState(false);
   const [memberName, setMemberName] = useState("회원");
@@ -209,6 +243,12 @@ export default function MyPage() {
   const [rsvpFilter, setRsvpFilter] = useState<"all" | RsvpStatus>("all");
   const [searchKeyword, setSearchKeyword] = useState("");
   const [guestbookSearch, setGuestbookSearch] = useState("");
+  const [adminUsersLoading, setAdminUsersLoading] = useState(false);
+  const [adminUsersPage, setAdminUsersPage] = useState(0);
+  const [adminUsersPayload, setAdminUsersPayload] = useState<PagedResponse<AdminUserSummary> | null>(null);
+  const [adminNoticesLoading, setAdminNoticesLoading] = useState(false);
+  const [adminNoticesPage, setAdminNoticesPage] = useState(0);
+  const [adminNoticesPayload, setAdminNoticesPayload] = useState<PagedResponse<AdminNoticeSummary> | null>(null);
 
   const [dashboard, setDashboard] = useState<DashboardSummary | null>(null);
   const [dashboardLoading, setDashboardLoading] = useState(false);
@@ -243,6 +283,25 @@ export default function MyPage() {
     password: string;
     content: string;
   } | null>(null);
+
+  useEffect(() => {
+    const menu = searchParams.get("menu");
+    if (!menu) return;
+
+    const isValidMenu = [
+      "dashboard",
+      "invitations",
+      "thankyou",
+      "rsvp",
+      "guestbook",
+      "adminUsers",
+      "adminNotices",
+    ].includes(menu);
+
+    if (!isValidMenu) return;
+    if (!isAdmin && (menu === "adminUsers" || menu === "adminNotices")) return;
+    setActiveMenu(menu as MyPageMenu);
+  }, [searchParams, isAdmin]);
 
   useEffect(() => {
     const initialize = async () => {
@@ -290,6 +349,32 @@ export default function MyPage() {
       window.alert(getApiErrorMessage(error, "대시보드 데이터를 불러오지 못했습니다."));
     } finally {
       setDashboardLoading(false);
+    }
+  };
+
+  const loadAdminUsers = async (targetPage: number) => {
+    setAdminUsersLoading(true);
+    try {
+      const data = await apiFetch<PagedResponse<AdminUserSummary>>(`/api/admin/users?page=${targetPage}&size=20`, { cache: "no-store" });
+      setAdminUsersPayload(data);
+      setAdminUsersPage(data.page ?? targetPage);
+    } catch (error) {
+      window.alert(getApiErrorMessage(error, "관리자 사용자 목록을 불러오지 못했습니다."));
+    } finally {
+      setAdminUsersLoading(false);
+    }
+  };
+
+  const loadAdminNotices = async (targetPage: number) => {
+    setAdminNoticesLoading(true);
+    try {
+      const data = await apiFetch<PagedResponse<AdminNoticeSummary>>(`/api/admin/notices?page=${targetPage}&size=20`, { cache: "no-store" });
+      setAdminNoticesPayload(data);
+      setAdminNoticesPage(data.page ?? targetPage);
+    } catch (error) {
+      window.alert(getApiErrorMessage(error, "관리자 공지 목록을 불러오지 못했습니다."));
+    } finally {
+      setAdminNoticesLoading(false);
     }
   };
 
@@ -345,7 +430,19 @@ export default function MyPage() {
     });
   }, [guestbooks, guestbookSearch]);
 
+  useEffect(() => {
+    if (!isAdmin) return;
+    if (activeMenu === "adminUsers" && !adminUsersPayload && !adminUsersLoading) {
+      void loadAdminUsers(0);
+    }
+    if (activeMenu === "adminNotices" && !adminNoticesPayload && !adminNoticesLoading) {
+      void loadAdminNotices(0);
+    }
+  }, [isAdmin, activeMenu, adminUsersPayload, adminUsersLoading, adminNoticesPayload, adminNoticesLoading]);
+
   const hasVisitorTrendData = dashboardData.visitorTrend.some((point) => point.count > 0);
+  const adminUserRows = adminUsersPayload?.content ?? [];
+  const adminNoticeRows = adminNoticesPayload?.content ?? [];
 
   const downloadCsv = async () => {
     try {
@@ -563,22 +660,22 @@ export default function MyPage() {
   }
 
   return (
-    <div className="min-h-screen bg-theme">
+    <div className="mypage-modern min-h-screen bg-theme font-pretendard">
       <header className="border-b border-warm bg-white/95 backdrop-blur">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
-          <button className="serif-font text-2xl font-semibold text-theme-brand" type="button" onClick={() => router.push("/")}>
+        <div className="mx-auto flex h-16 max-w-[1320px] items-center justify-between px-4 md:px-6">
+          <button className="text-2xl font-semibold text-theme-brand" type="button" onClick={() => router.push("/")}>
             WeddingLetter
           </button>
           <div className="flex items-center gap-3">
             <button
-              className="rounded-full border border-warm px-4 py-2 text-xs font-bold text-theme-secondary transition-colors hover:bg-theme"
+              className="rounded-md border border-warm px-4 py-2 text-xs font-bold text-theme-secondary transition-colors hover:bg-theme"
               type="button"
               onClick={() => router.push("/")}
             >
               돌아가기
             </button>
             <button
-              className="rounded-full bg-theme-brand px-4 py-2 text-xs font-bold text-white"
+              className="rounded-md bg-theme-brand px-4 py-2 text-xs font-bold text-white"
               type="button"
               onClick={async () => {
                 await logout();
@@ -591,15 +688,15 @@ export default function MyPage() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-6 py-10">
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[280px_1fr]">
+      <main className="mx-auto max-w-[1320px] px-4 py-8 md:px-6 md:py-10">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[300px_1fr]">
           <aside className="rounded-3xl border border-warm bg-white p-6">
             <div className="space-y-4 text-center">
               <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-theme text-theme-brand">
                 <span className="material-symbols-outlined text-[32px]">person</span>
               </div>
               <div>
-                <p className="text-2xl font-bold tracking-tight text-theme-brand">{memberId}</p>
+                <p className="font-pretendard text-2xl font-bold tracking-tight text-theme-brand">{memberId}</p>
                 <p className="mt-1 text-xs text-theme-secondary">{memberName}님</p>
               </div>
             </div>
@@ -650,27 +747,31 @@ export default function MyPage() {
               >
                 방명록 관리
               </button>
-            </div>
-
-            <div className="mt-6 border-t border-warm pt-6 text-sm text-theme-secondary">
               {isAdmin ? (
                 <>
                   <button
-                    className="block py-2 transition-colors hover:text-theme-brand"
+                    className={`w-full rounded-xl px-4 py-3 text-left text-sm transition-colors ${
+                      activeMenu === "adminUsers" ? "bg-theme font-semibold text-theme-brand" : "font-medium text-theme-secondary hover:bg-theme"
+                    }`}
                     type="button"
-                    onClick={() => router.push("/mypage/admin/users")}
+                    onClick={() => setActiveMenu("adminUsers")}
                   >
                     관리자 사용자 관리
                   </button>
                   <button
-                    className="block py-2 transition-colors hover:text-theme-brand"
+                    className={`w-full rounded-xl px-4 py-3 text-left text-sm transition-colors ${
+                      activeMenu === "adminNotices" ? "bg-theme font-semibold text-theme-brand" : "font-medium text-theme-secondary hover:bg-theme"
+                    }`}
                     type="button"
-                    onClick={() => router.push("/mypage/admin/notices")}
+                    onClick={() => setActiveMenu("adminNotices")}
                   >
                     관리자 공지 관리
                   </button>
                 </>
               ) : null}
+            </div>
+
+            <div className="mt-6 border-t border-warm pt-6 text-sm text-theme-secondary">
               <button
                 className="block py-2 transition-colors hover:text-theme-brand"
                 type="button"
@@ -709,7 +810,7 @@ export default function MyPage() {
                       <p className="text-xs font-bold tracking-[0.08em] uppercase">전체 방문자 수</p>
                       <span className="material-symbols-outlined text-[18px]">visibility</span>
                     </div>
-                    <p className="mt-3 text-3xl serif-font text-theme-brand">{dashboardData.totalVisitors.toLocaleString()}</p>
+                    <p className="mt-3 text-3xl font-pretendard text-theme-brand">{dashboardData.totalVisitors.toLocaleString()}</p>
                     <p className="mt-1 text-xs text-theme-secondary">총 {dashboardData.totalVisitors.toLocaleString()}명</p>
                   </article>
 
@@ -718,7 +819,7 @@ export default function MyPage() {
                       <p className="text-xs font-bold tracking-[0.08em] uppercase">RSVP 응답자 수</p>
                       <span className="material-symbols-outlined text-[18px]">fact_check</span>
                     </div>
-                    <p className="mt-3 text-3xl serif-font text-theme-brand">{dashboardData.totalRsvps.toLocaleString()}</p>
+                    <p className="mt-3 text-3xl font-pretendard text-theme-brand">{dashboardData.totalRsvps.toLocaleString()}</p>
                     <p className="mt-1 text-xs text-theme-secondary">총 {dashboardData.totalRsvps.toLocaleString()}건</p>
                   </article>
 
@@ -727,7 +828,7 @@ export default function MyPage() {
                       <p className="text-xs font-bold tracking-[0.08em] uppercase">방명록 작성 수</p>
                       <span className="material-symbols-outlined text-[18px]">forum</span>
                     </div>
-                    <p className="mt-3 text-3xl serif-font text-theme-brand">{dashboardData.totalGuestbooks.toLocaleString()}</p>
+                    <p className="mt-3 text-3xl font-pretendard text-theme-brand">{dashboardData.totalGuestbooks.toLocaleString()}</p>
                     <p className="mt-1 text-xs text-theme-secondary">총 {dashboardData.totalGuestbooks.toLocaleString()}건</p>
                   </article>
                 </div>
@@ -736,7 +837,7 @@ export default function MyPage() {
                   <section className="rounded-2xl border border-warm bg-white p-5">
                     <div className="mb-4 flex items-center justify-between">
                       <h2 className="text-lg font-semibold text-theme-brand">최근 7일 방문자 추이</h2>
-                      <span className="rounded-full bg-theme px-3 py-1 text-[11px] font-semibold text-theme-secondary">최근 7일</span>
+                      <span className="rounded-md bg-theme px-3 py-1 text-[11px] font-semibold text-theme-secondary">최근 7일</span>
                     </div>
 
                     {!hasVisitorTrendData ? (
@@ -864,7 +965,7 @@ export default function MyPage() {
                             <span className="material-symbols-outlined text-5xl text-theme-secondary">mail</span>
                           </div>
                         )}
-                        <span className={`absolute top-4 right-4 rounded-full px-3 py-1 text-[10px] font-bold text-white ${item.published ? "bg-green-500" : "bg-gray-500"}`}>
+                        <span className={`absolute top-4 right-4 rounded-md px-3 py-1 text-[10px] font-bold text-white ${item.published ? "bg-green-500" : "bg-gray-500"}`}>
                           {item.published ? "발행됨" : "작성중"}
                         </span>
                       </div>
@@ -937,7 +1038,7 @@ export default function MyPage() {
                             <span className="material-symbols-outlined text-5xl text-theme-secondary">favorite</span>
                           </div>
                         )}
-                        <span className={`absolute top-4 right-4 rounded-full px-3 py-1 text-[10px] font-bold text-white ${item.published ? "bg-green-500" : "bg-gray-500"}`}>
+                        <span className={`absolute top-4 right-4 rounded-md px-3 py-1 text-[10px] font-bold text-white ${item.published ? "bg-green-500" : "bg-gray-500"}`}>
                           {item.published ? "발행됨" : "작성중"}
                         </span>
                       </div>
@@ -1005,30 +1106,30 @@ export default function MyPage() {
                 <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
                   <div className="rounded-2xl border border-warm bg-white p-4">
                     <p className="text-[10px] font-bold tracking-[0.12em] text-theme-secondary uppercase">Total</p>
-                    <p className="mt-2 text-3xl serif-font text-theme-brand">{rsvpStats.total}</p>
+                    <p className="mt-2 text-3xl font-pretendard text-theme-brand">{rsvpStats.total}</p>
                   </div>
                   <div className="rounded-2xl border border-warm bg-white p-4">
                     <p className="text-[10px] font-bold tracking-[0.12em] text-theme-secondary uppercase">참석</p>
-                    <p className="mt-2 text-3xl serif-font text-theme-accent">{rsvpStats.attending}</p>
+                    <p className="mt-2 text-3xl font-pretendard text-theme-accent">{rsvpStats.attending}</p>
                   </div>
                   <div className="rounded-2xl border border-warm bg-white p-4">
                     <p className="text-[10px] font-bold tracking-[0.12em] text-theme-secondary uppercase">미참석</p>
-                    <p className="mt-2 text-3xl serif-font text-theme-brand">{rsvpStats.declined}</p>
+                    <p className="mt-2 text-3xl font-pretendard text-theme-brand">{rsvpStats.declined}</p>
                   </div>
                   <div className="rounded-2xl border border-warm bg-white p-4">
                     <p className="text-[10px] font-bold tracking-[0.12em] text-theme-secondary uppercase">신랑측</p>
-                    <p className="mt-2 text-3xl serif-font text-theme-brand">{rsvpStats.groomSide}</p>
+                    <p className="mt-2 text-3xl font-pretendard text-theme-brand">{rsvpStats.groomSide}</p>
                   </div>
                   <div className="rounded-2xl border border-warm bg-white p-4">
                     <p className="text-[10px] font-bold tracking-[0.12em] text-theme-secondary uppercase">신부측</p>
-                    <p className="mt-2 text-3xl serif-font text-theme-brand">{rsvpStats.brideSide}</p>
+                    <p className="mt-2 text-3xl font-pretendard text-theme-brand">{rsvpStats.brideSide}</p>
                   </div>
                 </div>
 
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="flex items-center gap-2">
                     <button
-                      className={`rounded-full px-4 py-2 text-xs font-bold transition-colors ${
+                      className={`rounded-md px-4 py-2 text-xs font-bold transition-colors ${
                         rsvpFilter === "all" ? "bg-theme-brand text-white" : "border border-warm bg-white text-theme-secondary hover:bg-theme"
                       }`}
                       type="button"
@@ -1037,7 +1138,7 @@ export default function MyPage() {
                       전체
                     </button>
                     <button
-                      className={`rounded-full px-4 py-2 text-xs font-bold transition-colors ${
+                      className={`rounded-md px-4 py-2 text-xs font-bold transition-colors ${
                         rsvpFilter === "attending" ? "bg-theme-brand text-white" : "border border-warm bg-white text-theme-secondary hover:bg-theme"
                       }`}
                       type="button"
@@ -1046,7 +1147,7 @@ export default function MyPage() {
                       참석
                     </button>
                     <button
-                      className={`rounded-full px-4 py-2 text-xs font-bold transition-colors ${
+                      className={`rounded-md px-4 py-2 text-xs font-bold transition-colors ${
                         rsvpFilter === "declined" ? "bg-theme-brand text-white" : "border border-warm bg-white text-theme-secondary hover:bg-theme"
                       }`}
                       type="button"
@@ -1061,7 +1162,7 @@ export default function MyPage() {
                       search
                     </span>
                     <input
-                      className="w-full rounded-full border border-warm bg-white py-2 pr-4 pl-10 text-sm text-theme-brand outline-none transition-colors focus:border-[var(--theme-accent)]"
+                      className="w-full rounded-md border border-warm bg-white py-2 pr-4 pl-10 text-sm text-theme-brand outline-none transition-colors focus:border-[var(--theme-accent)]"
                       type="text"
                       placeholder="이름/응답 검색"
                       value={searchKeyword}
@@ -1132,7 +1233,7 @@ export default function MyPage() {
                               <td className="px-6 py-4 text-center align-middle text-xs text-theme-secondary whitespace-nowrap">{formatDateText(row.createdAt)}</td>
                               <td className="px-6 py-4 text-center align-middle">
                                 <button
-                                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-warm bg-white text-theme-secondary transition-colors hover:bg-theme"
+                                  className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-warm bg-white text-theme-secondary transition-colors hover:bg-theme"
                                   type="button"
                                   onClick={() => openRsvpEditModal(row)}
                                   aria-label={`${row.name} RSVP 수정`}
@@ -1160,7 +1261,7 @@ export default function MyPage() {
               <>
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <h1 className="text-3xl font-semibold tracking-tight text-theme-brand">방명록 관리</h1>
-                  <div className="rounded-full border border-warm bg-white px-4 py-2 text-xs font-bold text-theme-secondary">
+                  <div className="rounded-md border border-warm bg-white px-4 py-2 text-xs font-bold text-theme-secondary">
                     총 {guestbooks.length}건
                   </div>
                 </div>
@@ -1170,7 +1271,7 @@ export default function MyPage() {
                     search
                   </span>
                   <input
-                    className="w-full rounded-full border border-warm bg-white py-2 pr-4 pl-10 text-sm text-theme-brand outline-none transition-colors focus:border-[var(--theme-accent)]"
+                    className="w-full rounded-md border border-warm bg-white py-2 pr-4 pl-10 text-sm text-theme-brand outline-none transition-colors focus:border-[var(--theme-accent)]"
                     type="text"
                     placeholder="이름/내용/초대장 검색"
                     value={guestbookSearch}
@@ -1202,7 +1303,7 @@ export default function MyPage() {
                               <td className="px-6 py-4 text-right">
                                 <div className="inline-flex items-center gap-2">
                                   <button
-                                    className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-warm bg-white text-theme-secondary transition-colors hover:bg-theme"
+                                    className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-warm bg-white text-theme-secondary transition-colors hover:bg-theme"
                                     type="button"
                                     onClick={() => openGuestbookEditModal(row)}
                                     aria-label={`${row.name} 방명록 수정`}
@@ -1210,7 +1311,7 @@ export default function MyPage() {
                                     <span className="material-symbols-outlined text-[18px]">edit</span>
                                   </button>
                                   <button
-                                    className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-red-200 bg-red-50 text-red-500 transition-colors hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+                                    className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-red-200 bg-red-50 text-red-500 transition-colors hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
                                     type="button"
                                     onClick={() => void deleteGuestbook(row.id)}
                                     disabled={deletingGuestbookId === row.id}
@@ -1235,6 +1336,223 @@ export default function MyPage() {
                     </tbody>
                   </table>
                 </div>
+              </>
+            ) : null}
+
+            {activeMenu === "adminUsers" && isAdmin ? (
+              <>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <h1 className="text-3xl font-semibold tracking-tight text-theme-brand">관리자 사용자 관리</h1>
+                    <p className="mt-1 text-sm text-theme-secondary">사용자 계정 및 권한 상태를 확인하고 사용자별 청첩장 관리로 이동합니다.</p>
+                  </div>
+                  <button
+                    className="rounded-xl border border-warm bg-white px-5 py-3 text-sm font-bold text-theme-secondary"
+                    type="button"
+                    onClick={() => void loadAdminUsers(adminUsersPage)}
+                    disabled={adminUsersLoading}
+                  >
+                    {adminUsersLoading ? "불러오는 중..." : "새로고침"}
+                  </button>
+                </div>
+
+                <div className="overflow-x-auto rounded-3xl border border-warm bg-white">
+                  {adminUsersLoading && adminUserRows.length === 0 ? (
+                    <p className="px-6 py-8 text-sm text-theme-secondary">불러오는 중...</p>
+                  ) : null}
+
+                  {!adminUsersLoading && adminUserRows.length === 0 ? (
+                    <p className="px-6 py-8 text-sm text-theme-secondary">표시할 사용자가 없습니다.</p>
+                  ) : null}
+
+                  {adminUserRows.length > 0 ? (
+                    <table className="min-w-[900px] w-full text-left text-sm">
+                      <thead className="bg-theme text-[11px] text-theme-secondary">
+                        <tr>
+                          <th className="px-4 py-3 font-bold uppercase tracking-[0.08em]">userId</th>
+                          <th className="px-4 py-3 font-bold uppercase tracking-[0.08em]">이름</th>
+                          <th className="px-4 py-3 font-bold uppercase tracking-[0.08em]">이메일</th>
+                          <th className="px-4 py-3 font-bold uppercase tracking-[0.08em]">권한</th>
+                          <th className="px-4 py-3 font-bold uppercase tracking-[0.08em]">상태</th>
+                          <th className="px-4 py-3 font-bold uppercase tracking-[0.08em]">가입일</th>
+                          <th className="px-4 py-3 text-right font-bold uppercase tracking-[0.08em]">관리</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[var(--theme-divider)]">
+                        {adminUserRows.map((row) => (
+                          <tr key={`admin-user-${row.userId}`} className="hover:bg-[var(--theme-bg)]">
+                            <td className="px-4 py-3 font-semibold text-theme-brand">{row.userId}</td>
+                            <td className="px-4 py-3 text-theme-secondary">{row.name ?? "-"}</td>
+                            <td className="px-4 py-3 text-theme-secondary">{row.email ?? "-"}</td>
+                            <td className="px-4 py-3">
+                              <span
+                                className={`rounded-md px-2 py-1 text-xs font-bold ${
+                                  row.role === "ADMIN" ? "bg-amber-100 text-amber-700" : "bg-blue-100 text-blue-700"
+                                }`}
+                              >
+                                {row.role}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className={`rounded-md px-2 py-1 text-xs font-bold ${row.isActive ? "bg-green-100 text-green-700" : "bg-rose-100 text-rose-700"}`}>
+                                {row.isActive ? "활성" : "비활성"}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-xs text-theme-secondary">{formatDateText(row.createdAt)}</td>
+                            <td className="px-4 py-3 text-right">
+                              <button
+                                className="rounded-md border border-warm px-3 py-1.5 text-xs font-bold text-theme-secondary hover:bg-theme"
+                                type="button"
+                                onClick={() =>
+                                  router.push(
+                                    `/mypage/admin/users/${encodeURIComponent(row.userId)}/invitations?name=${encodeURIComponent(row.name ?? "")}`,
+                                  )
+                                }
+                              >
+                                청첩장 관리
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  ) : null}
+                </div>
+
+                {adminUsersPayload ? (
+                  <div className="flex items-center justify-center gap-3">
+                    <button
+                      className="rounded-md border border-warm bg-white px-4 py-2 text-xs font-bold text-theme-secondary disabled:opacity-50"
+                      type="button"
+                      disabled={adminUsersPayload.page <= 0 || adminUsersLoading}
+                      onClick={() => void loadAdminUsers(Math.max(adminUsersPage - 1, 0))}
+                    >
+                      이전
+                    </button>
+                    <span className="text-xs text-theme-secondary">
+                      {adminUsersPayload.page + 1} / {Math.max(adminUsersPayload.totalPages, 1)}
+                    </span>
+                    <button
+                      className="rounded-md border border-warm bg-white px-4 py-2 text-xs font-bold text-theme-secondary disabled:opacity-50"
+                      type="button"
+                      disabled={adminUsersPayload.last || adminUsersLoading}
+                      onClick={() => void loadAdminUsers(adminUsersPage + 1)}
+                    >
+                      다음
+                    </button>
+                  </div>
+                ) : null}
+              </>
+            ) : null}
+
+            {activeMenu === "adminNotices" && isAdmin ? (
+              <>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <h1 className="text-3xl font-semibold tracking-tight text-theme-brand">관리자 공지 관리</h1>
+                    <p className="mt-1 text-sm text-theme-secondary">공지 상태를 확인하고 작성/수정 화면으로 이동할 수 있습니다.</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      className="rounded-xl border border-warm bg-white px-4 py-3 text-sm font-bold text-theme-secondary"
+                      type="button"
+                      onClick={() => router.push("/mypage/admin/notices/new")}
+                    >
+                      + 공지 작성
+                    </button>
+                    <button
+                      className="rounded-xl border border-warm bg-white px-4 py-3 text-sm font-bold text-theme-secondary"
+                      type="button"
+                      onClick={() => void loadAdminNotices(adminNoticesPage)}
+                      disabled={adminNoticesLoading}
+                    >
+                      {adminNoticesLoading ? "불러오는 중..." : "새로고침"}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto rounded-3xl border border-warm bg-white">
+                  {adminNoticesLoading && adminNoticeRows.length === 0 ? (
+                    <p className="px-6 py-8 text-sm text-theme-secondary">불러오는 중...</p>
+                  ) : null}
+
+                  {!adminNoticesLoading && adminNoticeRows.length === 0 ? (
+                    <p className="px-6 py-8 text-sm text-theme-secondary">표시할 공지가 없습니다.</p>
+                  ) : null}
+
+                  {adminNoticeRows.length > 0 ? (
+                    <table className="min-w-[980px] w-full text-left text-sm">
+                      <thead className="bg-theme text-[11px] text-theme-secondary">
+                        <tr>
+                          <th className="px-4 py-3 font-bold uppercase tracking-[0.08em]">제목</th>
+                          <th className="px-4 py-3 font-bold uppercase tracking-[0.08em]">상태</th>
+                          <th className="px-4 py-3 font-bold uppercase tracking-[0.08em]">배너</th>
+                          <th className="px-4 py-3 font-bold uppercase tracking-[0.08em]">노출 시작</th>
+                          <th className="px-4 py-3 font-bold uppercase tracking-[0.08em]">노출 종료</th>
+                          <th className="px-4 py-3 font-bold uppercase tracking-[0.08em]">수정일</th>
+                          <th className="px-4 py-3 text-right font-bold uppercase tracking-[0.08em]">관리</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[var(--theme-divider)]">
+                        {adminNoticeRows.map((row) => {
+                          const viewStatus = resolveNoticeViewStatus(row);
+                          const statusMeta = getNoticeStatusMeta(viewStatus);
+                          return (
+                            <tr key={`admin-notice-${row.id}`} className="hover:bg-[var(--theme-bg)]">
+                              <td className="px-4 py-3">
+                                <p className="max-w-[380px] truncate font-semibold text-theme-brand">{row.title}</p>
+                              </td>
+                              <td className="px-4 py-3">
+                                <span className={`rounded-md px-2 py-1 text-xs font-bold ${statusMeta.className}`}>{statusMeta.label}</span>
+                              </td>
+                              <td className="px-4 py-3">
+                                <span className={`rounded-md px-2 py-1 text-xs font-bold ${row.isBanner ? "bg-violet-100 text-violet-700" : "bg-gray-100 text-gray-500"}`}>
+                                  {row.isBanner ? "배너" : "일반"}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 text-xs text-theme-secondary">{formatDateText(row.startAt)}</td>
+                              <td className="px-4 py-3 text-xs text-theme-secondary">{formatDateText(row.endAt)}</td>
+                              <td className="px-4 py-3 text-xs text-theme-secondary">{formatDateText(row.updatedAt)}</td>
+                              <td className="px-4 py-3 text-right">
+                                <button
+                                  className="rounded-md border border-warm px-3 py-1.5 text-xs font-bold text-theme-secondary hover:bg-theme"
+                                  type="button"
+                                  onClick={() => router.push(`/mypage/admin/notices/${row.id}/edit`)}
+                                >
+                                  수정
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  ) : null}
+                </div>
+
+                {adminNoticesPayload ? (
+                  <div className="flex items-center justify-center gap-3">
+                    <button
+                      className="rounded-md border border-warm bg-white px-4 py-2 text-xs font-bold text-theme-secondary disabled:opacity-50"
+                      type="button"
+                      disabled={adminNoticesPayload.page <= 0 || adminNoticesLoading}
+                      onClick={() => void loadAdminNotices(Math.max(adminNoticesPage - 1, 0))}
+                    >
+                      이전
+                    </button>
+                    <span className="text-xs text-theme-secondary">
+                      {adminNoticesPayload.page + 1} / {Math.max(adminNoticesPayload.totalPages, 1)}
+                    </span>
+                    <button
+                      className="rounded-md border border-warm bg-white px-4 py-2 text-xs font-bold text-theme-secondary disabled:opacity-50"
+                      type="button"
+                      disabled={adminNoticesPayload.last || adminNoticesLoading}
+                      onClick={() => void loadAdminNotices(adminNoticesPage + 1)}
+                    >
+                      다음
+                    </button>
+                  </div>
+                ) : null}
               </>
             ) : null}
           </section>

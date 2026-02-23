@@ -59,8 +59,8 @@ export default function LandingTopHeader() {
   return (
     <>
       {bannerNotices.length > 0 ? (
-        <div className="relative overflow-hidden bg-theme-brand px-6 py-2.5 text-white">
-          <div className="mx-auto flex max-w-7xl items-center justify-center gap-6 text-[13px] font-medium tracking-wide">
+        <div className="relative overflow-hidden bg-theme-brand px-4 py-2 text-white sm:px-6 sm:py-2.5">
+          <div className="mx-auto flex max-w-7xl items-center justify-center gap-4 pr-14 text-[12px] font-medium tracking-wide sm:gap-6 sm:pr-20 sm:text-[13px]">
             <div className="flex items-center gap-2">
               <button
                 className="max-w-[340px] truncate text-left underline-offset-2 hover:underline"
@@ -70,17 +70,18 @@ export default function LandingTopHeader() {
                 {bannerNotices[0].title}
               </button>
             </div>
-            <button className="absolute right-6 text-[10px] opacity-60 transition-opacity hover:opacity-100" type="button">
-              7일 동안 보지 않기 ✕
+            <button className="absolute right-4 text-[10px] opacity-60 transition-opacity hover:opacity-100 sm:right-6" type="button">
+              <span className="sm:hidden">닫기 ✕</span>
+              <span className="hidden sm:inline">7일 동안 보지 않기 ✕</span>
             </button>
           </div>
         </div>
       ) : null}
 
       <header className="sticky top-0 z-50 border-b border-warm bg-white">
-        <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-8">
-          <div className="flex items-center gap-14">
-            <Link className="serif-font text-2xl font-semibold tracking-tight text-theme-brand" href="/">
+        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 md:h-20 md:px-8">
+          <div className="flex items-center gap-5 md:gap-14">
+            <Link className="serif-font text-xl font-semibold tracking-tight text-theme-brand sm:text-2xl" href="/">
               Wedding Letter
             </Link>
             <nav className="hidden items-center gap-10 text-[14px] font-medium text-theme-secondary lg:flex">
@@ -90,21 +91,21 @@ export default function LandingTopHeader() {
               {/*<a className="transition-colors hover:text-[var(--theme-brand)]" href="#">*/}
               {/*  고객후기*/}
               {/*</a>*/}
-              <a className="transition-colors hover:text-[var(--theme-brand)]" href="/notices">
+              <Link className="transition-colors hover:text-[var(--theme-brand)]" href="/notices">
                 공지사항
-              </a>
+              </Link>
               {/*<a className="flex items-center gap-1 text-theme-accent" href="#">*/}
               {/*  이벤트 <span className="material-symbols-outlined text-xs">forest</span>*/}
               {/*</a>*/}
             </nav>
           </div>
 
-          <div className="flex items-center gap-3">
-            {!mounted ? <div className="h-9 w-24 rounded-full border border-warm" /> : null}
+          <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+            {!mounted ? <div className="h-8 w-20 rounded-md border border-warm sm:h-9 sm:w-24" /> : null}
 
             {mounted && !loggedIn ? (
               <button
-                className="flex h-9 w-9 items-center justify-center rounded-full border border-warm bg-theme text-theme-secondary transition-colors hover:text-[var(--theme-brand)]"
+                className="flex h-8 w-8 items-center justify-center rounded-md border border-warm bg-theme text-theme-secondary transition-colors hover:text-[var(--theme-brand)] sm:h-9 sm:w-9"
                 type="button"
                 onClick={() => router.push("/login")}
               >
@@ -116,13 +117,18 @@ export default function LandingTopHeader() {
               <>
                 <span className="hidden text-sm font-medium text-theme-secondary md:block">{welcomeName}님 환영합니다</span>
                 <button
-                  className="rounded-full border border-warm px-4 py-2 text-xs font-bold text-theme-secondary transition-colors hover:bg-[var(--theme-bg)]"
+                  className="inline-flex items-center justify-center rounded-md border border-warm px-2.5 py-2 text-[11px] font-bold text-theme-secondary whitespace-nowrap transition-colors hover:bg-[var(--theme-bg)] sm:px-4 sm:text-xs"
                   type="button"
                   onClick={() => router.push("/mypage")}
                 >
-                  마이페이지
+                  <span className="material-symbols-outlined text-[16px] sm:hidden">person</span>
+                  <span className="hidden sm:inline">마이페이지</span>
                 </button>
-                <button className="rounded-full bg-theme-brand px-4 py-2 text-xs font-bold text-white" type="button" onClick={handleLogout}>
+                <button
+                  className="rounded-md bg-theme-brand px-2.5 py-2 text-[11px] font-bold text-white whitespace-nowrap sm:px-4 sm:text-xs"
+                  type="button"
+                  onClick={handleLogout}
+                >
                   로그아웃
                 </button>
               </>

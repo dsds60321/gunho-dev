@@ -57,40 +57,34 @@ const featureItems: FeatureItem[] = [
 
 const templateItems: TemplateItem[] = [
   {
-    id: "template-aurora",
-    title: "Aurora Garden",
-    concept: "은은한 플로럴과 따뜻한 오프화이트 톤",
-    imageUrl: "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?auto=format&fit=crop&q=80&w=900",
+    id: "template-style-1",
+    title: "클래식 프레임",
+    concept: "밝은 야외 사진과 정제된 레터링 스타일",
+    imageUrl: "/sample/1.png",
   },
   {
-    id: "template-cream",
-    title: "Cream Signature",
-    concept: "미니멀 레이아웃과 캘리 타이포 강조",
-    imageUrl: "https://images.unsplash.com/photo-1522673607200-164d1b6ce486?auto=format&fit=crop&q=80&w=900",
+    id: "template-style-2",
+    title: "소프트 로맨틱",
+    concept: "부드러운 톤과 중앙 포인트 타이포",
+    imageUrl: "/sample/2.png",
   },
   {
-    id: "template-classic",
-    title: "Classic Ribbon",
-    concept: "정제된 라인과 클래식 무드",
-    imageUrl: "https://images.unsplash.com/photo-1519225421980-715cb0215aed?auto=format&fit=crop&q=80&w=900",
+    id: "template-style-3",
+    title: "투 비컴 원",
+    concept: "웜 베이지 배경의 클래식 카드 구성",
+    imageUrl: "/sample/3.png",
   },
   {
-    id: "template-glow",
-    title: "Sunset Glow",
-    concept: "화이트 베이스 + 코랄 포인트 컬러",
-    imageUrl: "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?auto=format&fit=crop&q=80&w=900",
+    id: "template-style-4",
+    title: "해피 웨딩데이",
+    concept: "타이틀 중심의 오버레이 포스터 무드",
+    imageUrl: "/sample/4.png",
   },
   {
-    id: "template-vintage",
-    title: "Vintage Blossom",
-    concept: "필름 톤 이미지와 감성적인 레터링",
-    imageUrl: "https://images.unsplash.com/photo-1520854221256-17451cc331bf?auto=format&fit=crop&q=80&w=900",
-  },
-  {
-    id: "template-clean",
-    title: "Clean Moment",
-    concept: "콘텐츠 중심의 고밀도 정보 구성",
-    imageUrl: "https://images.unsplash.com/photo-1515934751635-c81c6bc9a2d8?auto=format&fit=crop&q=80&w=900",
+    id: "template-style-5",
+    title: "내추럴 선셋",
+    concept: "자연광 사진 중심의 미니멀 레이아웃",
+    imageUrl: "/sample/5.png",
   },
 ];
 
@@ -172,7 +166,7 @@ export default function LandingPage() {
                 <div className="relative h-[560px] overflow-hidden rounded-2xl bg-[#111111]">
                   <img
                     className="h-full w-full object-cover opacity-85"
-                    src="https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&q=80&w=1200"
+                    src="https://cdn.vowory.com/wedding/users/sample/invitations/3.png"
                     alt="대표 모바일 청첩장 템플릿"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-black/5" />
@@ -302,11 +296,11 @@ export default function LandingPage() {
 
             <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
               <button className="btn-cta-primary min-w-[170px]" type="button" onClick={goToEditorWithGuard}>
-                이 샘플 미리보기
+                청첩장 제작하기
               </button>
-              <button className="btn-cta-secondary min-w-[170px]" type="button" onClick={goToEditorWithGuard}>
-                샘플 전체 보러가기
-              </button>
+              {/*<button className="btn-cta-secondary min-w-[170px]" type="button" onClick={goToEditorWithGuard}>*/}
+              {/*  샘플 전체 보러가기*/}
+              {/*</button>*/}
             </div>
           </div>
         </section>

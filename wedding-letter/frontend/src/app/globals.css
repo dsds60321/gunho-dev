@@ -655,6 +655,7 @@ input:disabled {
   inset: 0;
   justify-content: center;
   opacity: 1;
+  overflow: hidden;
   padding: 32px;
   pointer-events: auto;
   position: absolute;
@@ -670,6 +671,66 @@ input:disabled {
 .invite-opening-content {
   max-width: 360px;
   width: 100%;
+}
+
+.invite-opening-content-shell {
+  position: relative;
+  z-index: 2;
+}
+
+.invite-opening-image-layer {
+  inset: -10%;
+  position: absolute;
+  transform-origin: center;
+  will-change: transform;
+  z-index: 0;
+}
+
+.invite-opening-image-overlay {
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.28) 0%, rgba(0, 0, 0, 0.56) 100%);
+  inset: 0;
+  position: absolute;
+  z-index: 1;
+}
+
+.invite-opening-image-layer.is-none {
+  animation: invite-opening-image-none 3.4s ease both;
+}
+
+.invite-opening-image-layer.is-zoom-in {
+  animation: invite-opening-image-zoom-in 3.6s ease both;
+}
+
+.invite-opening-image-layer.is-zoom-out {
+  animation: invite-opening-image-zoom-out 3.6s ease both;
+}
+
+.invite-opening-image-layer.is-move-right {
+  animation: invite-opening-image-move-right 3.6s ease both;
+}
+
+.invite-opening-image-layer.is-move-down {
+  animation: invite-opening-image-move-down 3.6s ease both;
+}
+
+.invite-opening-image-layer.is-diag-left {
+  animation: invite-opening-image-diag-left 3.6s ease both;
+}
+
+.invite-opening-image-layer.is-diag-right {
+  animation: invite-opening-image-diag-right 3.6s ease both;
+}
+
+.invite-opening-image-layer.is-diag-zoom-in {
+  animation: invite-opening-image-diag-zoom-in 3.6s ease both;
+}
+
+.invite-opening-image-layer.is-diag-zoom-out {
+  animation: invite-opening-image-diag-zoom-out 3.6s ease both;
+}
+
+.invite-opening-image-layer.is-circle {
+  animation: invite-opening-image-circle 3.9s ease both;
 }
 
 .invite-modal-panel {
@@ -753,6 +814,105 @@ input:disabled {
   50%,
   100% {
     opacity: 0;
+  }
+}
+
+@keyframes invite-opening-image-none {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1.03);
+  }
+  100% {
+    transform: translate3d(0, 0, 0) scale(1.03);
+  }
+}
+
+@keyframes invite-opening-image-zoom-in {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1.02);
+  }
+  100% {
+    transform: translate3d(0, 0, 0) scale(1.16);
+  }
+}
+
+@keyframes invite-opening-image-zoom-out {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1.18);
+  }
+  100% {
+    transform: translate3d(0, 0, 0) scale(1.03);
+  }
+}
+
+@keyframes invite-opening-image-move-right {
+  0% {
+    transform: translate3d(-26px, 0, 0) scale(1.08);
+  }
+  100% {
+    transform: translate3d(26px, 0, 0) scale(1.08);
+  }
+}
+
+@keyframes invite-opening-image-move-down {
+  0% {
+    transform: translate3d(0, -22px, 0) scale(1.08);
+  }
+  100% {
+    transform: translate3d(0, 24px, 0) scale(1.08);
+  }
+}
+
+@keyframes invite-opening-image-diag-left {
+  0% {
+    transform: translate3d(28px, 22px, 0) scale(1.08);
+  }
+  100% {
+    transform: translate3d(-28px, -24px, 0) scale(1.08);
+  }
+}
+
+@keyframes invite-opening-image-diag-right {
+  0% {
+    transform: translate3d(-28px, 22px, 0) scale(1.08);
+  }
+  100% {
+    transform: translate3d(28px, -24px, 0) scale(1.08);
+  }
+}
+
+@keyframes invite-opening-image-diag-zoom-in {
+  0% {
+    transform: translate3d(-22px, 20px, 0) scale(1.04);
+  }
+  100% {
+    transform: translate3d(24px, -22px, 0) scale(1.16);
+  }
+}
+
+@keyframes invite-opening-image-diag-zoom-out {
+  0% {
+    transform: translate3d(24px, -20px, 0) scale(1.17);
+  }
+  100% {
+    transform: translate3d(-24px, 22px, 0) scale(1.05);
+  }
+}
+
+@keyframes invite-opening-image-circle {
+  0% {
+    transform: translate3d(-22px, -10px, 0) scale(1.09);
+  }
+  28% {
+    transform: translate3d(6px, -24px, 0) scale(1.12);
+  }
+  54% {
+    transform: translate3d(24px, -4px, 0) scale(1.14);
+  }
+  78% {
+    transform: translate3d(8px, 18px, 0) scale(1.11);
+  }
+  100% {
+    transform: translate3d(-18px, 6px, 0) scale(1.1);
   }
 }
 

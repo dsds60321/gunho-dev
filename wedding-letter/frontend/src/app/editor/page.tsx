@@ -179,8 +179,11 @@ type EditorInvitation = {
   openingBackgroundType?: string | null;
   openingBackgroundColor?: string | null;
   openingImageUrl?: string | null;
+  openingImageMotionPreset?: string | null;
   openingTitle?: string | null;
   openingMessage?: string | null;
+  openingTextOffsetX?: number | null;
+  openingTextOffsetY?: number | null;
   openingFontFamily?: string | null;
   openingFontColor?: string | null;
   openingTitleFontSize?: number | null;
@@ -284,8 +287,11 @@ type FormState = {
   openingBackgroundType: string;
   openingBackgroundColor: string;
   openingImageUrl: string;
+  openingImageMotionPreset: string;
   openingTitle: string;
   openingMessage: string;
+  openingTextOffsetX: number;
+  openingTextOffsetY: number;
   openingFontFamily: string;
   openingFontColor: string;
   openingTitleFontSize: number;
@@ -375,8 +381,11 @@ const defaultFormState: FormState = {
   openingBackgroundType: "color",
   openingBackgroundColor: "#e6d8ca",
   openingImageUrl: "",
+  openingImageMotionPreset: "none",
   openingTitle: "신랑 신부",
   openingMessage: "우리 결혼합니다.",
+  openingTextOffsetX: 0,
+  openingTextOffsetY: 0,
   openingFontFamily: DEFAULT_FONT_FAMILY,
   openingFontColor: "#3d2a22",
   openingTitleFontSize: 34,
@@ -408,6 +417,27 @@ const OPENING_ANIMATION_OPTIONS = [
   { id: "soft-fade", name: "2번: 흐림에서 서서히 등장" },
 ];
 
+const OPENING_IMAGE_MOTION_PRESET_OPTIONS = [
+  { id: "none", label: "없음", icon: "block" },
+  { id: "zoom-in", label: "줌인", icon: "zoom_in_map" },
+  { id: "zoom-out", label: "줌아웃", icon: "zoom_out_map" },
+  { id: "move-right", label: "오른쪽으로", icon: "arrow_forward" },
+  { id: "move-down", label: "아래로", icon: "arrow_downward" },
+  { id: "diag-left", label: "좌측 대각선", icon: "north_west" },
+  { id: "diag-right", label: "우측 대각선", icon: "north_east" },
+  { id: "diag-zoom-in", label: "대각선 줌인", icon: "south_east" },
+  { id: "diag-zoom-out", label: "대각선 줌아웃", icon: "north_west" },
+  { id: "circle", label: "원형 이동", icon: "autorenew" },
+] as const;
+
+const OPENING_IMAGE_MOTION_PRESET_IDS = new Set<string>(OPENING_IMAGE_MOTION_PRESET_OPTIONS.map((option) => option.id));
+const MIN_OPENING_TEXT_OFFSET = -140;
+const MAX_OPENING_TEXT_OFFSET = 140;
+const OPENING_PREVIEW_SOFT_FADE_DURATION_MS = 3300;
+const OPENING_PREVIEW_TYPEWRITER_STEP_MS = 92;
+const OPENING_PREVIEW_CLOSE_DELAY_MS = 900;
+const OPENING_PREVIEW_CLOSE_DURATION_MS = 680;
+
 type HeroEffectOptions = {
   particleCount: number;
   speed: number;
@@ -423,6 +453,235 @@ const HERO_EFFECT_DEFAULTS: HeroEffectOptions = {
 function clampHeroEffectValue(value: number, min: number, max: number): number {
   if (!Number.isFinite(value)) return min;
   return Math.min(max, Math.max(min, value));
+}
+
+function normalizeOpeningImageMotionPreset(value?: string | null): string {
+  if (!value) return "none";
+  return OPENING_IMAGE_MOTION_PRESET_IDS.has(value) ? value : "none";
+}
+
+function clampOpeningTextOffset(value: number | null | undefined): number {
+  if (!Number.isFinite(value)) return 0;
+  return Math.round(clampHeroEffectValue(Number(value), MIN_OPENING_TEXT_OFFSET, MAX_OPENING_TEXT_OFFSET));
+}
+
+type OpeningAnimationPreviewProps = {
+  openingImageUrl: string;
+  openingImageMotionPreset: string;
+  openingAnimationType: string;
+  openingTitle: string;
+  openingMessage: string;
+  openingFontFamily: string;
+  openingFontColor: string;
+  openingTitleFontSize: number;
+  openingMessageFontSize: number;
+  openingTextOffsetX: number;
+  openingTextOffsetY: number;
+};
+
+function OpeningAnimationPreview({
+  openingImageUrl,
+  openingImageMotionPreset,
+  openingAnimationType,
+  openingTitle,
+  openingMessage,
+  openingFontFamily,
+  openingFontColor,
+  openingTitleFontSize,
+  openingMessageFontSize,
+  openingTextOffsetX,
+  openingTextOffsetY,
+}: OpeningAnimationPreviewProps) {
+  const hasOpeningImage = Boolean(sanitizeAssetUrl(openingImageUrl));
+  const [previewRunKey, setPreviewRunKey] = useState(0);
+  const [isPreviewPlaying, setIsPreviewPlaying] = useState(false);
+  const [isPreviewClosing, setIsPreviewClosing] = useState(false);
+  const [typedTitle, setTypedTitle] = useState("");
+  const [typedMessage, setTypedMessage] = useState("");
+
+  const normalizedMotionPreset = useMemo(
+    () => normalizeOpeningImageMotionPreset(openingImageMotionPreset),
+    [openingImageMotionPreset],
+  );
+  const normalizedAnimationType = openingAnimationType === "soft-fade" ? "soft-fade" : "typewriter";
+  const previewTitleText = openingTitle.trim() || "신랑 신부";
+  const previewMessageText = openingMessage.trim() || "우리 결혼합니다.";
+
+  const previewTitleSize = useMemo(
+    () => Math.round(clampHeroEffectValue(Number(openingTitleFontSize) * 0.48, 14, 26)),
+    [openingTitleFontSize],
+  );
+  const previewMessageSize = useMemo(
+    () => Math.round(clampHeroEffectValue(Number(openingMessageFontSize) * 0.48, 10, 18)),
+    [openingMessageFontSize],
+  );
+
+  const previewImageStyle = useMemo<CSSProperties>(
+    () => ({
+      backgroundImage: `url("${resolveAssetUrl(openingImageUrl)}")`,
+      backgroundPosition: "center",
+      backgroundRepeat: "no-repeat",
+      backgroundSize: "cover",
+    }),
+    [openingImageUrl],
+  );
+
+  const previewContentOffsetStyle = useMemo<CSSProperties>(
+    () => ({
+      transform: `translate3d(${clampOpeningTextOffset(openingTextOffsetX)}px, ${clampOpeningTextOffset(openingTextOffsetY)}px, 0)`,
+    }),
+    [openingTextOffsetX, openingTextOffsetY],
+  );
+
+  const triggerPreviewPlayback = useCallback(() => {
+    if (!hasOpeningImage) return;
+    setPreviewRunKey((prev) => prev + 1);
+  }, [hasOpeningImage]);
+
+  useEffect(() => {
+    if (!hasOpeningImage || previewRunKey === 0) return;
+
+    let cancelled = false;
+    const timers: number[] = [];
+    const queue = (handler: () => void, delay: number) => {
+      const timerId = window.setTimeout(() => {
+        if (cancelled) return;
+        handler();
+      }, delay);
+      timers.push(timerId);
+    };
+
+    const startClosing = () => {
+      setIsPreviewClosing(true);
+      queue(() => {
+        setIsPreviewPlaying(false);
+        setIsPreviewClosing(false);
+      }, OPENING_PREVIEW_CLOSE_DURATION_MS);
+    };
+
+    queue(() => {
+      setIsPreviewPlaying(true);
+      setIsPreviewClosing(false);
+
+      if (normalizedAnimationType === "typewriter") {
+        setTypedTitle("");
+        setTypedMessage("");
+
+        let titleIndex = 0;
+        let messageIndex = 0;
+        const titleText = previewTitleText;
+        const messageText = previewMessageText;
+
+        const typeMessage = () => {
+          if (!messageText) {
+            queue(startClosing, OPENING_PREVIEW_CLOSE_DELAY_MS);
+            return;
+          }
+          messageIndex += 1;
+          setTypedMessage(messageText.slice(0, messageIndex));
+          if (messageIndex < messageText.length) {
+            queue(typeMessage, OPENING_PREVIEW_TYPEWRITER_STEP_MS - 8);
+            return;
+          }
+          queue(startClosing, OPENING_PREVIEW_CLOSE_DELAY_MS);
+        };
+
+        const typeTitle = () => {
+          if (!titleText) {
+            queue(typeMessage, 180);
+            return;
+          }
+          titleIndex += 1;
+          setTypedTitle(titleText.slice(0, titleIndex));
+          if (titleIndex < titleText.length) {
+            queue(typeTitle, OPENING_PREVIEW_TYPEWRITER_STEP_MS);
+            return;
+          }
+          queue(typeMessage, 180);
+        };
+
+        queue(typeTitle, 260);
+        return;
+      }
+
+      setTypedTitle(previewTitleText);
+      setTypedMessage(previewMessageText);
+      queue(startClosing, OPENING_PREVIEW_SOFT_FADE_DURATION_MS);
+    }, 0);
+
+    return () => {
+      cancelled = true;
+      timers.forEach((timer) => window.clearTimeout(timer));
+    };
+  }, [hasOpeningImage, normalizedAnimationType, previewMessageText, previewRunKey, previewTitleText]);
+
+  return (
+    <div className="space-y-2 pt-1">
+      <span className="text-xs font-bold text-theme-secondary">오프닝 애니메이션 미리보기 (클릭 재생)</span>
+      <button
+        type="button"
+        onClick={triggerPreviewPlayback}
+        disabled={!hasOpeningImage}
+        className={`relative mx-auto aspect-[3/4] w-full max-w-[220px] overflow-hidden rounded-xl border border-warm bg-black/70 ${
+          hasOpeningImage ? "cursor-pointer transition-transform hover:-translate-y-0.5" : "cursor-not-allowed opacity-70"
+        }`}
+      >
+        {hasOpeningImage ? (
+          <img
+            className="absolute inset-0 h-full w-full object-cover opacity-75"
+            src={resolveAssetUrl(openingImageUrl)}
+            alt="오프닝 애니메이션 미리보기 배경"
+          />
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center bg-[#f3f4f6]">
+            <span className="px-4 text-center text-[11px] font-semibold text-theme-secondary">오프닝 배경 사진 업로드 후 미리보기를 재생할 수 있습니다.</span>
+          </div>
+        )}
+
+        {hasOpeningImage && isPreviewPlaying ? (
+          <div className={`invite-opening-layer ${isPreviewClosing ? "is-closing" : ""}`} style={{ padding: "18px" }}>
+            <div
+              key={`${previewRunKey}-${normalizedMotionPreset}`}
+              className={`invite-opening-image-layer is-${normalizedMotionPreset}`}
+              style={previewImageStyle}
+            />
+            <div className="invite-opening-image-overlay" />
+            <div className="invite-opening-content-shell" style={previewContentOffsetStyle}>
+              <div
+                className={`invite-opening-content ${normalizedAnimationType === "typewriter" ? "is-typewriter" : "is-soft-fade"}`}
+                style={{ color: openingFontColor, fontFamily: openingFontFamily }}
+              >
+                <p
+                  className={`invite-opening-title whitespace-pre-line ${
+                    normalizedAnimationType === "typewriter" ? "invite-opening-caret" : ""
+                  }`}
+                  style={{ fontSize: `${previewTitleSize}px` }}
+                >
+                  {normalizedAnimationType === "typewriter" ? typedTitle : previewTitleText}
+                </p>
+                <p
+                  className={`invite-opening-message whitespace-pre-line ${
+                    normalizedAnimationType === "typewriter" ? "invite-opening-caret-delay" : ""
+                  }`}
+                  style={{ fontSize: `${previewMessageSize}px`, marginTop: "10px" }}
+                >
+                  {normalizedAnimationType === "typewriter" ? typedMessage : previewMessageText}
+                </p>
+              </div>
+            </div>
+          </div>
+        ) : hasOpeningImage ? (
+          <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/35 text-white">
+            <div className="flex flex-col items-center gap-1">
+              <span className="material-symbols-outlined text-[30px] leading-none">play_circle</span>
+              <span className="text-[11px] font-bold">클릭하여 재생</span>
+            </div>
+          </div>
+        ) : null}
+      </button>
+      <p className="text-[11px] text-theme-secondary">선택한 프리셋과 문구 위치/폰트 스타일을 미리 재생해 확인할 수 있습니다.</p>
+    </div>
+  );
 }
 
 function normalizeHeroEffectOptions(options?: Partial<HeroEffectOptions>): HeroEffectOptions {
@@ -501,7 +760,11 @@ const THEME_PATTERN_OPTIONS = [
   { id: "petal", name: "꽃잎 무늬" },
   { id: "paper", name: "체크패턴" },
   { id: "hanji-texture", name: "한지패턴" },
+  { id: "photo-texture-1", name: "이미지 #1 텍스처" },
+  { id: "photo-texture-2", name: "이미지 #2 텍스처" },
 ];
+
+const IMAGE_THEME_PATTERN_IDS = new Set(["photo-texture-1", "photo-texture-2"]);
 
 const THEME_EFFECT_OPTIONS = [
   { id: "none", name: "없음" },
@@ -823,8 +1086,11 @@ function buildFormStateFromInvitation(data: EditorInvitation): FormState {
       defaultFormState.openingBackgroundColor,
     ),
     openingImageUrl: sanitizeAssetUrl(typedData.openingImageUrl ?? defaultFormState.openingImageUrl),
+    openingImageMotionPreset: normalizeOpeningImageMotionPreset(typedData.openingImageMotionPreset),
     openingTitle: (typedData.openingTitle ?? "").trim() || buildDefaultOpeningTitle(data.groomName, data.brideName),
     openingMessage: typedData.openingMessage ?? defaultFormState.openingMessage,
+    openingTextOffsetX: clampOpeningTextOffset(typedData.openingTextOffsetX),
+    openingTextOffsetY: clampOpeningTextOffset(typedData.openingTextOffsetY),
     openingFontFamily: normalizeFontFamilyValue(typedData.openingFontFamily, defaultFormState.openingFontFamily),
     openingFontColor: sanitizeColorValue(
       typedData.openingFontColor ?? defaultFormState.openingFontColor,
@@ -884,8 +1150,11 @@ function createUnsavedInvitation(): EditorInvitation {
     openingBackgroundType: defaultFormState.openingBackgroundType,
     openingBackgroundColor: defaultFormState.openingBackgroundColor,
     openingImageUrl: defaultFormState.openingImageUrl,
+    openingImageMotionPreset: defaultFormState.openingImageMotionPreset,
     openingTitle: defaultFormState.openingTitle,
     openingMessage: defaultFormState.openingMessage,
+    openingTextOffsetX: defaultFormState.openingTextOffsetX,
+    openingTextOffsetY: defaultFormState.openingTextOffsetY,
     openingFontFamily: defaultFormState.openingFontFamily,
     openingFontColor: defaultFormState.openingFontColor,
     openingTitleFontSize: defaultFormState.openingTitleFontSize,
@@ -951,6 +1220,10 @@ export default function EditorPage() {
     [openSections],
   );
   const activeStepIndex = useMemo(() => EDITOR_SECTION_ORDER.indexOf(activeSection), [activeSection]);
+  const isImageThemePatternSelected = useMemo(
+    () => IMAGE_THEME_PATTERN_IDS.has(form.themePattern),
+    [form.themePattern],
+  );
   const editorMainStyle = useMemo<CSSProperties>(
     () =>
       ({
@@ -1768,8 +2041,11 @@ export default function EditorPage() {
       openingBackgroundType: form.openingBackgroundType,
       openingBackgroundColor: sanitizeColorValue(form.openingBackgroundColor, defaultFormState.openingBackgroundColor),
       openingImageUrl: sanitizeAssetUrl(form.openingImageUrl),
+      openingImageMotionPreset: normalizeOpeningImageMotionPreset(form.openingImageMotionPreset),
       openingTitle: form.openingTitle.trim() || buildDefaultOpeningTitle(form.groomName, form.brideName),
       openingMessage: form.openingMessage.trim() || defaultFormState.openingMessage,
+      openingTextOffsetX: clampOpeningTextOffset(form.openingTextOffsetX),
+      openingTextOffsetY: clampOpeningTextOffset(form.openingTextOffsetY),
       openingFontFamily: form.openingFontFamily,
       openingFontColor: sanitizeColorValue(form.openingFontColor, defaultFormState.openingFontColor),
       openingTitleFontSize: Math.round(
@@ -2402,8 +2678,11 @@ export default function EditorPage() {
                 openingBackgroundType: form.openingBackgroundType,
                 openingBackgroundColor: sanitizeColorValue(form.openingBackgroundColor, defaultFormState.openingBackgroundColor),
                 openingImageUrl: sanitizeAssetUrl(form.openingImageUrl),
+                openingImageMotionPreset: normalizeOpeningImageMotionPreset(form.openingImageMotionPreset),
                 openingTitle: form.openingTitle.trim() || buildDefaultOpeningTitle(form.groomName, form.brideName),
                 openingMessage: form.openingMessage.trim() || defaultFormState.openingMessage,
+                openingTextOffsetX: clampOpeningTextOffset(form.openingTextOffsetX),
+                openingTextOffsetY: clampOpeningTextOffset(form.openingTextOffsetY),
                 openingFontFamily: form.openingFontFamily,
                 openingFontColor: sanitizeColorValue(form.openingFontColor, defaultFormState.openingFontColor),
                 openingTitleFontSize: Math.round(
@@ -2579,15 +2858,17 @@ export default function EditorPage() {
                         <span className="text-xs font-bold text-theme-secondary">배경 색상</span>
                         <div className="flex gap-3">
                           <input
-                            className="h-10 w-14 cursor-pointer rounded border border-warm overflow-hidden"
+                            className="h-10 w-14 cursor-pointer rounded border border-warm overflow-hidden disabled:cursor-not-allowed disabled:opacity-50"
                             type="color"
                             value={form.themeBackgroundColor}
                             onChange={(e) => updateField("themeBackgroundColor", e.target.value)}
+                            disabled={isImageThemePatternSelected}
                           />
                           <input
-                            className="input-premium flex-1"
+                            className="input-premium flex-1 disabled:cursor-not-allowed disabled:opacity-60"
                             value={form.themeBackgroundColor}
                             onChange={(e) => updateField("themeBackgroundColor", e.target.value)}
+                            disabled={isImageThemePatternSelected}
                           />
                         </div>
                       </label>
@@ -2627,19 +2908,26 @@ export default function EditorPage() {
                         <span className="text-xs font-bold text-theme-secondary">패턴 색상</span>
                         <div className="flex gap-3">
                           <input
-                            className="h-10 w-14 cursor-pointer rounded border border-warm overflow-hidden"
+                            className="h-10 w-14 cursor-pointer rounded border border-warm overflow-hidden disabled:cursor-not-allowed disabled:opacity-50"
                             type="color"
                             value={form.themePatternColor}
                             onChange={(e) => updateField("themePatternColor", e.target.value)}
+                            disabled={isImageThemePatternSelected}
                           />
                           <input
-                            className="input-premium flex-1"
+                            className="input-premium flex-1 disabled:cursor-not-allowed disabled:opacity-60"
                             value={form.themePatternColor}
                             onChange={(e) => updateField("themePatternColor", e.target.value)}
+                            disabled={isImageThemePatternSelected}
                           />
                         </div>
                       </label>
                     </div>
+                    {isImageThemePatternSelected ? (
+                      <p className="text-[11px] text-theme-secondary">
+                        이미지 패턴 사용 중에는 배경 색상과 패턴 색상이 적용되지 않습니다.
+                      </p>
+                    ) : null}
                   </div>
 
                   <div className="rounded-2xl border border-warm bg-[#fdfcfb] p-6 space-y-5">
@@ -3036,7 +3324,7 @@ export default function EditorPage() {
                     {form.openingEnabled ? (
                       <div className="space-y-4">
                         <label className="space-y-2 block">
-                          <span className="text-xs font-bold text-theme-secondary">오프닝 형태</span>
+                          <span className="text-xs font-bold text-theme-secondary">오프닝 문구 애니메이션</span>
                           <select
                             className="input-premium text-xs"
                             value={form.openingAnimationType}
@@ -3231,8 +3519,80 @@ export default function EditorPage() {
                                 오프닝 사진 제거
                               </button>
                             ) : null}
+
+                            <OpeningAnimationPreview
+                              openingImageUrl={form.openingImageUrl}
+                              openingImageMotionPreset={form.openingImageMotionPreset}
+                              openingAnimationType={form.openingAnimationType}
+                              openingTitle={form.openingTitle.trim() || buildDefaultOpeningTitle(form.groomName, form.brideName)}
+                              openingMessage={form.openingMessage.trim() || defaultFormState.openingMessage}
+                              openingFontFamily={form.openingFontFamily}
+                              openingFontColor={sanitizeColorValue(form.openingFontColor, defaultFormState.openingFontColor)}
+                              openingTitleFontSize={Math.round(
+                                clampHeroEffectValue(form.openingTitleFontSize, MIN_OPENING_TITLE_FONT_SIZE, MAX_OPENING_TITLE_FONT_SIZE),
+                              )}
+                              openingMessageFontSize={Math.round(
+                                clampHeroEffectValue(form.openingMessageFontSize, MIN_OPENING_MESSAGE_FONT_SIZE, MAX_OPENING_MESSAGE_FONT_SIZE),
+                              )}
+                              openingTextOffsetX={clampOpeningTextOffset(form.openingTextOffsetX)}
+                              openingTextOffsetY={clampOpeningTextOffset(form.openingTextOffsetY)}
+                            />
+
+                            <div className="space-y-2 pt-1">
+                              <span className="text-xs font-bold text-theme-secondary">Single 애니메이션 프리셋</span>
+                              <div className="overflow-x-auto pb-1">
+                                <div className="flex min-w-max gap-2">
+                                  {OPENING_IMAGE_MOTION_PRESET_OPTIONS.map((preset) => {
+                                    const isActive = form.openingImageMotionPreset === preset.id;
+                                    return (
+                                      <button
+                                        key={`opening-motion-${preset.id}`}
+                                        type="button"
+                                        onClick={() => updateField("openingImageMotionPreset", preset.id)}
+                                        className={`flex h-[92px] w-[92px] flex-col items-center justify-center gap-1 rounded-2xl border px-2 transition-colors ${
+                                          isActive
+                                            ? "border-theme-brand bg-theme text-theme-brand shadow-sm"
+                                            : "border-warm bg-white text-theme-secondary hover:bg-theme/20"
+                                        }`}
+                                      >
+                                        <span className="material-symbols-outlined text-[28px] leading-none">{preset.icon}</span>
+                                        <span className="text-[11px] font-semibold leading-tight">{preset.label}</span>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            </div>
                           </div>
                         )}
+
+                        <div className="rounded-2xl border border-warm bg-white p-4 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-theme-secondary">문구 가로 위치 세부 조정</span>
+                            <span className="text-xs font-semibold text-theme-secondary">{form.openingTextOffsetX}px</span>
+                          </div>
+                          <input
+                            type="range"
+                            min={MIN_OPENING_TEXT_OFFSET}
+                            max={MAX_OPENING_TEXT_OFFSET}
+                            value={form.openingTextOffsetX}
+                            onChange={(e) => updateField("openingTextOffsetX", clampOpeningTextOffset(Number(e.target.value)))}
+                            className="w-full accent-[var(--theme-brand)]"
+                          />
+
+                          <div className="flex items-center justify-between pt-1">
+                            <span className="text-xs font-bold text-theme-secondary">문구 세로 위치 세부 조정</span>
+                            <span className="text-xs font-semibold text-theme-secondary">{form.openingTextOffsetY}px</span>
+                          </div>
+                          <input
+                            type="range"
+                            min={MIN_OPENING_TEXT_OFFSET}
+                            max={MAX_OPENING_TEXT_OFFSET}
+                            value={form.openingTextOffsetY}
+                            onChange={(e) => updateField("openingTextOffsetY", clampOpeningTextOffset(Number(e.target.value)))}
+                            className="w-full accent-[var(--theme-brand)]"
+                          />
+                        </div>
                       </div>
                     ) : (
                       <p className="text-[11px] text-theme-secondary">사용 시 초대장 본문 이전에 오프닝 레이어가 자동 재생됩니다.</p>

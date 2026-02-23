@@ -99,8 +99,11 @@ export type InvitationMobileViewData = {
   openingBackgroundType?: string;
   openingBackgroundColor?: string;
   openingImageUrl?: string;
+  openingImageMotionPreset?: string;
   openingTitle?: string;
   openingMessage?: string;
+  openingTextOffsetX?: number;
+  openingTextOffsetY?: number;
   openingFontFamily?: string;
   openingFontColor?: string;
   openingTitleFontSize?: number;
@@ -131,6 +134,18 @@ const OPENING_MESSAGE_SIZE_DEFAULT = 19;
 const OPENING_TYPEWRITER_STEP_MS = 92;
 const OPENING_CLOSE_DELAY_MS = 900;
 const OPENING_CLOSE_DURATION_MS = 680;
+const OPENING_IMAGE_MOTION_PRESET_IDS = new Set([
+  "none",
+  "zoom-in",
+  "zoom-out",
+  "move-right",
+  "move-down",
+  "diag-left",
+  "diag-right",
+  "diag-zoom-in",
+  "diag-zoom-out",
+  "circle",
+]);
 
 const HERO_EFFECT_DEFAULTS: HeroEffectOptions = {
   particleCount: 30,
@@ -215,6 +230,11 @@ function sanitizeAssetUrl(value?: string | null): string {
 function sanitizeAssetUrlList(values?: string[] | null): string[] {
   if (!Array.isArray(values)) return [];
   return values.map((value) => sanitizeAssetUrl(value)).filter(Boolean);
+}
+
+function normalizeOpeningImageMotionPreset(value?: string | null): string {
+  if (!value) return "none";
+  return OPENING_IMAGE_MOTION_PRESET_IDS.has(value) ? value : "none";
 }
 
 function pickReadableTextColor(backgroundHex: string): string {
@@ -452,6 +472,10 @@ export default function InvitationMobileView({
     () => resolveAssetUrl(sanitizeAssetUrl(invitation.openingImageUrl), apiBaseUrl),
     [invitation.openingImageUrl, apiBaseUrl],
   );
+  const openingImageMotionPreset = useMemo(
+    () => normalizeOpeningImageMotionPreset(invitation.openingImageMotionPreset),
+    [invitation.openingImageMotionPreset],
+  );
   const openingMessageText = useMemo(() => {
     const normalized = invitation.openingMessage?.trim() ?? "";
     return normalized || OPENING_MESSAGE_DEFAULT;
@@ -495,13 +519,27 @@ export default function InvitationMobileView({
       ),
     [invitation.openingMessageFontSize],
   );
+  const openingTextOffsetX = useMemo(
+    () => Math.round(clampHeroEffectValue(Number(invitation.openingTextOffsetX ?? 0), -140, 140)),
+    [invitation.openingTextOffsetX],
+  );
+  const openingTextOffsetY = useMemo(
+    () => Math.round(clampHeroEffectValue(Number(invitation.openingTextOffsetY ?? 0), -140, 140)),
+    [invitation.openingTextOffsetY],
+  );
+  const openingImageStyle = useMemo<CSSProperties>(() => {
+    if (openingBackgroundType !== "image" || !openingImageUrl) return {};
+    return {
+      backgroundImage: `url(${openingImageUrl})`,
+      backgroundPosition: "center",
+      backgroundRepeat: "no-repeat",
+      backgroundSize: "cover",
+    };
+  }, [openingBackgroundType, openingImageUrl]);
   const openingBackgroundStyle = useMemo<CSSProperties>(() => {
     if (openingBackgroundType === "image" && openingImageUrl) {
       return {
-        backgroundImage: `linear-gradient(180deg, rgba(0, 0, 0, 0.28) 0%, rgba(0, 0, 0, 0.54) 100%), url(${openingImageUrl})`,
-        backgroundPosition: "center",
-        backgroundRepeat: "no-repeat",
-        backgroundSize: "cover",
+        backgroundColor: "#101317",
       };
     }
 
@@ -509,6 +547,12 @@ export default function InvitationMobileView({
       background: `linear-gradient(165deg, ${toRgba(openingBackgroundColor, 0.95)} 0%, ${toRgba(openingBackgroundColor, 0.82)} 100%)`,
     };
   }, [openingBackgroundType, openingImageUrl, openingBackgroundColor]);
+  const openingContentOffsetStyle = useMemo<CSSProperties>(
+    () => ({
+      transform: `translate3d(${openingTextOffsetX}px, ${openingTextOffsetY}px, 0)`,
+    }),
+    [openingTextOffsetX, openingTextOffsetY],
+  );
   const openingLayerPositionStyle = useMemo<CSSProperties>(() => {
     if (embedded) {
       return {
@@ -1019,22 +1063,30 @@ export default function InvitationMobileView({
 
     return (
       <div className={`invite-opening-layer ${isOpeningClosing ? "is-closing" : ""}`} style={{ ...openingBackgroundStyle, ...openingLayerPositionStyle }}>
-        <div
-          className={`invite-opening-content ${openingAnimationType === "typewriter" ? "is-typewriter" : "is-soft-fade"}`}
-          style={{ color: openingFontColor, fontFamily: openingFontFamily }}
-        >
-          <p
-            className={`invite-opening-title whitespace-pre-line ${openingAnimationType === "typewriter" ? "invite-opening-caret" : ""}`}
-            style={{ fontSize: `${openingTitleFontSize}px` }}
+        {openingBackgroundType === "image" && openingImageUrl ? (
+          <>
+            <div className={`invite-opening-image-layer is-${openingImageMotionPreset}`} style={openingImageStyle} />
+            <div className="invite-opening-image-overlay" />
+          </>
+        ) : null}
+        <div className="invite-opening-content-shell" style={openingContentOffsetStyle}>
+          <div
+            className={`invite-opening-content ${openingAnimationType === "typewriter" ? "is-typewriter" : "is-soft-fade"}`}
+            style={{ color: openingFontColor, fontFamily: openingFontFamily }}
           >
-            {openingAnimationType === "typewriter" ? typedOpeningTitle : openingTitleText}
-          </p>
-          <p
-            className={`invite-opening-message whitespace-pre-line ${openingAnimationType === "typewriter" ? "invite-opening-caret-delay" : ""}`}
-            style={{ fontSize: `${openingMessageFontSize}px` }}
-          >
-            {openingAnimationType === "typewriter" ? typedOpeningMessage : openingMessageText}
-          </p>
+            <p
+              className={`invite-opening-title whitespace-pre-line ${openingAnimationType === "typewriter" ? "invite-opening-caret" : ""}`}
+              style={{ fontSize: `${openingTitleFontSize}px` }}
+            >
+              {openingAnimationType === "typewriter" ? typedOpeningTitle : openingTitleText}
+            </p>
+            <p
+              className={`invite-opening-message whitespace-pre-line ${openingAnimationType === "typewriter" ? "invite-opening-caret-delay" : ""}`}
+              style={{ fontSize: `${openingMessageFontSize}px` }}
+            >
+              {openingAnimationType === "typewriter" ? typedOpeningMessage : openingMessageText}
+            </p>
+          </div>
         </div>
       </div>
     );

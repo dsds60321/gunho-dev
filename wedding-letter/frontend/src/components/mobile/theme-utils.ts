@@ -88,6 +88,63 @@ export function buildThemePatternStyle(pattern: string, accentColor: string, pat
     };
   }
 
+  if (pattern === "photo-texture-1") {
+    const textureSvg =
+      `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 220 220'>` +
+      `<filter id='grain'><feTurbulence type='fractalNoise' baseFrequency='0.88' numOctaves='3' seed='17' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0.12'/><feComponentTransfer><feFuncA type='table' tableValues='0 0.32'/></feComponentTransfer></filter>` +
+      `<rect width='220' height='220' fill='#f5f0e7'/>` +
+      `<rect width='220' height='220' filter='url(#grain)' fill='#e1d6c3'/>` +
+      `</svg>`;
+
+    return {
+      backgroundImage:
+        `url("data:image/svg+xml,${encodeURIComponent(textureSvg)}"),` +
+        "linear-gradient(180deg, rgba(255,255,255,0.24) 0%, rgba(242,233,220,0.32) 100%)",
+      backgroundSize: "220px 220px, 100% 100%",
+      backgroundPosition: "0 0, 0 0",
+      backgroundRepeat: "repeat",
+    };
+  }
+
+  if (pattern === "photo-texture-2") {
+    const textureSvg =
+      `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 240 240'>` +
+      `<filter id='weaveNoise'><feTurbulence type='fractalNoise' baseFrequency='0.62' numOctaves='2' seed='41' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0.08'/><feComponentTransfer><feFuncA type='table' tableValues='0 0.2'/></feComponentTransfer></filter>` +
+      `<rect width='240' height='240' fill='#f4f4f1'/>` +
+      `<g stroke='#e8e7e1' stroke-width='0.8' opacity='0.42'><path d='M0 24 L240 0'/><path d='M0 72 L240 48'/><path d='M0 120 L240 96'/><path d='M0 168 L240 144'/><path d='M0 216 L240 192'/><path d='M0 264 L240 240'/></g>` +
+      `<rect width='240' height='240' filter='url(#weaveNoise)' fill='#d8d8d1'/>` +
+      `</svg>`;
+
+    return {
+      backgroundImage:
+        `url("data:image/svg+xml,${encodeURIComponent(textureSvg)}"),` +
+        "linear-gradient(180deg, rgba(255,255,255,0.42) 0%, rgba(241,241,236,0.22) 100%)",
+      backgroundSize: "240px 240px, 100% 100%",
+      backgroundPosition: "0 0, 0 0",
+      backgroundRepeat: "repeat",
+    };
+  }
+
+  if (pattern === "photo-texture-3") {
+    const textureSvg =
+      `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'>` +
+      `<filter id='paper'><feTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='2' seed='53' stitchTiles='stitch'/><feDisplacementMap in='SourceGraphic' scale='1.4'/></filter>` +
+      `<linearGradient id='g' x1='0' y1='0' x2='0.9' y2='1'><stop offset='0' stop-color='#f5f5f5'/><stop offset='1' stop-color='#ececec'/></linearGradient>` +
+      `<rect width='200' height='200' fill='url(#g)'/>` +
+      `<g opacity='0.26'><path d='M0 42 C30 31 59 51 90 41 C120 31 150 51 200 37' stroke='#d8d8d8' stroke-width='1' fill='none'/><path d='M0 96 C34 81 62 105 96 92 C130 80 158 104 200 88' stroke='#d4d4d4' stroke-width='1' fill='none'/><path d='M0 154 C34 140 66 164 104 148 C136 134 165 156 200 142' stroke='#d7d7d7' stroke-width='1' fill='none'/></g>` +
+      `<rect width='200' height='200' filter='url(#paper)' fill='#d8d8d8' opacity='0.12'/>` +
+      `</svg>`;
+
+    return {
+      backgroundImage:
+        `url("data:image/svg+xml,${encodeURIComponent(textureSvg)}"),` +
+        "linear-gradient(180deg, rgba(255,255,255,0.5) 0%, rgba(236,236,236,0.2) 100%)",
+      backgroundSize: "200px 200px, 100% 100%",
+      backgroundPosition: "0 0, 0 0",
+      backgroundRepeat: "repeat",
+    };
+  }
+
   if (pattern === "hanji-texture") {
     const red = Number.parseInt(patternTone.slice(1, 3), 16);
     const green = Number.parseInt(patternTone.slice(3, 5), 16);

@@ -89,7 +89,7 @@ export default function LandingTopHeader() {
                 width={220}
                 height={80}
                 priority
-                className="h-14 w-auto sm:h-16 md:h-20"
+                className="h-10 w-auto"
               />
             </Link>
             <nav className="hidden items-center gap-10 text-[14px] font-medium text-theme-secondary lg:flex">

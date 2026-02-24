@@ -5,6 +5,7 @@ import com.gh.wedding.domain.UserAccount
 import com.gh.wedding.domain.UserRole
 import com.gh.wedding.repository.UserAccountRepository
 import com.gh.wedding.service.AdminAuthorizationService
+import com.gh.wedding.service.mail.MailNotificationService
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 import org.springframework.security.core.Authentication
@@ -21,6 +22,7 @@ class OAuth2LoginSuccessHandler(
     private val accessTokenCookieService: AccessTokenCookieService,
     private val userAccountRepository: UserAccountRepository,
     private val adminAuthorizationService: AdminAuthorizationService,
+    private val mailNotificationService: MailNotificationService,
 ) : AuthenticationSuccessHandler {
 
     override fun onAuthenticationSuccess(
@@ -32,7 +34,16 @@ class OAuth2LoginSuccessHandler(
         val provider = oauthToken.authorizedClientRegistrationId
         val oauthUser = oauthToken.principal
         val user = extractUser(provider, oauthUser)
-        upsertUserAccount(user)
+        val upsertResult = upsertUserAccount(user)
+        if (upsertResult.isNewUser) {
+            mailNotificationService.sendNewSignupAlert(
+                userId = user.userId,
+                provider = user.provider,
+                email = user.email,
+                name = user.name,
+                createdAt = upsertResult.createdAt,
+            )
+        }
         val accessToken = jwtTokenProvider.createAccessToken(user)
 
         accessTokenCookieService.addAccessTokenCookie(
@@ -83,14 +94,14 @@ class OAuth2LoginSuccessHandler(
         }
     }
 
-    private fun upsertUserAccount(user: AuthUser) {
+    private fun upsertUserAccount(user: AuthUser): UserAccountUpsertResult {
         val shouldBeAdmin = adminAuthorizationService.isAdmin(user.userId)
-        val account = userAccountRepository.findById(user.userId).orElse(
-            UserAccount(
-                id = user.userId,
-                role = if (shouldBeAdmin) UserRole.ADMIN else UserRole.USER,
-                isActive = true,
-            ),
+        val existingAccount = userAccountRepository.findById(user.userId).orElse(null)
+        val isNewUser = existingAccount == null
+        val account = existingAccount ?: UserAccount(
+            id = user.userId,
+            role = if (shouldBeAdmin) UserRole.ADMIN else UserRole.USER,
+            isActive = true,
         )
 
         account.name = user.name
@@ -101,8 +112,17 @@ class OAuth2LoginSuccessHandler(
         }
         account.isActive = true
 
-        userAccountRepository.save(account)
+        val saved = userAccountRepository.save(account)
+        return UserAccountUpsertResult(
+            isNewUser = isNewUser,
+            createdAt = saved.createdAt,
+        )
     }
+
+    private data class UserAccountUpsertResult(
+        val isNewUser: Boolean,
+        val createdAt: java.time.LocalDateTime?,
+    )
 }
 
 @Component

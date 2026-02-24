@@ -59,6 +59,16 @@ data class UploadPolicyProperties(
     ),
 )
 
+@ConfigurationProperties(prefix = "app.mail")
+data class MailNotificationProperties(
+    var enabled: Boolean = true,
+    var errorTo: String = "gunho3987@gmail.com",
+    var from: String = "",
+    var signupSubject: String = "[vowory] 신규 회원가입 알림",
+    var errorSubject: String = "[vowory] API 오류 알림",
+    var errorStackTraceLineLimit: Int = 12,
+)
+
 data class S3StorageProperties(
     var bucket: String = "",
     var region: String = "ap-northeast-2",

@@ -665,7 +665,7 @@ function MyPageContent() {
       <header className="border-b border-warm bg-white/95 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-[1320px] items-center justify-between px-4 md:px-6">
           <button className="inline-flex items-center" type="button" onClick={() => router.push("/")}>
-            <Image src="/logo.png" alt="WeddingLetter" width={220} height={80} priority className="h-12 w-auto sm:h-12 md:h-14" />
+            <Image src="/logo.png" alt="WeddingLetter" width={220} height={80} priority className="h-10 w-auto" />
           </button>
           <div className="flex items-center gap-3">
             <button

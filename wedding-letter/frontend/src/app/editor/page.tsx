@@ -2369,7 +2369,7 @@ export default function EditorPage() {
           <button className="group flex items-center gap-2 text-gray-400 transition-colors hover:text-gray-900" type="button" onClick={() => router.push("/")}>
             <span className="material-symbols-outlined text-[20px]">arrow_back</span>
             <span className="text-sm font-medium sm:hidden">에디터</span>
-            <span className="hidden text-sm font-medium sm:block">Wedding Letter 에디터</span>
+            <span className="hidden text-sm font-medium sm:block">바우리 에디터</span>
           </button>
           <div className="hidden h-4 w-px bg-[var(--theme-divider)] md:block" />
           <div className="hidden text-xs font-medium text-gray-400 md:block">초대장 ID: {invitation.id > 0 ? invitation.id : "미저장"}</div>

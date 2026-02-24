@@ -30,11 +30,11 @@ async function resolveInitialThemeFromConfig(): Promise<string> {
 export const metadata: Metadata = {
   metadataBase: new URL(siteOrigin),
   title: {
-    default: "Wedding Letter | 모바일 청첩장 제작",
-    template: "%s | Wedding Letter",
+    default: "바우리 | 모바일 청첩장 제작",
+    template: "%s | 바우리",
   },
   description: "무료 모바일청첩장, 결혼식 초대장, 웨딩 감사장을 쉽고 예쁘게 제작하고 공유하세요.",
-  applicationName: "Wedding Letter",
+  applicationName: "바우리",
   other: {
     "google-adsense-account": "ca-pub-8833422495639297",
   },
@@ -67,20 +67,20 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "ko_KR",
-    siteName: "Wedding Letter",
+    siteName: "바우리",
     url: siteOrigin,
-    title: "Wedding Letter | 모바일 청첩장 제작",
+    title: "바우리 | 모바일 청첩장 제작",
     description: "무료 모바일청첩장, 결혼식 초대장, 웨딩 감사장을 쉽고 예쁘게 제작하고 공유하세요.",
     images: [
       {
         url: joinSiteUrl("/favicon.ico"),
-        alt: "Wedding Letter",
+        alt: "바우리",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Wedding Letter | 모바일 청첩장 제작",
+    title: "바우리 | 모바일 청첩장 제작",
     description: "무료 모바일청첩장, 결혼식 초대장, 웨딩 감사장을 쉽고 예쁘게 제작하고 공유하세요.",
     images: [joinSiteUrl("/favicon.ico")],
   },
@@ -103,7 +103,7 @@ export default async function RootLayout({
   const websiteStructuredData = {
     "@context": "https://schema.org",
     "@type": "WebSite",
-    name: "Wedding Letter",
+    name: "바우리",
     url: siteOrigin,
     inLanguage: "ko-KR",
     potentialAction: {

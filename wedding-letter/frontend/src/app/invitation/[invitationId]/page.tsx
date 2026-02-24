@@ -343,7 +343,7 @@ function buildMetadata(invitation: InvitationData, invitationId: string): Metada
       url: canonical,
       type: "website",
       locale: "ko_KR",
-      siteName: "Wedding Letter",
+      siteName: "바우리",
       images: imageUrl
         ? [
             {

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import { fetchAuthMe, logout } from "@/lib/auth";
@@ -81,8 +82,15 @@ export default function LandingTopHeader() {
       <header className="sticky top-0 z-50 border-b border-warm bg-white">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 md:h-20 md:px-8">
           <div className="flex items-center gap-5 md:gap-14">
-            <Link className="serif-font text-xl font-semibold tracking-tight text-theme-brand sm:text-2xl" href="/">
-              Wedding Letter
+            <Link className="inline-flex items-center" href="/">
+              <Image
+                src="/logo.png"
+                alt="바우리"
+                width={220}
+                height={80}
+                priority
+                className="h-14 w-auto sm:h-16 md:h-20"
+              />
             </Link>
             <nav className="hidden items-center gap-10 text-[14px] font-medium text-theme-secondary lg:flex">
               <button className="transition-colors hover:text-[var(--theme-brand)]" type="button" onClick={goToEditorWithGuard}>

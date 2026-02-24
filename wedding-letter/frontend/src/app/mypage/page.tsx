@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { fetchAuthMe, logout } from "@/lib/auth";
 import { apiFetch, apiFetchRaw, getApiErrorMessage, isApiError } from "@/lib/api";
@@ -230,7 +231,7 @@ function VisitorTrendChart({ points }: { points: DashboardVisitPoint[] }) {
   );
 }
 
-export default function MyPage() {
+function MyPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -663,8 +664,8 @@ export default function MyPage() {
     <div className="mypage-modern min-h-screen bg-theme font-pretendard">
       <header className="border-b border-warm bg-white/95 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-[1320px] items-center justify-between px-4 md:px-6">
-          <button className="text-2xl font-semibold text-theme-brand" type="button" onClick={() => router.push("/")}>
-            WeddingLetter
+          <button className="inline-flex items-center" type="button" onClick={() => router.push("/")}>
+            <Image src="/logo.png" alt="WeddingLetter" width={220} height={80} priority className="h-12 w-auto sm:h-12 md:h-14" />
           </button>
           <div className="flex items-center gap-3">
             <button
@@ -773,7 +774,7 @@ export default function MyPage() {
 
             <div className="mt-6 border-t border-warm pt-6 text-sm text-theme-secondary">
               <button
-                className="block py-2 transition-colors hover:text-theme-brand"
+                className="w-full rounded-xl px-4 py-3 text-left font-medium transition-colors hover:bg-theme hover:text-theme-brand"
                 type="button"
                 onClick={async () => {
                   await logout();
@@ -1769,5 +1770,13 @@ export default function MyPage() {
         </div>
       ) : null}
     </div>
+  );
+}
+
+export default function MyPage() {
+  return (
+    <Suspense fallback={<div className="flex min-h-screen items-center justify-center text-sm text-theme-secondary">페이지 로딩 중...</div>}>
+      <MyPageContent />
+    </Suspense>
   );
 }

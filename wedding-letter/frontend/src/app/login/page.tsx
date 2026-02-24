@@ -33,7 +33,7 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-theme p-6">
       <div className="w-full max-w-[440px] space-y-12 text-center">
         <div className="space-y-4">
-          <h1 className="serif-font text-3xl font-semibold tracking-tight text-theme-brand">Wedding Letter</h1>
+          <h1 className="serif-font text-3xl font-semibold tracking-tight text-theme-brand">바우리</h1>
           <p className="text-sm leading-relaxed text-theme-secondary">
             가장 소중한 날의 시작,
             <br />

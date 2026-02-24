@@ -167,7 +167,7 @@ export default function LandingPage() {
                   제작은 더 빠르게.
                 </h1>
                 <p className="max-w-xl text-base leading-7 text-theme-secondary md:text-lg">
-                  기존 Wedding Letter 스타일은 유지하면서, 웨딩 브랜드 특유의 정돈된 정보 구조와 프리미엄 감성을 결합했습니다.
+                  기존 바우리 스타일은 유지하면서, 웨딩 브랜드 특유의 정돈된 정보 구조와 프리미엄 감성을 결합했습니다.
                   하객이 필요한 정보를 한 번에 찾고 바로 행동할 수 있는 랜딩 UX를 제공합니다.
                 </p>
               </div>
@@ -361,7 +361,7 @@ export default function LandingPage() {
         <footer className="border-t border-warm bg-[#fcf9f6] py-12">
           <div className="landing-shell grid gap-10 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
             <div>
-              <p className="serif-font text-3xl text-theme-brand">Wedding Letter</p>
+              <p className="serif-font text-3xl text-theme-brand">바우리</p>
               <p className="mt-4 max-w-md text-sm leading-6 text-theme-secondary">
                 화이트 베이스 위에 절제된 포인트 컬러를 더해, 세련된 웨딩 무드를 전달하는 모바일 청첩장 플랫폼.
               </p>
@@ -384,9 +384,9 @@ export default function LandingPage() {
               </div>
               <div className="space-y-2">
                 <p className="font-semibold text-theme-brand">사업자 정보</p>
-                <p>Wedding Letter Inc.</p>
+                <p>바우리 Inc.</p>
                 <p>support@wedding-letter.kr</p>
-                <p>© 2026 Wedding Letter. All rights reserved.</p>
+                <p>© 2026 바우리. All rights reserved.</p>
               </div>
             </div>
           </div>

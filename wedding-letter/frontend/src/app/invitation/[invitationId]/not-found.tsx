@@ -33,7 +33,7 @@ export default function InvitationNotFoundPage() {
         </div>
       </div>
 
-      <p className="mt-8 text-center text-xs text-theme-secondary opacity-70">© {new Date().getFullYear()} Wedding Letter. All rights reserved.</p>
+      <p className="mt-8 text-center text-xs text-theme-secondary opacity-70">© {new Date().getFullYear()} 바우리. All rights reserved.</p>
     </main>
   );
 }

@@ -196,7 +196,7 @@ function buildMetadata(thankyou: ThankyouMobileViewData, thankyouId: string): Me
       url: canonical,
       type: "website",
       locale: "ko_KR",
-      siteName: "Wedding Letter",
+      siteName: "바우리",
       images: imageUrl ? [{ url: imageUrl, alt: `${title} 대표 이미지` }] : undefined,
     },
     twitter: {
